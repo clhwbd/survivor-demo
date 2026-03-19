@@ -1,0 +1,53 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
+[ext_resource type="PackedScene" path="res://scenes/enemy_basic.tscn" id="3_enemy"]
+[ext_resource type="PackedScene" path="res://scenes/projectile.tscn" id="4_projectile"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_main")
+enemy_scene = ExtResource("3_enemy")
+projectile_scene = ExtResource("4_projectile")
+
+[node name="Player" parent="." instance=ExtResource("2_player")]
+position = Vector2(640, 360)
+
+[node name="Enemies" type="Node2D" parent="."]
+
+[node name="Projectiles" type="Node2D" parent="."]
+
+[node name="Pickups" type="Node2D" parent="."]
+
+[node name="SpawnTimer" type="Timer" parent="."]
+one_shot = false
+wait_time = 1.0
+
+[node name="AttackTimer" type="Timer" parent="."]
+one_shot = false
+wait_time = 0.55
+
+[node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="MarginContainer" type="MarginContainer" parent="HUD"]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 316.0
+offset_bottom = 140.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUD/MarginContainer"]
+
+[node name="LevelLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
+text = "Level 1"
+
+[node name="HealthLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
+text = "HP 5/5"
+
+[node name="EnemyLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
+text = "Enemies 0/16"
+
+[node name="XPBar" type="ProgressBar" parent="HUD/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(260, 20)
+value = 0.0
+max_value = 5.0
+show_percentage = false

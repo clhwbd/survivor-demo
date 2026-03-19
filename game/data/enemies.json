@@ -1,0 +1,23 @@
+{
+  "enemy_basic": {
+    "display_name": "Basic Enemy",
+    "visual": {
+      "shape": "circle",
+      "size": 28,
+      "color": "#D95763"
+    },
+    "collision_radius": 12,
+    "move_speed": 130.0,
+    "spawn": {
+      "interval": 1.0,
+      "count_per_wave": 1,
+      "max_alive": 16,
+      "radius_min": 420.0,
+      "radius_max": 560.0
+    },
+    "design_notes": {
+      "pressure_goal": "Force constant repositioning by 10-20 seconds without outrunning the player too aggressively.",
+      "v0_scope": "spawn_and_follow_only"
+    }
+  }
+}

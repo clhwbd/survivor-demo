@@ -1,0 +1,41 @@
+extends CharacterBody2D
+
+signal xp_changed(current_xp: int, xp_to_next: int, level: int)
+signal stats_changed(health: int, max_health: int, level: int)
+
+@export var speed: float = 240.0
+@export var max_health: int = 5
+
+var health: int
+var level: int = 1
+var xp: int = 0
+var xp_to_next: int = 5
+var invulnerable_until_msec: int = 0
+
+func _ready() -> void:
+    health = max_health
+    xp_changed.emit(xp, xp_to_next, level)
+    stats_changed.emit(health, max_health, level)
+
+func _physics_process(_delta: float) -> void:
+    var input_dir := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+    velocity = input_dir * speed
+    move_and_slide()
+
+func take_damage(amount: int) -> void:
+    var now := Time.get_ticks_msec()
+    if now < invulnerable_until_msec:
+        return
+
+    invulnerable_until_msec = now + 500
+    health = max(0, health - amount)
+    stats_changed.emit(health, max_health, level)
+
+func collect_xp(amount: int) -> void:
+    xp += amount
+    while xp >= xp_to_next:
+        xp -= xp_to_next
+        level += 1
+        xp_to_next = int(round(xp_to_next * 1.35)) + 1
+    xp_changed.emit(xp, xp_to_next, level)
+    stats_changed.emit(health, max_health, level)
