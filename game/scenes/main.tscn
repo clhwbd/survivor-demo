@@ -175,6 +175,21 @@ offset_bottom = -18.0
 grow_vertical = 0
 script = ExtResource("6_joystick")
 
+[node name="DashButton" type="Button" parent="HUD"]
+visible = false
+anchors_preset = 12
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -214.0
+offset_top = -206.0
+offset_right = -34.0
+offset_bottom = -106.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "闪避"
+
 [node name="MobileHint" type="Label" parent="HUD"]
 visible = false
 anchors_preset = 12
@@ -183,9 +198,9 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -236.0
-offset_top = -176.0
+offset_top = -292.0
 offset_right = -24.0
-offset_bottom = -110.0
+offset_bottom = -222.0
 grow_horizontal = 0
 grow_vertical = 0
 autowrap_mode = 3
