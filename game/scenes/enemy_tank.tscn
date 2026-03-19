@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_basic.gd" id="1_enemy"]
+
+[sub_resource type="CircleShape2D" id="1_collision"]
+radius = 16.0
+
+[node name="EnemyTank" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1_enemy")
+move_speed = 88.0
+contact_damage = 2
+max_health = 4
+xp_reward = 3
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("1_collision")
+
+[node name="Body" type="Polygon2D" parent="."]
+color = Color(0.588235, 0.368627, 0.945098, 1)
+polygon = PackedVector2Array(0, -18, 14, -12, 18, 0, 14, 12, 0, 18, -14, 12, -18, 0, -14, -12)

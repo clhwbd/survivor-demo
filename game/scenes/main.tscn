@@ -1,15 +1,18 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
 [ext_resource type="PackedScene" path="res://scenes/enemy_basic.tscn" id="3_enemy"]
 [ext_resource type="PackedScene" path="res://scenes/projectile.tscn" id="4_projectile"]
 [ext_resource type="PackedScene" path="res://scenes/enemy_runner.tscn" id="5_runner"]
+[ext_resource type="Script" path="res://scripts/touch_joystick.gd" id="6_joystick"]
+[ext_resource type="PackedScene" path="res://scenes/enemy_tank.tscn" id="7_tank"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
 enemy_scene = ExtResource("3_enemy")
 fast_enemy_scene = ExtResource("5_runner")
+tank_enemy_scene = ExtResource("7_tank")
 projectile_scene = ExtResource("4_projectile")
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
@@ -36,8 +39,8 @@ wait_time = 0.55
 [node name="MarginContainer" type="MarginContainer" parent="HUD"]
 offset_left = 16.0
 offset_top = 16.0
-offset_right = 390.0
-offset_bottom = 240.0
+offset_right = 430.0
+offset_bottom = 320.0
 
 [node name="VBoxContainer" type="VBoxContainer" parent="HUD/MarginContainer"]
 
@@ -56,14 +59,135 @@ text = "Time 00:00"
 [node name="KillLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 text = "Kills 0"
 
+[node name="WaveLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
+text = "Wave 1"
+
 [node name="WeaponLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 text = "Weapon 1 dmg · 1 shots · 0 pierce"
 
+[node name="ObjectiveLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
+text = "目标：存活 03:00"
+autowrap_mode = 3
+
 [node name="TipLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 text = "WASD 移动 · 自动攻击"
+autowrap_mode = 3
 
 [node name="XPBar" type="ProgressBar" parent="HUD/MarginContainer/VBoxContainer"]
-custom_minimum_size = Vector2(260, 20)
+custom_minimum_size = Vector2(280, 22)
 value = 0.0
 max_value = 5.0
 show_percentage = false
+
+[node name="TopCenter" type="Control" parent="HUD"]
+anchors_preset = 10
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -260.0
+offset_top = 22.0
+offset_right = 260.0
+offset_bottom = 92.0
+mouse_filter = 2
+
+[node name="BannerLabel" type="Label" parent="HUD/TopCenter"]
+layout_mode = 0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 520.0
+offset_bottom = 56.0
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "Wave 1 · 热身开始"
+
+[node name="FocusOverlay" type="Control" parent="HUD"]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Tint" type="ColorRect" parent="HUD/FocusOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.42)
+
+[node name="PanelContainer" type="PanelContainer" parent="HUD/FocusOverlay"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -220.0
+offset_top = -82.0
+offset_right = 220.0
+offset_bottom = 82.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="HUD/FocusOverlay/PanelContainer"]
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUD/FocusOverlay/PanelContainer/MarginContainer"]
+
+[node name="TitleLabel" type="Label" parent="HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer"]
+horizontal_alignment = 1
+text = "轻触画面开始 / 恢复操控"
+
+[node name="DetailLabel" type="Label" parent="HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer"]
+autowrap_mode = 3
+horizontal_alignment = 1
+text = "网页端首次进入或浏览器失焦后，需要先点一下游戏区域。"
+
+[node name="RestartButton" type="Button" parent="HUD"]
+visible = false
+anchors_preset = 12
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -184.0
+offset_top = -84.0
+offset_right = -24.0
+offset_bottom = -28.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "重新开始"
+
+[node name="TouchJoystick" type="Control" parent="HUD"]
+visible = false
+custom_minimum_size = Vector2(180, 180)
+anchors_preset = 3
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 18.0
+offset_top = -198.0
+offset_right = 198.0
+offset_bottom = -18.0
+grow_vertical = 0
+script = ExtResource("6_joystick")
+
+[node name="MobileHint" type="Label" parent="HUD"]
+visible = false
+anchors_preset = 12
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -236.0
+offset_top = -176.0
+offset_right = -24.0
+offset_bottom = -110.0
+grow_horizontal = 0
+grow_vertical = 0
+autowrap_mode = 3
+horizontal_alignment = 2
+text = "拖动摇杆移动\n自动攻击最近敌人"

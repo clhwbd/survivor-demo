@@ -11,8 +11,11 @@ extends Node2D
 @export var projectile_speed: float = 520.0
 @export var xp_orb_value: int = 1
 @export var difficulty_step_seconds: float = 20.0
+@export var wave_length_seconds: float = 30.0
+@export var demo_goal_seconds: float = 180.0
 @export var enemy_scene: PackedScene
 @export var fast_enemy_scene: PackedScene
+@export var tank_enemy_scene: PackedScene
 @export var projectile_scene: PackedScene
 @export var xp_orb_scene: PackedScene
 @export var damage_popup_scene: PackedScene
@@ -20,8 +23,13 @@ extends Node2D
 var elapsed_time: float = 0.0
 var kill_count: int = 0
 var difficulty_stage: int = 0
+var wave_index: int = 1
 var game_over: bool = false
+var demo_clear: bool = false
 var _last_health: int = -1
+var _last_level: int = 1
+var _browser_hint_acknowledged: bool = false
+var _heals_awarded_by_kills: int = 0
 
 @onready var player: CharacterBody2D = $Player
 @onready var enemies: Node2D = $Enemies
@@ -36,215 +44,363 @@ var _last_health: int = -1
 @onready var hud_timer: Label = $HUD/MarginContainer/VBoxContainer/TimerLabel
 @onready var hud_kills: Label = $HUD/MarginContainer/VBoxContainer/KillLabel
 @onready var hud_weapon: Label = $HUD/MarginContainer/VBoxContainer/WeaponLabel
+@onready var hud_wave: Label = $HUD/MarginContainer/VBoxContainer/WaveLabel
+@onready var hud_objective: Label = $HUD/MarginContainer/VBoxContainer/ObjectiveLabel
 @onready var hud_tip: Label = $HUD/MarginContainer/VBoxContainer/TipLabel
 @onready var hud_xp_bar: ProgressBar = $HUD/MarginContainer/VBoxContainer/XPBar
+@onready var banner_label: Label = $HUD/TopCenter/BannerLabel
+@onready var focus_overlay: Control = $HUD/FocusOverlay
+@onready var focus_title: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/TitleLabel
+@onready var focus_detail: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/DetailLabel
+@onready var restart_button: Button = $HUD/RestartButton
+@onready var joystick: Control = $HUD/TouchJoystick
+@onready var mobile_hint: Label = $HUD/MobileHint
 
 func _ready() -> void:
-    randomize()
+	randomize()
 
-    if enemy_scene == null:
-        enemy_scene = load("res://scenes/enemy_basic.tscn")
-    if fast_enemy_scene == null:
-        fast_enemy_scene = load("res://scenes/enemy_runner.tscn")
-    if projectile_scene == null:
-        projectile_scene = load("res://scenes/projectile.tscn")
-    if xp_orb_scene == null:
-        xp_orb_scene = load("res://scenes/xp_orb.tscn")
-    if damage_popup_scene == null:
-        damage_popup_scene = load("res://scenes/damage_popup.tscn")
+	if enemy_scene == null:
+		enemy_scene = load("res://scenes/enemy_basic.tscn")
+	if fast_enemy_scene == null:
+		fast_enemy_scene = load("res://scenes/enemy_runner.tscn")
+	if tank_enemy_scene == null:
+		tank_enemy_scene = load("res://scenes/enemy_tank.tscn")
+	if projectile_scene == null:
+		projectile_scene = load("res://scenes/projectile.tscn")
+	if xp_orb_scene == null:
+		xp_orb_scene = load("res://scenes/xp_orb.tscn")
+	if damage_popup_scene == null:
+		damage_popup_scene = load("res://scenes/damage_popup.tscn")
 
-    spawn_timer.wait_time = spawn_interval
-    spawn_timer.timeout.connect(_on_spawn_timer_timeout)
-    spawn_timer.start()
+	spawn_timer.wait_time = spawn_interval
+	spawn_timer.timeout.connect(_on_spawn_timer_timeout)
+	spawn_timer.start()
 
-    attack_timer.wait_time = attack_interval
-    attack_timer.timeout.connect(_on_attack_timer_timeout)
-    attack_timer.start()
+	attack_timer.wait_time = attack_interval
+	attack_timer.timeout.connect(_on_attack_timer_timeout)
+	attack_timer.start()
 
-    player.xp_changed.connect(_on_player_xp_changed)
-    player.stats_changed.connect(_on_player_stats_changed)
-    if player.has_signal("died"):
-        player.died.connect(_on_player_died)
-    _on_player_xp_changed(player.xp, player.xp_to_next, player.level)
-    _on_player_stats_changed(player.health, player.max_health, player.level)
-    _update_enemy_count()
-    _update_meta_hud()
-    hud_tip.text = "WASD 移动 · 自动攻击 · R 重开"
+	player.xp_changed.connect(_on_player_xp_changed)
+	player.stats_changed.connect(_on_player_stats_changed)
+	if player.has_signal("died"):
+		player.died.connect(_on_player_died)
 
-    print("survivor-demo v0 playable scene ready")
+	if joystick != null:
+		joystick.vector_changed.connect(_on_joystick_vector_changed)
+	if restart_button != null:
+		restart_button.pressed.connect(_reload_scene)
+
+	_on_player_xp_changed(player.xp, player.xp_to_next, player.level)
+	_on_player_stats_changed(player.health, player.max_health, player.level)
+	_update_enemy_count()
+	_update_meta_hud()
+	_apply_wave_state(true)
+	_setup_web_ui()
+	_show_banner("Wave 1 · 热身开始")
+	_update_tip_text()
+
+	print("survivor-demo polished demo ready")
 
 func _process(delta: float) -> void:
-    if not game_over:
-        elapsed_time += delta
-        _update_difficulty()
-    _update_enemy_count()
-    _update_meta_hud()
+	if not game_over and not demo_clear:
+		elapsed_time += delta
+		_update_difficulty()
+		_update_wave_progress()
+		if elapsed_time >= demo_goal_seconds:
+			_on_demo_clear()
+	_update_enemy_count()
+	_update_meta_hud()
+	_update_focus_overlay()
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		_browser_hint_acknowledged = true
+	elif event is InputEventScreenTouch and event.pressed:
+		_browser_hint_acknowledged = true
+	elif event is InputEventKey and event.pressed:
+		_browser_hint_acknowledged = true
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		if OS.has_feature("web"):
+			_browser_hint_acknowledged = false
 
 func _unhandled_input(event: InputEvent) -> void:
-    if game_over and event.is_action_pressed("restart_run"):
-        get_tree().reload_current_scene()
+	if (game_over or demo_clear) and event.is_action_pressed("restart_run"):
+		_reload_scene()
+
+func _setup_web_ui() -> void:
+	var show_touch_ui := OS.has_feature("web") or OS.has_feature("mobile")
+	if joystick != null:
+		joystick.visible = show_touch_ui
+	if mobile_hint != null:
+		mobile_hint.visible = show_touch_ui
+	if focus_overlay != null:
+		focus_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if restart_button != null:
+		restart_button.visible = false
+
+func _update_focus_overlay() -> void:
+	if focus_overlay == null or focus_title == null or focus_detail == null:
+		return
+	var needs_hint := false
+	if OS.has_feature("web"):
+		needs_hint = not _browser_hint_acknowledged
+		if not needs_hint and not get_window().has_focus():
+			needs_hint = true
+	if game_over or demo_clear:
+		needs_hint = false
+	focus_overlay.visible = needs_hint
+	if not needs_hint:
+		return
+	focus_title.text = "轻触画面开始 / 恢复操控"
+	focus_detail.text = "网页端首次进入或浏览器失焦后，需要先点一下游戏区域。\n桌面端可用 WASD，手机端拖动左下角摇杆移动。"
 
 func _update_difficulty() -> void:
-    var next_stage := int(floor(elapsed_time / difficulty_step_seconds))
-    if next_stage == difficulty_stage:
-        return
+	var next_stage := int(floor(elapsed_time / difficulty_step_seconds))
+	if next_stage == difficulty_stage:
+		return
 
-    difficulty_stage = next_stage
-    spawn_timer.wait_time = max(0.3, spawn_interval - difficulty_stage * 0.08)
-    spawn_count_per_wave = min(6, 1 + int(difficulty_stage / 2))
-    max_alive_enemies = min(72, 16 + difficulty_stage * 4)
+	difficulty_stage = next_stage
+	spawn_timer.wait_time = max(0.28, spawn_interval - difficulty_stage * 0.06)
+	max_alive_enemies = min(88, 18 + difficulty_stage * 5 + wave_index * 2)
+
+func _update_wave_progress() -> void:
+	var target_wave: int = mini(int(floor(elapsed_time / wave_length_seconds)) + 1, int(ceil(demo_goal_seconds / wave_length_seconds)))
+	if target_wave > wave_index:
+		wave_index = target_wave
+		_apply_wave_state(false)
+
+func _apply_wave_state(is_initial: bool) -> void:
+	spawn_count_per_wave = min(8, 1 + int((wave_index - 1) / 1.5))
+	max_alive_enemies = min(88, 14 + wave_index * 8 + difficulty_stage * 4)
+	spawn_timer.wait_time = max(0.28, spawn_interval - wave_index * 0.08 - difficulty_stage * 0.05)
+	if not is_initial:
+		player.heal(1)
+		_show_banner("Wave %d · 火力升级" % wave_index)
+		_spawn_popup(player.global_position + Vector2(0, -32), "+1 HP", Color(0.55, 1.0, 0.65, 1.0))
+	_update_tip_text()
 
 func _on_spawn_timer_timeout() -> void:
-    if enemy_scene == null or not is_instance_valid(player) or game_over:
-        return
+	if enemy_scene == null or not is_instance_valid(player) or game_over or demo_clear:
+		return
 
-    var available_slots := max_alive_enemies - enemies.get_child_count()
-    if available_slots <= 0:
-        return
+	var available_slots := max_alive_enemies - enemies.get_child_count()
+	if available_slots <= 0:
+		return
 
-    var spawn_total := mini(spawn_count_per_wave, available_slots)
-    for _i in spawn_total:
-        _spawn_enemy()
+	var spawn_total := mini(spawn_count_per_wave + int(wave_index / 3), available_slots)
+	for _i in spawn_total:
+		_spawn_enemy()
 
 func _spawn_enemy() -> void:
-    var scene_to_spawn := enemy_scene
-    if fast_enemy_scene != null and randf() < min(0.45, 0.08 + difficulty_stage * 0.04):
-        scene_to_spawn = fast_enemy_scene
+	var spawn_roll := randf()
+	var scene_to_spawn: PackedScene = enemy_scene
+	var fast_weight: float = minf(0.52, 0.14 + wave_index * 0.05 + difficulty_stage * 0.02)
+	var tank_weight: float = 0.0
+	if wave_index >= 3:
+		tank_weight = min(0.26, 0.06 + (wave_index - 2) * 0.04)
+	if tank_enemy_scene != null and spawn_roll < tank_weight:
+		scene_to_spawn = tank_enemy_scene
+	elif fast_enemy_scene != null and spawn_roll < tank_weight + fast_weight:
+		scene_to_spawn = fast_enemy_scene
 
-    var enemy := scene_to_spawn.instantiate()
-    if enemy == null:
-        return
+	var enemy: Node = scene_to_spawn.instantiate()
+	if enemy == null:
+		return
 
-    enemy.global_position = _get_spawn_position()
-    enemy.set("move_speed", float(enemy.get("move_speed")) + difficulty_stage * 6.0 + max(0, player.level - 1) * 4.0)
-    enemy.set("max_health", int(enemy.get("max_health")) + int(difficulty_stage / 3))
-    enemy.set("contact_damage", int(enemy.get("contact_damage")) + int(difficulty_stage / 5))
-    enemy.set("xp_reward", int(enemy.get("xp_reward")) + int(difficulty_stage / 4))
-    enemy.set("target", player)
-    if enemy.has_signal("died"):
-        enemy.died.connect(_on_enemy_died)
-    enemies.add_child(enemy)
+	enemy.global_position = _get_spawn_position()
+	enemy.set("move_speed", float(enemy.get("move_speed")) + difficulty_stage * 5.0 + max(0, wave_index - 1) * 4.0 + max(0, player.level - 1) * 3.0)
+	enemy.set("max_health", int(enemy.get("max_health")) + int((difficulty_stage + wave_index - 1) / 3))
+	enemy.set("contact_damage", int(enemy.get("contact_damage")) + int((difficulty_stage + wave_index - 1) / 5))
+	enemy.set("xp_reward", int(enemy.get("xp_reward")) + int((wave_index - 1) / 2))
+	enemy.set("target", player)
+	if enemy.has_signal("died"):
+		enemy.died.connect(_on_enemy_died)
+	enemies.add_child(enemy)
 
 func _on_attack_timer_timeout() -> void:
-    if projectile_scene == null or not is_instance_valid(player) or game_over:
-        return
+	if projectile_scene == null or not is_instance_valid(player) or game_over or demo_clear:
+		return
 
-    var range_value: float = float(attack_range) + float(player.level) * 14.0
-    var target: Node2D = _get_nearest_enemy_in_range(range_value)
-    if target == null:
-        return
+	var range_value: float = float(attack_range) + float(player.level) * 14.0
+	var target: Node2D = _get_nearest_enemy_in_range(range_value)
+	if target == null:
+		return
 
-    var shot_count := 1 + int((player.level - 1) / 4)
-    shot_count = mini(shot_count, 4)
-    var pierce_count := int((player.level - 1) / 5)
-    var base_direction := (target.global_position - player.global_position).normalized()
-    var spread_step := deg_to_rad(10.0)
-    var start_angle := -spread_step * float(shot_count - 1) * 0.5
+	var shot_count := 1 + int((player.level - 1) / 4)
+	shot_count = mini(shot_count, 4)
+	var pierce_count := int((player.level - 1) / 5)
+	var base_direction := (target.global_position - player.global_position).normalized()
+	var spread_step := deg_to_rad(10.0)
+	var start_angle := -spread_step * float(shot_count - 1) * 0.5
 
-    for i in shot_count:
-        var projectile := projectile_scene.instantiate()
-        if projectile == null:
-            continue
-        var angle_offset := start_angle + spread_step * i
-        var direction := base_direction.rotated(angle_offset)
-        projectile.global_position = player.global_position
-        projectile.set("direction", direction)
-        projectile.set("speed", projectile_speed + player.level * 18.0)
-        projectile.set("damage", 1 + int((player.level - 1) / 3))
-        projectile.set("pierce", pierce_count)
-        projectiles.add_child(projectile)
+	for i in shot_count:
+		var projectile := projectile_scene.instantiate()
+		if projectile == null:
+			continue
+		var angle_offset := start_angle + spread_step * i
+		var direction := base_direction.rotated(angle_offset)
+		projectile.global_position = player.global_position
+		projectile.set("direction", direction)
+		projectile.set("speed", projectile_speed + player.level * 18.0 + wave_index * 6.0)
+		projectile.set("damage", 1 + int((player.level - 1) / 3) + int((wave_index - 1) / 4))
+		projectile.set("pierce", pierce_count)
+		projectiles.add_child(projectile)
 
 func _get_nearest_enemy_in_range(range_limit: float) -> Node2D:
-    var nearest: Node2D = null
-    var nearest_distance_sq := range_limit * range_limit
+	var nearest: Node2D = null
+	var nearest_distance_sq := range_limit * range_limit
 
-    for child in enemies.get_children():
-        if child == null or not is_instance_valid(child):
-            continue
-        var distance_sq := player.global_position.distance_squared_to(child.global_position)
-        if distance_sq <= nearest_distance_sq:
-            nearest_distance_sq = distance_sq
-            nearest = child as Node2D
+	for child in enemies.get_children():
+		if child == null or not is_instance_valid(child):
+			continue
+		var distance_sq := player.global_position.distance_squared_to(child.global_position)
+		if distance_sq <= nearest_distance_sq:
+			nearest_distance_sq = distance_sq
+			nearest = child as Node2D
 
-    return nearest
+	return nearest
 
 func _on_enemy_died(_enemy: Node, death_position: Vector2, xp_reward: int) -> void:
-    kill_count += 1
-    _spawn_popup(death_position, "+%d" % xp_reward, Color(0.5, 1.0, 0.6, 1.0))
-    if xp_orb_scene == null:
-        return
+	kill_count += 1
+	_spawn_popup(death_position, "+%d" % xp_reward, Color(0.5, 1.0, 0.6, 1.0))
+	var expected_heal_rewards := int(kill_count / 25)
+	if expected_heal_rewards > _heals_awarded_by_kills:
+		_heals_awarded_by_kills = expected_heal_rewards
+		player.heal(1)
+		_spawn_popup(player.global_position + Vector2(0, -28), "连杀补给 +1 HP", Color(0.6, 0.95, 1.0, 1.0))
+	if xp_orb_scene == null:
+		return
 
-    var xp_orb := xp_orb_scene.instantiate()
-    if xp_orb == null:
-        return
+	var xp_orb := xp_orb_scene.instantiate()
+	if xp_orb == null:
+		return
 
-    xp_orb.global_position = death_position
-    xp_orb.set("xp_value", xp_orb_value + xp_reward - 1)
-    xp_orb.set("target", player)
-    pickups.add_child(xp_orb)
+	xp_orb.global_position = death_position
+	xp_orb.set("xp_value", xp_orb_value + xp_reward - 1)
+	xp_orb.set("target", player)
+	pickups.add_child(xp_orb)
 
 func _on_player_xp_changed(current_xp: int, xp_to_next: int, level: int) -> void:
-    attack_timer.wait_time = max(0.15, attack_interval - (level - 1) * 0.02)
-    hud_level.text = "Level %d  ·  难度 %d" % [level, difficulty_stage + 1]
-    hud_xp_bar.max_value = max(1, xp_to_next)
-    hud_xp_bar.value = current_xp
-    hud_xp_bar.show_percentage = false
-    hud_xp_bar.tooltip_text = "XP %d / %d" % [current_xp, xp_to_next]
-    var shots := 1 + int((level - 1) / 4)
-    shots = mini(shots, 4)
-    var pierce := int((level - 1) / 5)
-    hud_weapon.text = "Weapon %d dmg · %d shots · %d pierce" % [1 + int((level - 1) / 3), shots, pierce]
+	attack_timer.wait_time = max(0.14, attack_interval - (level - 1) * 0.02)
+	hud_level.text = "Level %d  ·  难度 %d" % [level, difficulty_stage + 1]
+	hud_xp_bar.max_value = max(1, xp_to_next)
+	hud_xp_bar.value = current_xp
+	hud_xp_bar.show_percentage = false
+	hud_xp_bar.tooltip_text = "XP %d / %d" % [current_xp, xp_to_next]
+	var shots := 1 + int((level - 1) / 4)
+	shots = mini(shots, 4)
+	var pierce := int((level - 1) / 5)
+	hud_weapon.text = "Weapon %d dmg · %d shots · %d pierce" % [1 + int((level - 1) / 3) + int((wave_index - 1) / 4), shots, pierce]
+	if level > _last_level:
+		_show_banner("LEVEL UP · Lv.%d" % level)
+	_last_level = level
 
 func _on_player_stats_changed(health: int, max_health: int, _level: int) -> void:
-    hud_health.text = "HP %d/%d  攻速 %.2fs" % [health, max_health, attack_timer.wait_time]
-    if _last_health >= 0 and health < _last_health and not game_over:
-        _spawn_popup(player.global_position + Vector2(0, -22), "-%d" % (_last_health - health), Color(1.0, 0.45, 0.45, 1.0))
-    _last_health = health
-    if health <= 0 and not game_over:
-        _on_player_died()
+	hud_health.text = "HP %d/%d  攻速 %.2fs" % [health, max_health, attack_timer.wait_time]
+	if _last_health >= 0 and health < _last_health and not game_over:
+		_spawn_popup(player.global_position + Vector2(0, -22), "-%d" % (_last_health - health), Color(1.0, 0.45, 0.45, 1.0))
+	_last_health = health
+	if health <= 0 and not game_over:
+		_on_player_died()
+	_update_tip_text()
 
 func _on_player_died() -> void:
-    if game_over:
-        return
-    game_over = true
-    spawn_timer.stop()
-    attack_timer.stop()
-    hud_tip.text = "GAME OVER · 按 R 重新开始"
+	if game_over:
+		return
+	game_over = true
+	spawn_timer.stop()
+	attack_timer.stop()
+	hud_tip.text = "GAME OVER · 按 R 或点按钮重开"
+	_show_banner("战斗结束 · 击杀 %d" % kill_count)
+	if restart_button != null:
+		restart_button.visible = true
+
+func _on_demo_clear() -> void:
+	if demo_clear:
+		return
+	demo_clear = true
+	spawn_timer.stop()
+	attack_timer.stop()
+	hud_tip.text = "DEMO CLEAR · 按 R 或点按钮再来一局"
+	_show_banner("Demo Clear · 存活 %02d:%02d" % [int(elapsed_time) / 60, int(elapsed_time) % 60])
+	if restart_button != null:
+		restart_button.visible = true
 
 func _update_enemy_count() -> void:
-    hud_enemies.text = "Enemies %d/%d" % [enemies.get_child_count(), max_alive_enemies]
+	hud_enemies.text = "Enemies %d/%d" % [enemies.get_child_count(), max_alive_enemies]
 
 func _update_meta_hud() -> void:
-    var total_seconds := int(elapsed_time)
-    var minutes := int(total_seconds / 60)
-    var seconds := total_seconds % 60
-    hud_timer.text = "Time %02d:%02d" % [minutes, seconds]
-    hud_kills.text = "Kills %d" % kill_count
+	var total_seconds := int(elapsed_time)
+	var minutes := int(total_seconds / 60)
+	var seconds := total_seconds % 60
+	var next_wave_in := maxi(0, int(ceil(float(wave_index) * wave_length_seconds - elapsed_time)))
+	hud_timer.text = "Time %02d:%02d / %02d:%02d" % [minutes, seconds, int(demo_goal_seconds) / 60, int(demo_goal_seconds) % 60]
+	hud_kills.text = "Kills %d" % kill_count
+	hud_wave.text = "Wave %d  ·  Next %02ds" % [wave_index, next_wave_in]
+	hud_objective.text = "目标：撑到 %02d:%02d，连杀每 25 击回 1 HP" % [int(demo_goal_seconds) / 60, int(demo_goal_seconds) % 60]
 
 func _spawn_popup(world_position: Vector2, text_value: String, color_value: Color) -> void:
-    if damage_popup_scene == null:
-        return
-    var popup := damage_popup_scene.instantiate()
-    if popup == null:
-        return
-    popup.position = world_position
-    if popup.has_method("setup"):
-        popup.setup(text_value, color_value)
-    feedback.add_child(popup)
+	if damage_popup_scene == null:
+		return
+	var popup := damage_popup_scene.instantiate()
+	if popup == null:
+		return
+	popup.position = world_position
+	if popup.has_method("setup"):
+		popup.setup(text_value, color_value)
+	feedback.add_child(popup)
+
+func _show_banner(text_value: String) -> void:
+	if banner_label == null:
+		return
+	banner_label.text = text_value
+	banner_label.modulate = Color(1, 1, 1, 1)
+	banner_label.visible = true
+	var tween := create_tween()
+	tween.tween_interval(1.1)
+	tween.tween_property(banner_label, "modulate", Color(1, 1, 1, 0), 0.45)
+	tween.finished.connect(func():
+		banner_label.visible = false
+	)
+
+func _update_tip_text() -> void:
+	if game_over or demo_clear:
+		return
+	var tip := "WASD / 左下摇杆移动 · 自动攻击"
+	if OS.has_feature("web"):
+		tip = "网页端先点一下画面再操作 · WASD / 摇杆移动"
+	if player.health <= 2:
+		tip = "低血量！多拉扯，多吃经验升级回血"
+	elif wave_index >= 4:
+		tip = "重装敌已加入，优先走位拉开，不要被包围"
+	hud_tip.text = tip
+	if mobile_hint != null:
+		mobile_hint.text = "拖动摇杆移动\nR 键 / 右侧按钮重开"
 
 func _get_spawn_position() -> Vector2:
-    var player_position := player.global_position
-    var viewport_size := get_viewport_rect().size
-    var visible_rect := Rect2(player_position - viewport_size * 0.5, viewport_size)
-    var spawn_min := minf(spawn_radius_min, spawn_radius_max)
-    var spawn_max := maxf(spawn_radius_min, spawn_radius_max)
+	var player_position := player.global_position
+	var viewport_size := get_viewport_rect().size
+	var visible_rect := Rect2(player_position - viewport_size * 0.5, viewport_size)
+	var spawn_min := minf(spawn_radius_min, spawn_radius_max)
+	var spawn_max := maxf(spawn_radius_min, spawn_radius_max)
 
-    for _attempt in 8:
-        var angle := randf_range(0.0, TAU)
-        var distance := randf_range(spawn_min, spawn_max)
-        var candidate := player_position + Vector2.RIGHT.rotated(angle) * distance
-        if not visible_rect.has_point(candidate):
-            return candidate
+	for _attempt in 8:
+		var angle := randf_range(0.0, TAU)
+		var distance := randf_range(spawn_min, spawn_max)
+		var candidate := player_position + Vector2.RIGHT.rotated(angle) * distance
+		if not visible_rect.has_point(candidate):
+			return candidate
 
-    var fallback_angle := randf_range(0.0, TAU)
-    return player_position + Vector2.RIGHT.rotated(fallback_angle) * spawn_max
+	var fallback_angle := randf_range(0.0, TAU)
+	return player_position + Vector2.RIGHT.rotated(fallback_angle) * spawn_max
+
+func _on_joystick_vector_changed(direction: Vector2) -> void:
+	if player != null and player.has_method("set_external_input_vector"):
+		player.set_external_input_vector(direction)
+	if direction.length() > 0.0:
+		_browser_hint_acknowledged = true
+
+func _reload_scene() -> void:
+	get_tree().reload_current_scene()
