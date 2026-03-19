@@ -1,16 +1,19 @@
 extends CharacterBody2D
 class_name EnemyBasic
 
-signal died(enemy: EnemyBasic, position: Vector2)
+signal died(enemy: EnemyBasic, position: Vector2, xp_reward: int)
 
 @export var move_speed: float = 130.0
 @export var contact_damage: int = 1
 @export var max_health: int = 1
+@export var xp_reward: int = 1
 @export var target_path: NodePath
 
 var target: Node2D
 var health: int
 var _last_hit_msec: int = 0
+
+@onready var body_polygon: Polygon2D = $Body
 
 func _ready() -> void:
     health = max_health
@@ -38,6 +41,15 @@ func _physics_process(_delta: float) -> void:
 
 func take_damage(amount: int) -> void:
     health -= amount
+    _flash(Color(1.0, 1.0, 1.0, 1.0), 0.08)
     if health <= 0:
-        died.emit(self, global_position)
+        died.emit(self, global_position, xp_reward)
         queue_free()
+
+func _flash(color_value: Color, duration: float) -> void:
+    if body_polygon == null:
+        return
+    var original := body_polygon.color
+    body_polygon.color = color_value
+    var tween := create_tween()
+    tween.tween_property(body_polygon, "color", original, duration)
