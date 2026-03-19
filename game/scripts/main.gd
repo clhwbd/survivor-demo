@@ -10,9 +10,15 @@ extends Node2D
 @export var attack_range: float = 260.0
 @export var projectile_speed: float = 520.0
 @export var xp_orb_value: int = 1
+@export var difficulty_step_seconds: float = 20.0
 @export var enemy_scene: PackedScene
 @export var projectile_scene: PackedScene
 @export var xp_orb_scene: PackedScene
+
+var elapsed_time: float = 0.0
+var kill_count: int = 0
+var difficulty_stage: int = 0
+var game_over: bool = false
 
 @onready var player: CharacterBody2D = $Player
 @onready var enemies: Node2D = $Enemies
@@ -23,6 +29,9 @@ extends Node2D
 @onready var hud_level: Label = $HUD/MarginContainer/VBoxContainer/LevelLabel
 @onready var hud_health: Label = $HUD/MarginContainer/VBoxContainer/HealthLabel
 @onready var hud_enemies: Label = $HUD/MarginContainer/VBoxContainer/EnemyLabel
+@onready var hud_timer: Label = $HUD/MarginContainer/VBoxContainer/TimerLabel
+@onready var hud_kills: Label = $HUD/MarginContainer/VBoxContainer/KillLabel
+@onready var hud_tip: Label = $HUD/MarginContainer/VBoxContainer/TipLabel
 @onready var hud_xp_bar: ProgressBar = $HUD/MarginContainer/VBoxContainer/XPBar
 
 func _ready() -> void:
@@ -45,17 +54,39 @@ func _ready() -> void:
 
     player.xp_changed.connect(_on_player_xp_changed)
     player.stats_changed.connect(_on_player_stats_changed)
+    if player.has_signal("died"):
+        player.died.connect(_on_player_died)
     _on_player_xp_changed(player.xp, player.xp_to_next, player.level)
     _on_player_stats_changed(player.health, player.max_health, player.level)
     _update_enemy_count()
+    _update_meta_hud()
+    hud_tip.text = "WASD 移动 · 自动攻击 · R 重开"
 
     print("survivor-demo v0 playable scene ready")
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+    if not game_over:
+        elapsed_time += delta
+        _update_difficulty()
     _update_enemy_count()
+    _update_meta_hud()
+
+func _unhandled_input(event: InputEvent) -> void:
+    if game_over and event.is_action_pressed("restart_run"):
+        get_tree().reload_current_scene()
+
+func _update_difficulty() -> void:
+    var next_stage := int(floor(elapsed_time / difficulty_step_seconds))
+    if next_stage == difficulty_stage:
+        return
+
+    difficulty_stage = next_stage
+    spawn_timer.wait_time = max(0.3, spawn_interval - difficulty_stage * 0.08)
+    spawn_count_per_wave = min(5, 1 + int(difficulty_stage / 2))
+    max_alive_enemies = min(60, 16 + difficulty_stage * 4)
 
 func _on_spawn_timer_timeout() -> void:
-    if enemy_scene == null or not is_instance_valid(player):
+    if enemy_scene == null or not is_instance_valid(player) or game_over:
         return
 
     var available_slots := max_alive_enemies - enemies.get_child_count()
@@ -72,14 +103,16 @@ func _spawn_enemy() -> void:
         return
 
     enemy.global_position = _get_spawn_position()
-    enemy.set("move_speed", move_speed + max(0, player.level - 1) * 4.0)
+    enemy.set("move_speed", move_speed + difficulty_stage * 6.0 + max(0, player.level - 1) * 4.0)
+    enemy.set("max_health", 1 + int(difficulty_stage / 3))
+    enemy.set("contact_damage", 1 + int(difficulty_stage / 5))
     enemy.set("target", player)
     if enemy.has_signal("died"):
         enemy.died.connect(_on_enemy_died)
     enemies.add_child(enemy)
 
 func _on_attack_timer_timeout() -> void:
-    if projectile_scene == null or not is_instance_valid(player):
+    if projectile_scene == null or not is_instance_valid(player) or game_over:
         return
 
     var target := _get_nearest_enemy_in_range(attack_range + player.level * 14.0)
@@ -112,6 +145,7 @@ func _get_nearest_enemy_in_range(range_limit: float) -> Node2D:
     return nearest
 
 func _on_enemy_died(_enemy: Node, death_position: Vector2) -> void:
+    kill_count += 1
     if xp_orb_scene == null:
         return
 
@@ -120,27 +154,40 @@ func _on_enemy_died(_enemy: Node, death_position: Vector2) -> void:
         return
 
     xp_orb.global_position = death_position
-    xp_orb.set("xp_value", xp_orb_value)
+    xp_orb.set("xp_value", xp_orb_value + int(difficulty_stage / 4))
     xp_orb.set("target", player)
     pickups.add_child(xp_orb)
 
 func _on_player_xp_changed(current_xp: int, xp_to_next: int, level: int) -> void:
     attack_timer.wait_time = max(0.15, attack_interval - (level - 1) * 0.02)
-    hud_level.text = "Level %d" % level
+    hud_level.text = "Level %d  ·  难度 %d" % [level, difficulty_stage + 1]
     hud_xp_bar.max_value = max(1, xp_to_next)
     hud_xp_bar.value = current_xp
     hud_xp_bar.show_percentage = false
     hud_xp_bar.tooltip_text = "XP %d / %d" % [current_xp, xp_to_next]
 
-func _on_player_stats_changed(health: int, max_health: int, level: int) -> void:
+func _on_player_stats_changed(health: int, max_health: int, _level: int) -> void:
     hud_health.text = "HP %d/%d  攻速 %.2fs" % [health, max_health, attack_timer.wait_time]
-    if health <= 0:
-        spawn_timer.stop()
-        attack_timer.stop()
-        hud_health.text += "  · GAME OVER"
+    if health <= 0 and not game_over:
+        _on_player_died()
+
+func _on_player_died() -> void:
+    if game_over:
+        return
+    game_over = true
+    spawn_timer.stop()
+    attack_timer.stop()
+    hud_tip.text = "GAME OVER · 按 R 重新开始"
 
 func _update_enemy_count() -> void:
     hud_enemies.text = "Enemies %d/%d" % [enemies.get_child_count(), max_alive_enemies]
+
+func _update_meta_hud() -> void:
+    var total_seconds := int(elapsed_time)
+    var minutes := int(total_seconds / 60)
+    var seconds := total_seconds % 60
+    hud_timer.text = "Time %02d:%02d" % [minutes, seconds]
+    hud_kills.text = "Kills %d" % kill_count
 
 func _get_spawn_position() -> Vector2:
     var player_position := player.global_position

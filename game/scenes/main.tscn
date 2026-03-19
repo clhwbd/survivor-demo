@@ -32,8 +32,8 @@ wait_time = 0.55
 [node name="MarginContainer" type="MarginContainer" parent="HUD"]
 offset_left = 16.0
 offset_top = 16.0
-offset_right = 316.0
-offset_bottom = 140.0
+offset_right = 360.0
+offset_bottom = 220.0
 
 [node name="VBoxContainer" type="VBoxContainer" parent="HUD/MarginContainer"]
 
@@ -45,6 +45,15 @@ text = "HP 5/5"
 
 [node name="EnemyLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 text = "Enemies 0/16"
+
+[node name="TimerLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
+text = "Time 00:00"
+
+[node name="KillLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
+text = "Kills 0"
+
+[node name="TipLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
+text = "WASD 移动 · 自动攻击"
 
 [node name="XPBar" type="ProgressBar" parent="HUD/MarginContainer/VBoxContainer"]
 custom_minimum_size = Vector2(260, 20)
