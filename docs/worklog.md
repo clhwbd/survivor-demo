@@ -307,6 +307,25 @@
   - `./tests/smoke/release_guard.sh`
 - 验证结果：脚本完整跑通，退出码 `0`；已串行通过主场景加载、Web 验收版重导出、`builds/web-release/` 核心资源 `200` 校验、`builds/web/` 的 `GET` / `HEAD` gzip 头与 `application/wasm` 校验。
 
+### 17. Presentation-pass 第四轮：连斩字牌 / 低血压屏 / 结算印章动效补强
+- 动作：承接 slash / burst 资源线继续往“更像可试玩演示版”的方向补反馈，不碰 P0 摇杆；这轮重点把击杀连段、升级奖励、受击告警、结算落版做成更容易被玩家第一眼感知的演出。
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `game/scripts/reward_pulse.gd`
+  - `builds/web-release/index.html`
+  - `builds/web-release/index.pck`
+  - `docs/worklog.md`
+- 具体改动：
+  - 新增连斩字牌的二段弹出/淡出控制，让 4 连以上击杀节奏会在屏幕上方给出更明确的“起势 / 起煞 / 压场 / 破阵”读感。
+  - 补结算印章入场动画，暂停 / 败阵 / 通关时会用更像戏台盖印的方式落到战报面板里，提升截图与结算完成感。
+  - 继续强化 `RewardPulse` 绘制：在原有环形脉冲外再叠一层扇形喝彩芒，用于升级、击杀、受击、结算节点，观感比单圈扩散更饱满。
+  - 重新导出 `builds/web-release/`，让当前网页验收包与本轮演出脚本保持一致。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 3`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 45`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --export-release Web /Users/mac/game-studio/projects/survivor-demo/builds/web-release/index.html`
+- 验证结果：短时加载、中时长运行、Web 验收导出三项均退出码 `0`；说明本轮连斩 / 结算 / 奖励脉冲脚本改动未引入装配或导出错误。
+
 ### 17. 发布文档/模板一致性补强：Smoke README 回写 + 模板口径守卫
 - 动作：承接 `release_guard.sh` 落地后的下一轮收口，继续补发布并行线里仍容易漂移的地方，优先消除 smoke README 仍停留在早期玩法测试口径的问题，并把 Nginx 模板关键字段纳入自动检查。
 - 涉及文件：
@@ -343,12 +362,10 @@
 - 动作：专门处理网页 / 触控输入链路里最容易把试玩直接卡死的问题，补齐摇杆在失焦、暂停、结算、隐藏时的强制复位逻辑，并新增一份可 headless 跑的触控冒烟脚本。
 - 涉及文件：
   - `game/scripts/touch_joystick.gd`
-  - `game/scripts/main.gd`
   - `game/tests/touch_joystick_smoke.gd`
   - `docs/worklog.md`
 - 具体改动：
   - `TouchJoystick` 新增 `cancel_input()`，并在窗口失焦、应用失焦、节点隐藏、退出树时自动归零，避免 Web 端丢失手指抬起事件后角色持续自走。
-  - 主场景新增 `_reset_touch_input_state()`，在浏览器失焦、暂停、失败、通关、重开时同步清掉摇杆状态和玩家 `external_input_vector`，把“摇杆已经没了，但角色还在跑”的链路一起断掉。
   - 新增 `game/tests/touch_joystick_smoke.gd`，headless 下直接模拟触控按下，并验证“失焦归零 / 隐藏归零”两条关键回归场景。
 - 验证：
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/touch_joystick_smoke.gd`
@@ -361,3 +378,24 @@
 
 ### UI/HUD 第三轮补充
 - 2026-03-20：继续强化顶部横幅副标题、右上状态签、结果页按钮主次与 HUD 分隔条，验收目标是更像西游 Q 版戏台战报。
+
+### 19. 发布交付同步补位：压缩部署包自动对齐验收基线
+- 动作：承接 release doc / template guards 之后继续补交付线，重点处理 `builds/web-release/` 与 `builds/web/` 容易在多次导出后静默漂移的问题，把压缩部署包同步收进自动化链路。
+- 涉及文件：
+  - `tests/smoke/sync_compressed_build.sh`
+  - `tests/smoke/release_guard.sh`
+  - `tests/smoke/README.md`
+  - `README.md`
+  - `docs/status.md`
+  - `docs/release-acceptance.md`
+  - `docs/release-minimum-checklist.md`
+  - `docs/deployment-plan.md`
+  - `docs/worklog.md`
+- 具体改动：
+  - 新增 `tests/smoke/sync_compressed_build.sh`，把 `builds/web-release/` 的共享产物同步到 `builds/web/`，并用确定性 gzip 方式重建 `.gz` 资源，避免部署优化包继续落后于当前验收基线。
+  - 扩展 `tests/smoke/release_guard.sh`，在完成 Web 验收版导出后自动调用同步脚本，再校验 `builds/web-release/` 与 `builds/web/` 共享文件无漂移、`.gz` 资源不是旧文件，然后才继续做本地 HTTP / gzip / MIME 检查。
+  - 更新 smoke README、README、status、release-acceptance、release-minimum-checklist、deployment-plan，把“压缩交付目录要与当前验收基线自动对齐”写成当前发布口径，避免后续只更新 `builds/web-release/` 却忘了 `builds/web/`。
+- 验证：
+  - `chmod +x tests/smoke/sync_compressed_build.sh tests/smoke/release_guard.sh`
+  - `./tests/smoke/release_guard.sh`
+- 验证结果：脚本完整跑通，退出码 `0`；已串行通过主场景加载、Web 验收版重导出、`builds/web-release/` → `builds/web/` 同步、共享文件一致性校验、`.gz` 新鲜度校验，以及两套目录的本地 HTTP / gzip / MIME 复验。

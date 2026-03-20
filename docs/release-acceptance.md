@@ -55,6 +55,7 @@
 - `builds/web-release/` 通过 `python3 -m http.server 18081` 复验，`index.html / index.js / index.wasm / index.pck` 全部返回 `200`
 - `builds/web/` 通过 `python3 serve_compressed.py` 复验，使用 `GET` 与 `HEAD` 请求访问 `index.wasm` 时都可返回正确的 gzip / MIME 头
 - 当前压缩版服务已可用于本地健康检查、自动化冒烟校验与浏览器实际加载
+- 后续每次重导出 `builds/web-release/` 后，默认通过 `tests/smoke/sync_compressed_build.sh` 或 `tests/smoke/release_guard.sh` 自动把 `builds/web/` 对齐，避免两套交付目录内容漂移
 
 ## 2026-03-20 14:45 CST 一致性复核
 - 发现 `game/scripts/main.gd` 新一轮 HUD / 战报收口改动一度存在语法错误，导致源码与 `builds/web-release/` 出现暂时脱节

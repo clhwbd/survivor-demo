@@ -31,7 +31,8 @@ Godot 4.x 2D 割草 Roguelike 样板项目。
 - `docs/ui-art-agent-split.md`：后续 UI / 美术 agent 拆分建议
 - `docs/status.md`：项目当前状态收口
 - `docs/worklog.md`：工程操作与交付日志
-- `tests/smoke/release_guard.sh`：把导出 / 本地服务 / gzip 返回 / 文档口径串起来的一键发布冒烟检查
+- `tests/smoke/release_guard.sh`：把导出 / 两套 Web 目录同步 / 本地服务 / gzip 返回 / 文档口径串起来的一键发布冒烟检查
+- `tests/smoke/sync_compressed_build.sh`：把 `builds/web-release/` 同步到 `builds/web/` 并重建 `.gz` 资源，避免交付目录漂移
 
 ## 运行方式
 ### 1) 本地 Godot 运行
@@ -56,6 +57,7 @@ chmod +x tests/smoke/release_guard.sh
 这会串行完成：
 - 主场景 headless 加载
 - Web 验收版重导出
+- 把 `builds/web/` 与最新 `builds/web-release/` 自动同步，并重建 `.gz` 资源
 - `builds/web-release/` 四个核心文件 `200` 校验
 - `builds/web/` gzip / `HEAD` / `Content-Type` 返回校验
 - README / status / release-acceptance / deployment-plan 的关键交付口径存在性检查

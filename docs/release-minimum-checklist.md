@@ -28,6 +28,7 @@
 - [ ] `index.html` 使用短缓存或 `no-cache`
 - [ ] `index.js / index.wasm / index.pck` 使用长缓存，并配合版本替换
 - [ ] 若改用 `builds/web/`，已确认托管平台支持 gzip 静态资源或边缘压缩
+- [ ] `tests/smoke/sync_compressed_build.sh` 已执行或由 `release_guard.sh` 自动执行，确认 `builds/web/` 没有落后于当前 `builds/web-release/`
 
 ## E. 交付留痕
 - [ ] 在 `docs/worklog.md` 记录本次导出、验证与结论
@@ -36,7 +37,7 @@
 
 ## F. 自动化冒烟校验
 - [ ] 执行 `tests/smoke/release_guard.sh`
-- [ ] 确认脚本已覆盖主场景加载、Web 导出、`builds/web-release/` 资源 `200` 校验、`builds/web/` 的 gzip / `HEAD` / `Content-Type` 校验
+- [ ] 确认脚本已覆盖主场景加载、Web 导出、`builds/web-release/` → `builds/web/` 的同步、`builds/web-release/` 资源 `200` 校验、`builds/web/` 的 gzip / `HEAD` / `Content-Type` 校验
 - [ ] 若准备走 Nginx 静态托管，参考 `docs/deployment/nginx-web-release.conf`
 
 ## 当前执行口径

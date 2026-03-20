@@ -29,6 +29,7 @@
 - Nginx 托管模板：`docs/deployment/nginx-web-release.conf`
 - 正式托管前清单：`docs/release-minimum-checklist.md`
 - 发布冒烟脚本：`tests/smoke/release_guard.sh`
+- 压缩交付同步脚本：`tests/smoke/sync_compressed_build.sh`
 - UI / 美术 agent 拆分建议：`docs/ui-art-agent-split.md`
 - 工程日志：`docs/worklog.md`
 
@@ -40,6 +41,7 @@
 - `2026-03-20 14:36 CST` 已再次完成 Godot CLI Web 导出复验与本地 HTTP 校验
 - `2026-03-20 14:45 CST` 已补一轮源码 / 场景一致性修正：主场景脚本恢复可加载，HUD 新节点与脚本口径重新对齐，并重导出 `builds/web-release/`
 - 压缩版本地服务现已支持 `HEAD`，可直接接入健康检查或自动化探测
+- `release_guard.sh` 现会先调用 `tests/smoke/sync_compressed_build.sh`，把 `builds/web/` 与最新 `builds/web-release/` 自动对齐，降低双目录交付漂移风险
 - 真正上线托管前，默认再过一次 `docs/release-minimum-checklist.md`，并建议跑 `tests/smoke/release_guard.sh`
 
 ## 当前结论

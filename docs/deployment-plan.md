@@ -167,7 +167,7 @@ server {
 1. 源码主场景能正常加载，`game/scenes/main.tscn` 与 `game/scripts/main.gd` 没脱节
 2. 用 Godot CLI 重新导出 `builds/web-release/`，确保托管包和当前源码一致
 3. 本地静态服务复验 `index.html / index.js / index.wasm / index.pck` 全部返回 `200`
-4. 跑一次 `tests/smoke/release_guard.sh`，把导出 / 资源返回 / gzip / 文档口径串起来复验
+4. 跑一次 `tests/smoke/release_guard.sh`，把导出 / `builds/web-release/` → `builds/web/` 同步 / 资源返回 / gzip / 文档口径串起来复验
 5. 托管侧确认 `application/wasm`、缓存策略、固定分享地址
 6. 在 `docs/worklog.md` 留下本次导出、验证与提交记录
 

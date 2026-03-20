@@ -9,8 +9,11 @@ GODOT_BIN="${GODOT_BIN:-/Applications/Godot.app/Contents/MacOS/Godot}"
 RELEASE_PORT="${RELEASE_PORT:-18081}"
 COMPRESSED_PORT="${COMPRESSED_PORT:-18082}"
 CORE_FILES="index.html index.js index.wasm index.pck"
+SYNC_FILES="index.html index.js index.wasm index.pck index.png index.audio.worklet.js index.audio.position.worklet.js"
+GZIP_FILES="index.html index.js index.wasm index.pck index.audio.worklet.js index.audio.position.worklet.js"
 README_FILES="$ROOT/README.md $ROOT/docs/status.md $ROOT/docs/release-acceptance.md $ROOT/docs/deployment-plan.md"
 SMOKE_README="$ROOT/tests/smoke/README.md"
+SYNC_SCRIPT="$ROOT/tests/smoke/sync_compressed_build.sh"
 NGINX_TEMPLATE="$ROOT/docs/deployment/nginx-web-release.conf"
 RELEASE_PID=""
 COMPRESSED_PID=""
@@ -68,14 +71,17 @@ require_file "$WEB_COMPRESSED_DIR/serve_compressed.py"
 require_file "$ROOT/docs/release-minimum-checklist.md"
 require_file "$NGINX_TEMPLATE"
 require_file "$SMOKE_README"
+require_file "$SYNC_SCRIPT"
 
 for file in $README_FILES; do
   require_file "$file"
   require_text "$file" "builds/web-release/"
 done
 require_text "$ROOT/docs/release-minimum-checklist.md" 'tests/smoke/release_guard.sh'
+require_text "$ROOT/docs/release-minimum-checklist.md" 'tests/smoke/sync_compressed_build.sh'
 require_text "$ROOT/docs/deployment-plan.md" 'docs/deployment/nginx-web-release.conf'
 require_text "$SMOKE_README" 'release_guard.sh'
+require_text "$SMOKE_README" 'sync_compressed_build.sh'
 require_text "$SMOKE_README" 'builds/web-release/'
 require_text "$SMOKE_README" 'builds/web/'
 require_text "$NGINX_TEMPLATE" 'root /srv/survivor-demo/builds/web-release;'
@@ -95,6 +101,28 @@ for file in $CORE_FILES; do
   FILE_MTIME=$(stat -f %m "$WEB_RELEASE_DIR/$file")
   if [ "$FILE_MTIME" -lt "$EXPORT_STARTED_AT" ]; then
     echo "stale export artifact: $WEB_RELEASE_DIR/$file" >&2
+    exit 1
+  fi
+done
+
+log "syncing compressed delivery build from current web-release"
+chmod +x "$SYNC_SCRIPT"
+"$SYNC_SCRIPT"
+
+for file in $SYNC_FILES; do
+  require_file "$WEB_COMPRESSED_DIR/$file"
+  if ! cmp -s "$WEB_RELEASE_DIR/$file" "$WEB_COMPRESSED_DIR/$file"; then
+    echo "compressed delivery artifact drifted from web-release: $file" >&2
+    exit 1
+  fi
+done
+
+for file in $GZIP_FILES; do
+  require_file "$WEB_COMPRESSED_DIR/$file.gz"
+  FILE_MTIME=$(stat -f %m "$WEB_COMPRESSED_DIR/$file")
+  GZIP_MTIME=$(stat -f %m "$WEB_COMPRESSED_DIR/$file.gz")
+  if [ "$GZIP_MTIME" -lt "$FILE_MTIME" ]; then
+    echo "stale gzip artifact: $WEB_COMPRESSED_DIR/$file.gz" >&2
     exit 1
   fi
 done
