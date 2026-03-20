@@ -444,7 +444,7 @@ func _on_spawn_timer_timeout() -> void:
 	elif pressure_tier >= 2:
 		spawn_total = maxi(1, spawn_total - 1)
 	while spawn_total > 0 and available_slots > 0 and _queued_spawn_entries.size() > 0:
-		var queued_entry := _queued_spawn_entries.pop_front()
+		var queued_entry: Dictionary = _queued_spawn_entries.pop_front()
 		if pressure_tier >= 3 and String(queued_entry.get("preferred_type", SPAWN_TYPE_BASIC)) != SPAWN_TYPE_BASIC:
 			continue
 		var queued_position: Vector2 = queued_entry.get("position", _get_spawn_position())
