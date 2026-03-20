@@ -444,3 +444,4 @@
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 45`
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --export-release Web /Users/mac/game-studio/projects/survivor-demo/builds/web-release/index.html`
 - 验证结果：三项均退出码 `0`；说明本轮 RewardPulse / 连斩脉冲改动未引入场景加载或 Web 导出错误。
+- 补充：本轮顺手修掉了一处 `Dictionary` 推断为 `Variant` 的 headless 校验告警，避免后续自动化回归被脚本告警中断。

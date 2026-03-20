@@ -626,6 +626,8 @@ func _on_enemy_died(enemy: Node, death_position: Vector2, xp_reward: int) -> voi
 	_spawn_slash(death_position, randf_range(-0.65, 0.65), popup_color, slash_scale, 1.0)
 	_spawn_reward_pulse(death_position, popup_color, 0.72 + burst_scale * 0.28, 0.82, 6 + mini(4, _kill_streak / 3))
 	_show_combo_meter()
+	if _kill_streak >= 4 and _kill_streak % 4 == 0:
+		_spawn_reward_pulse(player.global_position, HUD_WARNING if _kill_streak < 12 else HUD_MINT, 1.02 + float(_kill_streak) * 0.02, 0.92, 8 + mini(6, _kill_streak / 2))
 	_flash_screen(popup_color, flash_alpha, 0.15)
 	if _kill_streak == 6 or _kill_streak == 12 or _kill_streak == 20:
 		_show_center_notice("连斩 %d · 妖群失势" % _kill_streak, HUD_WARNING if _kill_streak < 20 else HUD_MINT)
