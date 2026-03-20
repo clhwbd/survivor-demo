@@ -585,3 +585,31 @@
 - 结论：
   - **wasm 本体已不能再通过安全配置明显下降。**
   - 当前最可落地的正式发布路线是：**继续保留 `builds/web-release/` 作为验收基线；对外正式分享优先发布 `builds/pages-deploy/` 到 Cloudflare Pages。**
+
+### 26. 网页验收阻塞修复：竖屏适配
+- 动作：针对“手机竖屏浏览时仍显示横屏界面”的验收阻塞做专项修复，收口到项目配置、HUD 布局逻辑与本地回归脚本三层。
+- 根因：
+  - `game/project.godot` 只配置了 `window/stretch/mode="canvas_items"`，没有开启 `stretch/aspect="expand"`，导致 Web 端在手机竖屏下仍按 16:9 横向逻辑视口处理，整体更像“横屏内容被塞进竖屏画布”。
+  - `main.gd` 的 HUD / 状态卡 / 顶部播报 / 底部操作带 / 摇杆 / 闪避按钮都按横屏绝对偏移摆放，虽然窄屏会触发 compact，但并没有真正区分 portrait 布局，导致关键 HUD 和触控操作区在竖屏下容易拥挤甚至互相压位。
+- 涉及文件：
+  - `game/project.godot`
+  - `game/scripts/main.gd`
+  - `game/tests/portrait_layout_smoke.gd`
+  - `builds/web-release/*`
+  - `builds/web/*`
+  - `docs/worklog.md`
+- 具体改动：
+  - 在项目配置中新增 `window/stretch/aspect="expand"`，让 Web 端竖屏时不再强行维持横向 16:9 视口表现。
+  - 重写 `main.gd` 的 `_refresh_hud_layout()`：新增 `portrait_layout` 分支，按竖屏重新排布主 HUD、右上状态签、顶部播报区、底部操作带、暂停/继续/重开按钮，以及左下摇杆 / 右下筋斗闪 / 移动端提示区。
+  - 竖屏下把状态卡改成横向整条信息带，把底部操作区改成全宽操作带，并给移动端提示区留出与摇杆 / 闪避按钮的垂直间距，避免关键操作区互相遮挡。
+  - 新增 `game/tests/portrait_layout_smoke.gd`，在 `360x800 / 390x844 / 430x932` 三组常见手机竖屏尺寸下，自动检查主 HUD、状态卡、顶部播报、底部操作带、摇杆、闪避按钮与移动提示区都在可视区域内，且操作区不互相压住。
+  - 回写当前 `builds/web-release/` 与 `builds/web/`，保证验收包与源码中的竖屏适配逻辑一致。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/portrait_layout_smoke.gd`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 3`
+  - `./tests/smoke/release_guard.sh`
+- 验证结果：
+  - `portrait_layout_smoke: ok`，覆盖 `360x800 / 390x844 / 430x932` 三组手机竖屏尺寸。
+  - 主场景 headless 加载退出码 `0`。
+  - `release_guard.sh` 完整通过，重新导出并复验了 `builds/web-release/` 与 `builds/web/`。
+- 提交：`fix: adapt web HUD for portrait mobile layout`（提交号以本次 hotfix 的最终 git commit 为准）
