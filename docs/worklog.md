@@ -17,7 +17,34 @@
 
 ## 2026-03-20
 
-### 1. 接入前快照
+### 1. 保守 Web 模板裁剪准备线落地
+- 动作：为后续 Godot Web 自编译模板补一条独立的“保守开关”实验框架，不碰激进文本栈替换，不改现有发布链。
+- 新增文件：
+  - `docs/web-template-safe-switches-playbook.md`
+  - `tests/smoke/godot_web_safe_trim_matrix.sh`
+  - `reports/web_template_safe_trim_plan.md`
+  - `reports/web_template_safe_trim_plan.json`
+- 同步更新：
+  - `tests/smoke/README.md`
+- 本轮只纳入的保守项：
+  - `disable_3d=yes`
+  - `disable_physics_3d=yes`
+  - `disable_navigation_3d=yes`
+  - `disable_xr=yes`
+  - 以及作为构建优化对照的 `lto=thin` / `lto=full`
+- 结果：
+  - 已把依赖清单、执行顺序、命令模板、验收口径、回退方式整理成仓库内工程产物。
+  - 新脚本会先检测 Python / SCons / Emscripten / Godot 源码目录是否齐全；若环境齐全，可直接顺序执行 baseline / safe trim / full LTO 对照；若环境不齐，也会生成主线可直接接手的报告。
+  - 当前机器实测结果：`python3=3.7.3`，且缺 `scons`、`emcc`、`em++`、`emar`、`emranlib`，暂不具备直接自编译条件。
+- 结论：
+  - 这批开关值得先试，因为它们只砍 survivor-demo 当前明确未使用的 3D / XR 子系统，风险远低于文本栈替换。
+  - `build_profile` 本轮只评估、不进入首批落地，因为已经超出“保守模板开关”范围。
+- 验证：
+  - `sh -n tests/smoke/godot_web_safe_trim_matrix.sh`
+  - `./tests/smoke/godot_web_safe_trim_matrix.sh`
+- 备注：本轮未改中文字体、竖屏适配、发布链路脚本，也未覆盖当前正式交付目录。
+
+### 2. 接入前快照
 - 动作：为项目建立 Git 仓库并做接入前快照
 - 目的：给 Godot MCP 接入和后续玩法迭代提供可回退基线
 - 提交：`b5bc8c6` `chore: snapshot before Godot MCP integration`

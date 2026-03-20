@@ -16,6 +16,9 @@
 ### `web_payload_matrix.py`
 用途：导出 baseline / feature tag / 模板切换 / dynamic linking / 极简空项目对照矩阵，把“wasm 为什么大、哪些能拆、哪些不能拆”做成可复跑报告。
 
+### `godot_web_safe_trim_matrix.sh`
+用途：为 Godot Web 自编译模板准备保守裁剪实验矩阵；先检查 Python / SCons / Emscripten / Godot 源码目录是否齐全，再生成 `disable_3d / disable_physics_3d / disable_navigation_3d / disable_xr` + `lto` 的命令模板与计划报告。环境补齐后可直接带 `RUN_BUILD=1` 顺序执行 baseline / safe trim / full LTO 对照。
+
 ### `sync_compressed_build.sh`
 用途：把 `builds/web-release/` 当前验收基线同步到 `builds/web/`，并重建压缩交付版所需的 `.gz` 资源，避免两套交付目录静默漂移。
 
@@ -41,6 +44,15 @@
 cd /Users/mac/game-studio/projects/survivor-demo
 chmod +x tests/smoke/release_guard.sh
 ./tests/smoke/release_guard.sh
+```
+
+保守模板裁剪准备线：
+```bash
+cd /Users/mac/game-studio/projects/survivor-demo
+chmod +x tests/smoke/godot_web_safe_trim_matrix.sh
+./tests/smoke/godot_web_safe_trim_matrix.sh
+# 环境补齐后再执行真正构建
+RUN_BUILD=1 GODOT_SOURCE_DIR=/ABS/PATH/TO/godot-4.6.1-stable ./tests/smoke/godot_web_safe_trim_matrix.sh
 ```
 
 默认端口：

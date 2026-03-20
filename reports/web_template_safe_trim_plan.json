@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-03-20 23:30:54 CST",
+  "project_runtime_baseline": {
+    "index_wasm": 37685705,
+    "index_pck": 455416
+  },
+  "environment": {
+    "python_version": "3.7.3",
+    "python_ok": "no",
+    "scons": "missing",
+    "emcc": "missing",
+    "empp": "missing",
+    "emar": "missing",
+    "emranlib": "missing",
+    "cmake": "missing",
+    "ninja": "missing",
+    "pkg_config": "missing",
+    "godot_source_dir": "missing",
+    "ready": "no"
+  },
+  "variants": [
+    {
+      "key": "baseline",
+      "label": "baseline-template",
+      "switches": "\uff08\u65e0\uff0c\u57fa\u7ebf\uff09",
+      "risk": "\u57fa\u7ebf\uff0c\u4ec5\u7528\u4e8e\u9a8c\u8bc1\u81ea\u7f16\u8bd1\u73af\u5883\u4e0e\u5b98\u65b9\u6a21\u677f\u7b49\u4ef7\u8f93\u51fa\u3002",
+      "expected_gain": "\u4e0d\u8ffd\u6c42\u51cf\u5305\uff0c\u76ee\u6807\u662f\u62ff\u5230\u53ef\u5bf9\u6bd4\u7684\u81ea\u7f16\u8bd1\u57fa\u7ebf\u3002",
+      "command": "mkdir -p /Users/mac/game-studio/projects/survivor-demo/builds/template-safe-trim/baseline-template && cd ${GODOT_SOURCE_DIR:-/ABS/PATH/TO/godot-4.6.1-stable} && scons platform=web target=template_release production=yes lto=thin && python3 misc/scripts_app/make_zip.py platform=web target=template_release archive=/Users/mac/game-studio/projects/survivor-demo/builds/template-safe-trim/baseline-template/web_baseline-template.zip",
+      "artifacts": {
+        "wasm": null,
+        "js": null,
+        "zip": null
+      }
+    }
+,
+    {
+      "key": "safe_trim",
+      "label": "safe-trim",
+      "switches": "disable_3d=yes disable_physics_3d=yes disable_navigation_3d=yes disable_xr=yes",
+      "risk": "\u4f4e\u98ce\u9669\uff1b\u4ec5\u5173\u95ed survivor-demo \u660e\u786e\u672a\u4f7f\u7528\u7684 3D / XR \u76f8\u5173\u5b50\u7cfb\u7edf\u3002",
+      "expected_gain": "\u4f18\u5148\u4e89\u53d6 1~4 MB \u7ea7 wasm \u4e0b\u964d\uff0c\u4e14\u4e0d\u78b0 2D/GUI/\u6587\u672c\u4e3b\u94fe\u3002",
+      "command": "mkdir -p /Users/mac/game-studio/projects/survivor-demo/builds/template-safe-trim/safe-trim && cd ${GODOT_SOURCE_DIR:-/ABS/PATH/TO/godot-4.6.1-stable} && scons platform=web target=template_release production=yes lto=thin disable_3d=yes disable_physics_3d=yes disable_navigation_3d=yes disable_xr=yes && python3 misc/scripts_app/make_zip.py platform=web target=template_release archive=/Users/mac/game-studio/projects/survivor-demo/builds/template-safe-trim/safe-trim/web_safe-trim.zip",
+      "artifacts": {
+        "wasm": null,
+        "js": null,
+        "zip": null
+      }
+    }
+,
+    {
+      "key": "safe_trim_full_lto",
+      "label": "safe-trim-full-lto",
+      "switches": "disable_3d=yes disable_physics_3d=yes disable_navigation_3d=yes disable_xr=yes",
+      "risk": "\u4e2d\u4f4e\u98ce\u9669\uff1b\u5728 safe trim \u57fa\u7840\u4e0a\u628a LTO \u4ece thin \u63d0\u5230 full\uff0c\u6784\u5efa\u65f6\u95f4\u66f4\u957f\uff0c\u53ef\u80fd\u5e26\u6765\u6d4f\u89c8\u5668\u517c\u5bb9/\u94fe\u63a5\u6ce2\u52a8\uff0c\u9700\u8981\u5355\u72ec\u590d\u9a8c\u3002",
+      "expected_gain": "\u5728 safe trim \u57fa\u7840\u4e0a\u7ee7\u7eed\u4e89\u53d6\u6570\u767e KB \u5230 1 MB+ \u7684\u9644\u52a0\u4e0b\u964d\uff0c\u4ee3\u4ef7\u662f\u6784\u5efa\u65f6\u95f4\u548c\u4e0d\u786e\u5b9a\u6027\u4e0a\u5347\u3002",
+      "command": "mkdir -p /Users/mac/game-studio/projects/survivor-demo/builds/template-safe-trim/safe-trim-full-lto && cd ${GODOT_SOURCE_DIR:-/ABS/PATH/TO/godot-4.6.1-stable} && scons platform=web target=template_release production=yes lto=full disable_3d=yes disable_physics_3d=yes disable_navigation_3d=yes disable_xr=yes && python3 misc/scripts_app/make_zip.py platform=web target=template_release archive=/Users/mac/game-studio/projects/survivor-demo/builds/template-safe-trim/safe-trim-full-lto/web_safe-trim-full-lto.zip",
+      "artifacts": {
+        "wasm": null,
+        "js": null,
+        "zip": null
+      }
+    }
+  ]
+}
