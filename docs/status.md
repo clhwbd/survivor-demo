@@ -40,6 +40,8 @@
 - 自管 Web 线上复验脚本：`tests/smoke/verify_controlled_web_remote.sh`
 - 受控本地预览脚本：`scripts/serve_controlled_web.py`
 - 受控交付打包脚本：`scripts/package_controlled_web_release.py`
+- 临时验收运行手册：`docs/temporary-web-acceptance-runbook.md`
+- Web 交付故障排查：`docs/web-delivery-troubleshooting.md`
 - UI / 美术 agent 拆分建议：`docs/ui-art-agent-split.md`
 - 工程日志：`docs/worklog.md`
 

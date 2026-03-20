@@ -28,6 +28,8 @@ Godot 4.x 2D 割草 Roguelike 样板项目。
 - `docs/release-acceptance.md`：验收版本说明、验证结果、构建命令
 - `docs/deployment-plan.md`：更稳的发布 / 托管方案建议
 - `docs/deployment-controlled-web.md`：当前推荐的自管 Web 发布链路说明
+- `docs/temporary-web-acceptance-runbook.md`：无固定服务器时的临时验收运行手册
+- `docs/web-delivery-troubleshooting.md`：黑屏 / 慢加载 / 旧缓存 / 隧道失效排查手册
 - `docs/release-minimum-checklist.md`：真正上线托管前的最小发布清单
 - `docs/deployment/nginx-web-release.conf`：当前验收基线目录的 Nginx 静态托管模板
 - `docs/deployment/nginx-web-controlled.conf`：当前推荐的自管 Nginx 托管模板（直接服务 `builds/web/`）

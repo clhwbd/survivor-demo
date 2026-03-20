@@ -17,6 +17,27 @@
 
 ## 2026-03-21
 
+### 03:17 controlled web 临时验收运营手册 + 故障排查手册补齐
+
+- 动作：承接上一轮 `controlled web` 主线，不再只停留在“可控托管链路已经具备”，继续把交付运营层补齐到**没有固定服务器也能快速复用临时验收方案**的程度；重点收口本机服务、临时外链、验收顺序、用户提示和常见异常排查。
+- 涉及文件：
+  - `docs/temporary-web-acceptance-runbook.md`
+  - `docs/web-delivery-troubleshooting.md`
+  - `README.md`
+  - `docs/status.md`
+- 具体产出：
+  - 新增 `docs/temporary-web-acceptance-runbook.md`：把当前 `builds/web/` + `scripts/serve_controlled_web.py` + `tests/smoke/controlled_web_guard.sh` + `tests/smoke/verify_controlled_web_remote.sh` 串成一套临时验收 SOP，覆盖本机起服务、临时外链、验证顺序、用户侧提示模板、失败回退顺序与交付打包口径。
+  - 新增 `docs/web-delivery-troubleshooting.md`：把常见问题拆成“真黑屏 / 慢加载 / 旧缓存 / 隧道失效”四类，明确先验 header / gzip / cache，再区分本机问题还是链路问题，避免继续把所有异常都笼统记成“打不开”。
+  - 更新 `README.md` 与 `docs/status.md`：把两份新文档纳入当前交付结构与可交付物清单，方便主线后续直接查入口。
+- 重点结论：
+  - 临时验收主线改为：**先跑本地 `controlled_web_guard`，再起受控服务，最后才挂外链并做远端 header 复验**。
+  - 排查优先级改为：**先看 header / gzip / cache，再看浏览器；先区分 build 问题还是隧道问题，再决定是否让用户反复重试。**
+  - 旧备份链路 `https://survivor-demo.pages.dev` 保留为临时外链失效时的保底对照，不再和主线混用。
+- 验证：
+  - 人工复核两份新文档全部基于现有 `controlled web / Pages` 材料收口，未另起交付链路。
+  - 人工复核 `README.md` / `docs/status.md` 已补到入口。
+- 提交：待本轮提交
+
 ### 03:09 地图表现模块（Map Presence Module）首版落地
 
 - 动作：直接把“地图存在感 / 位移参照物”做进主场景，新增一个**可复用、按世界坐标程序化生成**的地图表现模块，不靠手摆死图。
