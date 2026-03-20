@@ -211,6 +211,7 @@ func _ready() -> void:
 		collect_pulse_scene = load("res://scenes/collect_pulse.tscn")
 
 	_apply_ui_style()
+	call_deferred("_apply_ui_font_overrides")
 	_refresh_hud_layout()
 
 	spawn_timer.wait_time = spawn_interval
@@ -2057,6 +2058,9 @@ func _get_stage_title(index: int) -> String:
 	if safe_index <= DIFFICULTY_TITLES.size():
 		return DIFFICULTY_TITLES[safe_index - 1]
 	return DIFFICULTY_TITLES[DIFFICULTY_TITLES.size() - 1]
+
+func _apply_ui_font_overrides() -> void:
+	UIFonts.apply_to_control_tree($HUD)
 
 func _apply_ui_style() -> void:
 	var panel_style := StyleBoxFlat.new()

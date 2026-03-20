@@ -613,3 +613,32 @@
   - 主场景 headless 加载退出码 `0`。
   - `release_guard.sh` 完整通过，重新导出并复验了 `builds/web-release/` 与 `builds/web/`。
 - 提交：`fix: adapt web HUD for portrait mobile layout`（提交号以本次 hotfix 的最终 git commit 为准）
+
+### 27. 网页验收阻塞修复：中文乱码
+- 动作：修复网页试玩版所有中文 UI / 引导 / 状态文案的乱码显示问题。
+- 根因（三层叠加）：
+  1. 项目此前没有任何中文字体资源，网页端大量中文退回 Godot 默认字体链（CJK 缺字 → 方块）。
+  2. 首轮尝试用 `FontFile.load_dynamic_font("res://...")` 读原始字体文件：原生可行，但 Web 导出后 `.ttf` 源文件不在包内，浏览器报 `Can't open file from path`，网页端仍拿不到字体。
+  3. 字体覆盖若在 `_ready()` 阶段过早执行，会被后续 UI 初始化冲掉；需在 `_ready()` 完全结束后通过 `call_deferred` 延后应用。
+- 解决方案：
+  - 接入用户提供的 **Source Han Sans CN Medium（思源黑体 CN，TTF，约 1.8MB）**；该字体经 fonttools 验证含 7767 个字形，完整覆盖游戏所有中文。
+  - `ui_fonts.gd` 中使用普通 `load()` 而非 `load_dynamic_font()`，使 Godot Web 导出时字体进入 `.fontdata` 资源链路，不再依赖包外源文件。
+  - `main.gd` 中 `call_deferred("_apply_ui_font_overrides")` 延后一帧覆盖时机，确保字体覆盖不被冲掉。
+- 涉及文件：
+  - `game/scripts/ui_fonts.gd`
+  - `game/scripts/main.gd`
+  - `game/scripts/damage_popup.gd`
+  - `game/assets/fonts/SourceHanSansCN-Medium.ttf`
+  - `builds/web/*`
+  - `docs/worklog.md`
+- 具体改动：
+  - 新增 `game/scripts/ui_fonts.gd`，统一加载 `SourceHanSansCN-Medium.ttf` 并递归给 HUD / 弹字控件做字体覆盖。
+  - 修改 `game/scripts/main.gd`，通过 `call_deferred("_apply_ui_font_overrides")` 延后应用中文字体。
+  - 修改 `game/scripts/damage_popup.gd`，让战斗弹字复用同一套中文字体资源。
+  - 新增 `game/assets/fonts/SourceHanSansCN-Medium.ttf`，重新导出 `builds/web/` 验收包。
+- 验证：
+  - Godot Web CLI 导出：`'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --export-release Web ../builds/web/index.html'`，退出码 `0`。
+  - 浏览器链路：本地 `python3 -m http.server 18080` 服务 `builds/web/`，Chrome DevTools Protocol 重载并截图复验。
+  - 浏览器控制台：无字体相关错误（仅 `favicon.ico 404` 和 MCP addon 无关报错）。
+- 验证结果：左上 HUD "行者 1重 · 初入山门"、中央引导面板、右上状态签、右下按钮等中文均正常渲染，不再出现方块/乱码。
+- 提交：`fix: bundle Source Han Sans CN font for web UI`
