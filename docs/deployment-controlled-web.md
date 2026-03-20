@@ -9,6 +9,8 @@
 - 自管服务模板：`docs/deployment/nginx-web-controlled.conf`
 - 本地等价预览：`scripts/serve_controlled_web.py`
 - 冒烟验证：`tests/smoke/controlled_web_guard.sh`
+- 线上复验脚本：`tests/smoke/verify_controlled_web_remote.sh`
+- 临时交付打包：`scripts/package_controlled_web_release.py`
 
 ## 为什么它比 Pages 更可控
 1. **header 是你自己定的，不是平台帮你“猜”的**
@@ -111,12 +113,17 @@ sudo nginx -t && sudo systemctl reload nginx
 
 5. 上线后立刻复验
 ```bash
-curl -I https://your-domain/index.html
-curl -I -H 'Accept-Encoding: gzip' https://your-domain/index.wasm
-curl -I -H 'Accept-Encoding: gzip' https://your-domain/index.js
-curl -I -H 'Accept-Encoding: gzip' https://your-domain/index.pck
-curl https://your-domain/healthz
+cd /Users/mac/game-studio/projects/survivor-demo
+./tests/smoke/verify_controlled_web_remote.sh https://your-domain
 ```
+
+如果需要把交付物一次性打包给运维 / 测试同学，可先执行：
+```bash
+cd /Users/mac/game-studio/projects/survivor-demo
+python3 scripts/package_controlled_web_release.py
+```
+
+它会生成一个包含 `builds/web/`、Nginx 模板、线上复验脚本和 sha256 清单的 tar.gz，适合作为当前最短、可复现的临时交付包。
 
 ## 这条链路怎么解释“为什么不再只是 200 但黑屏”
 因为现在验收标准已经从“文件存在”升级成“运行时关键分发条件完整”：

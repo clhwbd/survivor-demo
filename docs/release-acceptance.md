@@ -33,6 +33,12 @@
 ### 3. 自管正式发布版本（当前推荐）
 目录：`builds/web/`
 
+当前最短稳定交付方式：
+- 先跑 `./tests/smoke/controlled_web_guard.sh`
+- 再跑 `python3 scripts/package_controlled_web_release.py`
+- 把生成的 tar.gz 直接交给目标机器部署
+- 部署后用 `./tests/smoke/verify_controlled_web_remote.sh https://your-domain` 复验
+
 用途：
 - 作为当前最推荐的正式分享目录
 - 适合自管 Nginx / 反向代理 / 对象存储前置网关这类可控静态服务
@@ -165,6 +171,9 @@ python3 serve_compressed.py
   - `docs/deployment/nginx-web-controlled.conf`
   - `scripts/serve_controlled_web.py`
   - `tests/smoke/controlled_web_guard.sh`
+- `tests/smoke/verify_controlled_web_remote.sh https://your-domain`
+- `python3 scripts/package_controlled_web_release.py`
+- 旧备份链路若必须继续用 Pages，也要确认 `tests/smoke/sync_pages_build.sh` 生成的 `_headers` 已把 runtime 资源缓存改成 `public, max-age=600, must-revalidate`，避免固定文件名 + immutable 导致旧缓存假黑屏
   - `docs/deployment-controlled-web.md`
 - 本轮本地复验命令：
   - `./tests/smoke/controlled_web_guard.sh`

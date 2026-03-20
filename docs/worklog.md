@@ -17,7 +17,36 @@
 
 ## 2026-03-21
 
-### 1. 手机验收阻塞修复：UI 太小 + 摇杆被其他元素遮挡
+### 1. 可控 Web 临时交付链路继续收口：可打包交付 + 线上复验 + Pages 旧缓存纠偏
+
+- 动作：继续围绕“黑屏 / 慢加载 / 临时外链不稳定”收口现有 controlled web 方案，不再停留在口头建议，直接补脚本、文档与回退链路缓存策略。
+- 涉及文件：
+  - `scripts/package_controlled_web_release.py`
+  - `tests/smoke/verify_controlled_web_remote.sh`
+  - `tests/smoke/sync_pages_build.sh`
+  - `tests/smoke/pages_release_guard.sh`
+  - `docs/deployment-controlled-web.md`
+  - `docs/release-acceptance.md`
+  - `docs/status.md`
+- 具体改动：
+  - 新增 `scripts/package_controlled_web_release.py`：把 `builds/web/`、`docs/deployment/nginx-web-controlled.conf`、`tests/smoke/verify_controlled_web_remote.sh` 与 sha256 清单打成 tar.gz，形成“当前最短稳定交付包”，减少临时交付时靠人肉拷目录和口头说明出错。
+  - 新增 `tests/smoke/verify_controlled_web_remote.sh`：对外链直接校验 `/healthz`、`index.html`、`index.wasm`、`index.js`、`index.pck`、`OPTIONS`，把“链接能打开”升级成“线上关键响应头正确”。
+  - 修正 `tests/smoke/sync_pages_build.sh`：把 Pages 备份链路里 runtime 资源的缓存从 `public, max-age=31536000, immutable` 改为 `public, max-age=600, must-revalidate`，避免固定文件名重发后命中旧缓存，出现“像黑屏/像没更新”的假故障。
+  - 更新 `tests/smoke/pages_release_guard.sh`：把新的 Pages 缓存口径纳入自动校验，防止后续回退时又把 immutable 写回去。
+  - 更新交付文档：在 `docs/deployment-controlled-web.md`、`docs/release-acceptance.md`、`docs/status.md` 中明确当前最短稳定交付方式：`controlled_web_guard` → `package_controlled_web_release.py` → 目标机部署 → `verify_controlled_web_remote.sh` 线上复验。
+- 验证：
+  - `sh -n tests/smoke/verify_controlled_web_remote.sh`
+  - `sh -n tests/smoke/sync_pages_build.sh`
+  - `sh -n tests/smoke/pages_release_guard.sh`
+  - `python3 scripts/package_controlled_web_release.py --output artifacts/controlled-web-delivery/test-controlled-web.tar.gz`
+  - `./tests/smoke/controlled_web_guard.sh`
+  - `./tests/smoke/sync_pages_build.sh`
+  - `./tests/smoke/pages_release_guard.sh`
+- 验证结果：
+  - 受控交付包可生成；本地 controlled web guard 继续通过；Pages 备份链路在缓存口径纠偏后也通过目录与 header 校验。
+- 提交：`5981c97` `feat: harden controlled web delivery handoff`
+
+### 2. 手机验收阻塞修复：UI 太小 + 摇杆被其他元素遮挡
 
 - 动作：针对"手机适配差、UI 显示很小、摇杆被别的 UI 挡住"的验收阻塞做专项修复，修复到代码层，不只给方案。
 - 根因判断（两层）：

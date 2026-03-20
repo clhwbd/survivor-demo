@@ -107,6 +107,7 @@ require_text "$PAGES_DIR/_headers" 'Content-Encoding: gzip'
 require_text "$PAGES_DIR/_headers" '/index.audio.worklet.js'
 require_text "$PAGES_DIR/_headers" '/index.audio.position.worklet.js'
 require_text "$PAGES_DIR/_headers" 'Cache-Control: no-cache, max-age=0, must-revalidate'
+require_text "$PAGES_DIR/_headers" 'Cache-Control: public, max-age=600, must-revalidate'
 
 log "serving pages-deploy with a static server for file presence checks"
 cd "$PAGES_DIR"

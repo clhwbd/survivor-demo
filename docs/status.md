@@ -37,7 +37,9 @@
 - Pages 发布目录同步脚本：`tests/smoke/sync_pages_build.sh`
 - Pages 发布校验脚本：`tests/smoke/pages_release_guard.sh`
 - 自管 Web 校验脚本：`tests/smoke/controlled_web_guard.sh`
+- 自管 Web 线上复验脚本：`tests/smoke/verify_controlled_web_remote.sh`
 - 受控本地预览脚本：`scripts/serve_controlled_web.py`
+- 受控交付打包脚本：`scripts/package_controlled_web_release.py`
 - UI / 美术 agent 拆分建议：`docs/ui-art-agent-split.md`
 - 工程日志：`docs/worklog.md`
 
@@ -45,7 +47,9 @@
 - 当前统一验收目录：`builds/web-release/`
 - 当前最佳本地验收方式：`python3 -m http.server 18081`
 - 当前最佳后续正式托管方式：自管 Nginx 静态站直接发 `builds/web/`，并套用 `docs/deployment/nginx-web-controlled.conf`
+- 当前最短稳定交付方式：执行 `python3 scripts/package_controlled_web_release.py` 生成受控交付 tar.gz，把包交给目标机器解包 + Nginx 挂载
 - 当前仓库内一键自管校验命令：`./tests/smoke/controlled_web_guard.sh`
+- 当前线上复验命令：`./tests/smoke/verify_controlled_web_remote.sh https://your-domain`
 - 当前本地等价预览命令：`python3 scripts/serve_controlled_web.py --port 18084`
 - 当前 Web 壳发布口径已收回到完整版本：保留完整 build，通过更可控的静态服务解决 wasm / gzip / header / 黑屏问题
 - `builds/web/` 现在就是推荐的自管正式站点目录
