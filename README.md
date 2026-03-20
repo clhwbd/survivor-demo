@@ -33,6 +33,8 @@ Godot 4.x 2D 割草 Roguelike 样板项目。
 - `docs/status.md`：项目当前状态收口
 - `docs/worklog.md`：工程操作与交付日志
 - `tests/smoke/release_guard.sh`：把导出 / 两套 Web 目录同步 / 本地服务 / gzip 返回 / 文档口径串起来的一键发布冒烟检查
+- `tests/smoke/build_ui_font_subset.py`：从思源黑体源文件生成仅保留当前 UI 所需字形的子集字体，压缩 `index.pck`
+- `tests/smoke/patch_web_index.py`：给导出的 `index.html` 补加载进度、慢加载提示与完整版本托管指引，不再默认切轻量模式
 - `tests/smoke/sync_compressed_build.sh`：把 `builds/web-release/` 同步到 `builds/web/` 并重建 `.gz` 资源，避免交付目录漂移
 - `tests/smoke/sync_pages_build.sh`：把 `builds/web/` 的预压缩运行时资源同步成 `builds/pages-deploy/` 的 Pages 可发布目录
 - `tests/smoke/pages_release_guard.sh`：验证 `builds/pages-deploy/` 的文件对齐、gzip 资源和 `_headers` 口径
@@ -58,8 +60,10 @@ chmod +x tests/smoke/release_guard.sh
 ```
 
 这会串行完成：
+- 先从 `SourceHanSansCN-Medium.ttf` 生成 UI 子集字体 `survivor-ui-subset.ttf`
 - 主场景 headless 加载
 - Web 验收版重导出
+- 给导出的 `index.html` 自动补上加载进度、慢加载提示与“优先换托管、不默认降级”的完整版本 Web 壳提示
 - 把 `builds/web/` 与最新 `builds/web-release/` 自动同步，并重建 `.gz` 资源
 - `builds/web-release/` 四个核心文件 `200` 校验
 - `builds/web/` gzip / `HEAD` / `Content-Type` 返回校验
@@ -100,7 +104,11 @@ python3 serve_compressed.py
 - 第二选择：对象存储静态托管 + CDN，先上传 `builds/web-release/`
 - 第三选择：自管 Caddy / Nginx 静态站，稳定后再考虑切到 `builds/web/`
 - 若走 Nginx，可直接参考 `docs/deployment/nginx-web-release.conf`
+- 当前机器已直接发布 Cloudflare Pages，稳定地址：`https://survivor-demo.pages.dev`
+- 一键重新发布命令：`./tests/smoke/publish_pages.sh`
 - 当前机器可本地执行 `tests/smoke/pages_release_guard.sh` 验证 Pages 发布目录；但 `wrangler pages dev` 受本机 macOS 12.6 限制，无法完整跑起 Cloudflare 本地运行时
+- **不建议继续用 GitHub Pages 当当前完整版本验收主链路**：它无法像 `builds/pages-deploy/` 那样为压缩后的 wasm / pck 提供 `Content-Encoding: gzip`，用户仍要硬吃约 `35.94 MiB` 原始 wasm，实际可用性太差
+- 当前发布口径已回到**完整版本**：优先换托管/CDN，不再默认对手机或窄屏切轻量模式
 - 不建议继续把临时隧道当正式验收链路
 - 真正上线前，先过一遍 `docs/release-minimum-checklist.md`，并建议执行 `tests/smoke/release_guard.sh` 与 `tests/smoke/pages_release_guard.sh`
 

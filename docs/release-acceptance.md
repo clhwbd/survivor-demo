@@ -120,6 +120,46 @@ python3 serve_compressed.py
 - `tests/smoke/pages_release_guard.sh` 已在本机通过：确认 Pages 目录文件存在、gzip 内容与 `builds/web/*.gz` 一致、`_headers` 包含 `Content-Encoding: gzip` / `application/wasm` / 缓存策略
 - 本机尝试 `wrangler pages dev` 时，Wrangler 能解析 `_headers`，但 Cloudflare `workerd` 因 macOS `12.6.0` 低于最低要求 `13.5+` 无法完整启动；因此当前机器上可完成“目录正确性验证”，但不能完成真正的 Pages 本地运行时预览
 
+## 2026-03-20 22:20 CST 完整版本托管纠偏结论
+- 用户已明确要求：**不要轻量版，只保留完整版本。**
+- 因此本轮网页验收目标重新收敛为：**基于当前完整 build 寻找更适合中国大陆访问的托管路径**，而不是对手机默认切轻量模式。
+- 根因仍然成立：当前“长时间打不开”的核心问题主要是 **GitHub Pages 路线无法给当前 Godot Web 运行时提供压缩交付**；用户实际会先吃到约 `35.94 MiB` 的原始 `index.wasm`。
+- 当前完整版本导出后关键文件尺寸：
+  - `builds/web-release/index.wasm`：`37,685,705 B`（约 `35.94 MiB`）
+  - `builds/web/index.wasm.gz` / `builds/pages-deploy/index.wasm`：`9,377,158 B`
+  - `builds/web-release/index.pck`：`455,416 B`
+  - `builds/web/index.pck.gz` / `builds/pages-deploy/index.pck`：`185,634 B`
+- 当前构建守卫口径已改为：
+  - `tests/smoke/build_ui_font_subset.py` 继续负责字体子集构建
+  - `tests/smoke/patch_web_index.py` 仅补完整版本的加载进度 / 慢加载提示 / 托管指引，不再默认切轻量模式
+- 当前结论：**更适合大陆访问的完整版本正式分享路径已经切到 Cloudflare Pages + `builds/pages-deploy/`。**
+
+## 2026-03-20 22:18 CST Cloudflare Pages 实际发布复验
+- 已使用当前机器现成的 Cloudflare 登录态直接执行：
+  - `./tests/smoke/sync_pages_build.sh`
+  - `./tests/smoke/pages_release_guard.sh`
+  - `npx wrangler pages deploy builds/pages-deploy --project-name survivor-demo --commit-dirty=true`
+- Wrangler 返回的本次部署地址：`https://d33168fa.survivor-demo.pages.dev`
+- 项目稳定域名：`https://survivor-demo.pages.dev`
+- 线上复验结果：
+  - 首页返回 `HTTP 200`
+  - `index.wasm` 返回 `HTTP 200`
+  - `GET /index.wasm` 已确认带 `Content-Type: application/wasm` 与 `Content-Encoding: gzip`
+- 结论：当前版本已经不只是“具备 Pages 发布目录”，而是**已经实际在线发布可验收**
+
+## 2026-03-20 22:28 CST 完整版本重新发布复验
+- 用户已明确要求不要轻量版；因此已把 Web 壳纠偏回完整版本，并重新发布 Cloudflare Pages。
+- 重新发布命令：
+  - `python3 tests/smoke/patch_web_index.py builds/web-release/index.html`
+  - `./tests/smoke/sync_compressed_build.sh`
+  - `./tests/smoke/publish_pages.sh`
+- 最新部署地址：`https://01f02bb3.survivor-demo.pages.dev`
+- 稳定域名：`https://survivor-demo.pages.dev`
+- 线上复验结果：
+  - 首页标题已更新为 `survivor-demo · Web 完整验收版`
+  - `GET /index.wasm` 仍返回 `Content-Type: application/wasm` 与 `Content-Encoding: gzip`
+- 结论：当前对外验收链接已经切回**完整版本**，并保持 Cloudflare Pages 压缩传输优势
+
 ## 产物说明
 
 ### `builds/web-release/`

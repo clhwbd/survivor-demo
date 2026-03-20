@@ -642,3 +642,119 @@
   - 浏览器控制台：无字体相关错误（仅 `favicon.ico 404` 和 MCP addon 无关报错）。
 - 验证结果：左上 HUD "行者 1重 · 初入山门"、中央引导面板、右上状态签、右下按钮等中文均正常渲染，不再出现方块/乱码。
 - 提交：`fix: bundle Source Han Sans CN font for web UI`
+
+### 28. 国内验收托管落地：直接发布 Cloudflare Pages
+- 动作：独立评估“比 GitHub Pages 更适合中国大陆验收”的最短静态托管路径，并直接把当前版本发到 Cloudflare Pages。
+- 可行候选对比：
+  - Cloudflare Pages + `builds/pages-deploy/`：当前机器已有 Wrangler 登录态和现成 Pages 项目，可直接上传压缩运行时资源，最终采用。
+  - GitHub 仓库 + jsDelivr CDN：实测 `index.html / index.js / index.pck` 可访问，但 `index.wasm` 返回 `403`，放弃。
+  - 自管 Nginx / Caddy：长期可行，但本轮没有现成公网主机 / 域名 / HTTPS 收口，不够“今晚最短路径”。
+- 最终选型理由：
+  - 不需要新增账号交互；当前机器已具备 Cloudflare `pages:write` 能力。
+  - 可直接发布 `builds/pages-deploy/`，让浏览器实际拿到 gzip 版 `index.wasm`，比 GitHub Pages 更适合当前大陆验收。
+  - 现成稳定域名 `https://survivor-demo.pages.dev`，比临时隧道更稳，比 GitHub Pages 更容易规避原始 wasm 首开过慢问题。
+- 涉及文件：
+  - `tests/smoke/publish_pages.sh`
+  - `README.md`
+  - `docs/deployment-plan.md`
+  - `docs/status.md`
+  - `docs/release-acceptance.md`
+  - `docs/worklog.md`
+- 具体改动：
+  - 新增 `tests/smoke/publish_pages.sh`，把 Pages 发布目录同步、发布前校验、`wrangler pages deploy` 串成一条命令。
+  - 在 README / deployment-plan / status / release-acceptance 中补齐：候选对比、最终选型、实际发布命令、稳定链接与线上复验结果。
+  - 使用 `npx wrangler pages deploy builds/pages-deploy --project-name survivor-demo --commit-dirty=true` 直接完成上线。
+- 验证：
+  - `./tests/smoke/sync_pages_build.sh`
+  - `./tests/smoke/pages_release_guard.sh`
+  - `npx wrangler pages project list`
+  - `npx wrangler pages deploy builds/pages-deploy --project-name survivor-demo --commit-dirty=true`
+  - `curl -L -I https://survivor-demo.pages.dev/`
+  - `curl -L -I https://survivor-demo.pages.dev/index.wasm`
+  - `curl -L -H 'Accept-Encoding: gzip' -D - -r 0-31 https://survivor-demo.pages.dev/index.wasm -o /tmp/...`
+- 验证结果：
+  - Wrangler 返回部署成功：`https://d33168fa.survivor-demo.pages.dev`
+  - 稳定域名 `https://survivor-demo.pages.dev` 返回 `HTTP 200`
+  - `index.wasm` 返回 `HTTP 200`，并确认包含 `Content-Type: application/wasm`、`Content-Encoding: gzip`、`Cache-Control: public, max-age=31536000, immutable`
+  - 已满足“当前版本可直接在线验收”的要求
+- 提交：待本轮发布脚本与文档提交后回填
+
+### 29. 发布方向纠偏：取消默认轻量链路，按完整版本重新发布 Cloudflare Pages
+- 动作：用户明确要求“不要轻量版，保留完整版本”；因此把本轮发布目标从“手机轻量验收”纠偏为“完整 build 的大陆可访问托管”。
+- 纠偏内容：
+  - 保留当前完整 build，不再默认对手机 / 窄屏切轻量模式。
+  - 调整 `tests/smoke/patch_web_index.py`，仅保留加载进度、慢加载提示与托管建议，不再注入 `?lite=1 / ?full=1` 或默认 `--mobile-lite`。
+  - 重新回写 `builds/web-release/index.html`，同步 `builds/web/` 与 `builds/pages-deploy/`，并重新发布 Cloudflare Pages。
+- 涉及文件：
+  - `tests/smoke/patch_web_index.py`
+  - `README.md`
+  - `docs/status.md`
+  - `docs/deployment-plan.md`
+  - `docs/release-acceptance.md`
+  - `tests/smoke/README.md`
+  - `docs/worklog.md`
+- 验证：
+  - `python3 tests/smoke/patch_web_index.py builds/web-release/index.html`
+  - `./tests/smoke/sync_compressed_build.sh`
+  - `./tests/smoke/publish_pages.sh`
+  - `curl -L https://survivor-demo.pages.dev/` 复验标题为 `survivor-demo · Web 完整验收版`
+  - `curl -L -H 'Accept-Encoding: gzip' -D - -r 0-31 https://survivor-demo.pages.dev/index.wasm -o /tmp/...`
+- 验证结果：
+  - 最新部署地址：`https://01f02bb3.survivor-demo.pages.dev`
+  - 稳定地址：`https://survivor-demo.pages.dev`
+  - 首页标题已更新为“Web 完整验收版”
+  - `index.wasm` 在线返回 `Content-Encoding: gzip`，说明当前对外链接已按完整版本 + 压缩传输方式生效
+- 提交：待本轮 git commit 后回填
+
+### 28. 轻量验收版 Web 交付：手机端首开阻塞专项收口
+- 动作：按“能打开并可验收 > 画面最完整”的优先级，对当前 Web 交付做一轮真正面向手机端的轻量验收版收口，重点处理 GitHub Pages 路线下长时间打不开的问题。
+- 根因判断：
+  - 当前用户反馈的“到现在还打不开”已经不只是体验偏慢，而是**正式分享链路本身不适合当前包体**。
+  - `index.wasm` 仍由 Godot 4.6.1 Web 模板主导，体积约 `37,685,705 B`（`35.94 MiB`），这部分在当前安全导出条件下几乎降不动。
+  - GitHub Pages 无法像 `builds/pages-deploy/` 一样为当前 gzip 资源稳定提供 `Content-Encoding: gzip`；对手机端而言，意味着首开仍可能硬吃原始 wasm，导致长时间无反馈甚至被误判为打不开。
+  - 除 wasm 外，当前 `index.pck` 还被整份 `SourceHanSansCN-Medium.ttf` 拉大；这部分属于可控首包，应优先收掉。
+- 涉及文件：
+  - `game/export_presets.cfg`
+  - `game/scripts/main.gd`
+  - `game/scripts/ui_fonts.gd`
+  - `game/assets/fonts/survivor-ui-subset.ttf`
+  - `game/assets/fonts/survivor-ui-subset.txt`
+  - `tests/smoke/build_ui_font_subset.py`
+  - `tests/smoke/patch_web_index.py`
+  - `tests/smoke/release_guard.sh`
+  - `builds/web-release/*`
+  - `builds/web/*`
+  - `builds/pages-deploy/*`
+  - `README.md`
+  - `docs/status.md`
+  - `docs/release-acceptance.md`
+  - `docs/deployment-plan.md`
+  - `tests/smoke/README.md`
+  - `docs/worklog.md`
+- 具体改动：
+  - 新增 `tests/smoke/build_ui_font_subset.py`，从 `SourceHanSansCN-Medium.ttf` 自动抽取当前 UI 所需字形，生成 `survivor-ui-subset.ttf`（约 `97 KB`），并把 `ui_fonts.gd` 切到子集字体。
+  - 收紧 `game/export_presets.cfg`，把整份源字体及其 `.import` 从 Web 导出排除，避免未使用的大字体继续进入 `index.pck`。
+  - 新增 `tests/smoke/patch_web_index.py`，在每次导出后自动给 `builds/web-release/index.html` 打补丁：补手机轻量验收加载页、慢加载超时提示，以及 `?lite=1 / ?full=1` 壳层开关。
+  - 在 `main.gd` 中新增“掌中轻量验收版”模式：Web 手机 / 窄屏默认走轻量分支，下调敌潮密度、精英数、镜头震动、闪屏、收集脉冲、里程碑 flare 与连斩字牌，优先保证能打开后能稳定试玩。
+  - 保持中文字体显示与竖屏适配逻辑不回退；本轮只做轻量化 / 降级，不改已修好的中文显示正确性与竖屏布局正确性。
+  - 重新导出 `builds/web-release/`，同步 `builds/web/` 与 `builds/pages-deploy/`，让三套目录与本轮轻量验收基线重新对齐。
+- 产物尺寸变化（本轮重点）：
+  - `builds/web-release/index.wasm`：仍为 `37,685,705 B`（约 `35.94 MiB`，确认 wasm 仍是路线级瓶颈）
+  - `builds/web-release/index.pck`：从约 `1,817,808 B` 降到 `455,416 B`（减少约 `1.30 MiB`，约 `-74.9%`）
+  - `builds/web/index.pck.gz` / `builds/pages-deploy/index.pck`：`185,634 B`
+  - `builds/web/index.wasm.gz` / `builds/pages-deploy/index.wasm`：`9,377,158 B`
+- 验证：
+  - `python3 tests/smoke/build_ui_font_subset.py`
+  - `./tests/smoke/release_guard.sh`
+  - `./tests/smoke/pages_release_guard.sh`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/portrait_layout_smoke.gd`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/touch_joystick_smoke.gd`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 5`
+- 验证结果：
+  - `release_guard.sh` 完整通过，确认字体子集重建、Web 重导出、`index.html` 后处理、`builds/web-release/` / `builds/web/` 对齐、gzip / HEAD / MIME 校验全部通过。
+  - `pages_release_guard.sh` 通过，确认 `builds/pages-deploy/` 与当前压缩交付目录一致，且 `_headers` 口径完整。
+  - `portrait_layout_smoke: ok`、`touch_joystick_smoke: ok`，说明本轮轻量收口未破坏竖屏与触控回归。
+  - 主场景 headless 加载退出码 `0`；Dash 冷却条的 size 警告已顺手改成 offset 方案，避免继续污染回归日志。
+- 当前结论：
+  - **已完成一版更适合手机验收的轻量 build。**
+  - 但从正式对外分享角度，**GitHub Pages 仍不适合作为本轮轻量验收主链路**；当前最短可发布路径应改为：`./tests/smoke/pages_release_guard.sh` 通过后，直接发布 `builds/pages-deploy/` 到 Cloudflare Pages。

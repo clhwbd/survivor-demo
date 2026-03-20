@@ -30,6 +30,8 @@
 - Nginx 托管模板：`docs/deployment/nginx-web-release.conf`
 - 正式托管前清单：`docs/release-minimum-checklist.md`
 - 发布冒烟脚本：`tests/smoke/release_guard.sh`
+- 字体子集脚本：`tests/smoke/build_ui_font_subset.py`
+- Web 壳后处理脚本：`tests/smoke/patch_web_index.py`
 - 压缩交付同步脚本：`tests/smoke/sync_compressed_build.sh`
 - Pages 发布目录同步脚本：`tests/smoke/sync_pages_build.sh`
 - Pages 发布校验脚本：`tests/smoke/pages_release_guard.sh`
@@ -40,7 +42,11 @@
 - 当前统一验收目录：`builds/web-release/`
 - 当前最佳本地验收方式：`python3 -m http.server 18081`
 - 当前最佳后续正式托管方式：Cloudflare Pages 直接发 `builds/pages-deploy/`；若不用 Pages，再退回对象存储静态托管 + CDN 发 `builds/web-release/`
+- 当前已上线的正式验收地址：`https://survivor-demo.pages.dev`
+- 当前仓库内一键重发命令：`./tests/smoke/publish_pages.sh`
+- 当前 Web 壳发布口径已收回到完整版本：保留完整 build，仅通过更合适的托管/CDN 解决可访问性问题
 - `builds/web/` 暂定为部署优化包，不作为当前唯一验收基线
+- GitHub Pages 不再建议作为当前完整版本验收主链路：原始 `index.wasm` 仍约 `35.94 MiB`，而 `builds/pages-deploy/` 可在线返回 gzip 版运行时资源，更适合当前大陆访问
 - `2026-03-20 14:36 CST` 已再次完成 Godot CLI Web 导出复验与本地 HTTP 校验
 - `2026-03-20 14:45 CST` 已补一轮源码 / 场景一致性修正：主场景脚本恢复可加载，HUD 新节点与脚本口径重新对齐，并重导出 `builds/web-release/`
 - 压缩版本地服务现已支持 `HEAD`，可直接接入健康检查或自动化探测

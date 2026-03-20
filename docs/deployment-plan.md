@@ -18,6 +18,47 @@
 
 ---
 
+## 2026-03-20 国内验收最短托管结论
+
+### 可行候选对比（按这次实际可落地程度排序）
+1. **Cloudflare Pages + `builds/pages-deploy/`（最终采用）**
+   - 可用性：这台机器已登录 Wrangler，已有 Pages 项目 `survivor-demo`
+   - 优势：可直接上传压缩后的 `index.wasm` / `index.pck`，线上实测返回 `Content-Encoding: gzip`，比 GitHub Pages 更适合当前大陆验收
+   - 风险：本机不能完整跑 `wrangler pages dev`，但不影响真实发布
+
+2. **GitHub 仓库 + jsDelivr CDN（放弃）**
+   - 优势：无需额外账号，理论上比 GitHub Pages 在大陆更容易命中 CDN
+   - 实测结果：`index.html / index.js / index.pck` 可访问，但 `index.wasm` 通过 jsDelivr 直接请求返回 `403`，无法作为最终验收链路
+   - 结论：不满足当前 Godot Web 包的核心资源要求
+
+3. **自管 Nginx / Caddy 静态站（备选）**
+   - 优势：长期最稳、最可控
+   - 问题：这次任务目标是“今天能打开并验收”，当前没有现成公网机器 / 域名 / HTTPS 收口，落地速度不如 Pages
+   - 结论：适合作为后续长期方案，不适合作为今晚最短路径
+
+### 最终选型理由
+- **最短路径**：不需要新账号交互，当前机器已经具备 Cloudflare 登录态与现成 Pages 项目。
+- **最贴合当前包体问题**：之前 GitHub Pages 主要卡在原始 wasm 太大、页面首开差；这次直接发布 `builds/pages-deploy/`，把上传与分发体积压到 `index.wasm ≈ 8.9M`、`index.pck ≈ 1.6M` 的量级。
+- **比 GitHub Pages 更适合大陆验收**：Cloudflare 在中国大陆周边链路通常明显优于 GitHub Pages，且这次能让浏览器实际收到 gzip 版本 wasm，而不是硬吃约 `35.94 MiB` 原始 wasm。
+
+### 实际落地步骤（已打通）
+1. `./tests/smoke/sync_pages_build.sh`
+2. `./tests/smoke/pages_release_guard.sh`
+3. `npx wrangler pages deploy builds/pages-deploy --project-name survivor-demo --commit-dirty=true`
+4. 稳定访问地址：`https://survivor-demo.pages.dev`
+5. 已补仓库内一键命令：`./tests/smoke/publish_pages.sh`
+
+### 验证结果
+- Pages 发布成功，Wrangler 返回部署地址：`https://d33168fa.survivor-demo.pages.dev`
+- 稳定域名 `https://survivor-demo.pages.dev` 返回 `HTTP 200`
+- `https://survivor-demo.pages.dev/index.wasm` 返回 `HTTP 200`
+- 线上 `GET /index.wasm` 已确认包含：
+  - `Content-Type: application/wasm`
+  - `Content-Encoding: gzip`
+  - `Cache-Control: public, max-age=31536000, immutable`
+
+---
+
 ## 为什么不建议继续依赖临时隧道
 临时隧道的典型问题：
 - 地址易变化
@@ -62,6 +103,7 @@
 推荐目录：
 - 直接发布 `builds/pages-deploy/`
 - 其中 `index.wasm / index.js / index.pck / audio worklet` 都已经替换成 gzip 后字节，并通过 `_headers` 指定 `Content-Encoding: gzip`
+- 当前 Web 壳已收回完整版本口径：保留完整 build，仅在加载页中提示“优先切换更合适托管”，不再默认对手机 / 窄屏切轻量模式
 
 本机已验证：
 - `tests/smoke/sync_pages_build.sh` 可从当前 `builds/web/` 自动生成最新 `builds/pages-deploy/`
@@ -72,6 +114,7 @@
 - 直接绕开“原始 wasm 太大”带来的 Pages / 静态托管限制
 - 部署最省事
 - 带缓存头和 gzip 头，适合正式分享
+- 比 GitHub Pages 更贴合当前包体现实：手机端无需再硬吃约 `35.94 MiB` 原始 wasm
 
 缺点：
 - 依赖 `_headers` 这类平台能力

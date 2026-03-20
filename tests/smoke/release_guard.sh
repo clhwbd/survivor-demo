@@ -14,6 +14,8 @@ GZIP_FILES="index.html index.js index.wasm index.pck index.audio.worklet.js inde
 README_FILES="$ROOT/README.md $ROOT/docs/status.md $ROOT/docs/release-acceptance.md $ROOT/docs/deployment-plan.md"
 SMOKE_README="$ROOT/tests/smoke/README.md"
 SYNC_SCRIPT="$ROOT/tests/smoke/sync_compressed_build.sh"
+FONT_SUBSET_SCRIPT="$ROOT/tests/smoke/build_ui_font_subset.py"
+PATCH_INDEX_SCRIPT="$ROOT/tests/smoke/patch_web_index.py"
 NGINX_TEMPLATE="$ROOT/docs/deployment/nginx-web-release.conf"
 RELEASE_PID=""
 COMPRESSED_PID=""
@@ -72,6 +74,8 @@ require_file "$ROOT/docs/release-minimum-checklist.md"
 require_file "$NGINX_TEMPLATE"
 require_file "$SMOKE_README"
 require_file "$SYNC_SCRIPT"
+require_file "$FONT_SUBSET_SCRIPT"
+require_file "$PATCH_INDEX_SCRIPT"
 
 for file in $README_FILES; do
   require_file "$file"
@@ -89,12 +93,16 @@ require_text "$NGINX_TEMPLATE" 'location = /index.html'
 require_text "$NGINX_TEMPLATE" 'default_type application/wasm;'
 require_text "$NGINX_TEMPLATE" 'Cache-Control "no-cache, max-age=0, must-revalidate"'
 
+log "refreshing subset UI font"
+python3 "$FONT_SUBSET_SCRIPT"
+
 log "headless load main scene"
 "$GODOT_BIN" --headless --path "$GAME_DIR" --scene res://scenes/main.tscn --quit-after 3 >/tmp/survivor-release-guard-scene.log 2>&1
 
 log "exporting web release"
 EXPORT_STARTED_AT=$(date +%s)
 "$GODOT_BIN" --headless --path "$GAME_DIR" --export-release Web "$WEB_RELEASE_DIR/index.html" >/tmp/survivor-release-guard-export.log 2>&1
+python3 "$PATCH_INDEX_SCRIPT" "$WEB_RELEASE_DIR/index.html"
 
 for file in $CORE_FILES; do
   require_file "$WEB_RELEASE_DIR/$file"
