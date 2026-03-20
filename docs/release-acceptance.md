@@ -30,17 +30,29 @@
 - 自带 `serve_compressed.py`
 - 可验证 gzip 资源是否被正确返回
 
-### 3. Cloudflare Pages 发布版本
-目录：`builds/pages-deploy/`
+### 3. 自管正式发布版本（当前推荐）
+目录：`builds/web/`
 
 用途：
 - 作为当前最推荐的正式分享目录
+- 适合自管 Nginx / 反向代理 / 对象存储前置网关这类可控静态服务
+
+特点：
+- 保留未压缩文件，同时附带 `.gz` 资源
+- 可直接配合 `docs/deployment/nginx-web-controlled.conf` 使用
+- 可用 `scripts/serve_controlled_web.py` 在本地按正式托管口径复验 gzip / wasm MIME / cache / CORS
+
+### 4. Cloudflare Pages 发布版本（保留为旧备份链路）
+目录：`builds/pages-deploy/`
+
+用途：
+- 作为旧平台备份链路
 - 适合 Cloudflare Pages 这类支持 `_headers` 的静态托管
 
 特点：
 - `index.wasm / index.js / index.pck / audio worklet` 直接使用 gzip 后的字节内容
 - 通过 `_headers` 显式声明 `Content-Encoding: gzip` 与 `application/wasm`
-- 能把 Pages 上实际落盘 / 上传体积压到接近压缩后大小
+- 可继续作为 fallback，但不再是本轮推荐主线
 
 ## 已验证的导出命令
 环境：
@@ -147,18 +159,23 @@ python3 serve_compressed.py
   - `GET /index.wasm` 已确认带 `Content-Type: application/wasm` 与 `Content-Encoding: gzip`
 - 结论：当前版本已经不只是“具备 Pages 发布目录”，而是**已经实际在线发布可验收**
 
-## 2026-03-20 22:28 CST 完整版本重新发布复验
-- 用户已明确要求不要轻量版；因此已把 Web 壳纠偏回完整版本，并重新发布 Cloudflare Pages。
-- 重新发布命令：
-  - `python3 tests/smoke/patch_web_index.py builds/web-release/index.html`
-  - `./tests/smoke/sync_compressed_build.sh`
-  - `./tests/smoke/publish_pages.sh`
-- 最新部署地址：`https://01f02bb3.survivor-demo.pages.dev`
-- 稳定域名：`https://survivor-demo.pages.dev`
-- 线上复验结果：
-  - 首页标题已更新为 `survivor-demo · Web 完整验收版`
-  - `GET /index.wasm` 仍返回 `Content-Type: application/wasm` 与 `Content-Encoding: gzip`
-- 结论：当前对外验收链接已经切回**完整版本**，并保持 Cloudflare Pages 压缩传输优势
+## 2026-03-20 23:58 CST 可控 Web 主线复验
+- 用户已明确要求切换到 **A：可控 Web**，因此本轮把推荐正式发布链路从 Pages 改为 **自管 Nginx + `builds/web/`**。
+- 已新增：
+  - `docs/deployment/nginx-web-controlled.conf`
+  - `scripts/serve_controlled_web.py`
+  - `tests/smoke/controlled_web_guard.sh`
+  - `docs/deployment-controlled-web.md`
+- 本轮本地复验命令：
+  - `./tests/smoke/controlled_web_guard.sh`
+  - `python3 scripts/serve_controlled_web.py --port 18084`
+- 本地复验结果：
+  - `index.html` 返回 `Cache-Control: no-cache, max-age=0, must-revalidate`
+  - `index.wasm` 返回 `Content-Type: application/wasm`、`Content-Encoding: gzip`、`Vary: Accept-Encoding`
+  - `index.js / index.pck` 返回 gzip 与受控缓存头
+  - `OPTIONS /index.wasm` 返回 `204`
+  - `/healthz` 返回 `ok`
+- 结论：当前仓库已经具备一条**不依赖 Pages 平台 header 规则**的完整可控 Web 发布链路；若当前机器没有公网入口，只差把 `builds/web/` + Nginx 模板搬到目标服务器即可上线。
 
 ## 产物说明
 

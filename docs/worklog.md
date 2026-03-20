@@ -846,3 +846,42 @@
   - **A/B/C 判定：C. 需要特定环境后再做。**
   - preset 层继续抠开关不值得；如果后续把网页首开速度继续视为阻塞项，建议补齐 Emscripten + SCons + Python 3.8+ 后，做一次低风险自编译模板 spike（优先 `disable_3d + disable_physics_3d + disable_navigation_3d + disable_xr`，再视情况尝试 `module_text_server_adv_enabled=no`）。
   - 保守预估：这条线若成立，收益更像“数 MB 级”，而不是把 36 MB 直接砍到个位数 MB；需逐轮复验中文、竖屏、HUD 与发布链路，避免破坏现有已修问题。
+
+### 32. A 方案收口：自管 Nginx + `builds/web/` 可控 Web 发布链路落地
+- 动作：用户明确选择 A：可控 Web；因此把推荐正式发布方式从 Pages 切到自管静态服务，并把 header / gzip / wasm MIME / 缓存 / CORS / health check 相关控制面收回仓库。
+- 涉及文件：
+  - `scripts/serve_controlled_web.py`
+  - `tests/smoke/controlled_web_guard.sh`
+  - `docs/deployment/nginx-web-controlled.conf`
+  - `docs/deployment-controlled-web.md`
+  - `README.md`
+  - `docs/deployment-plan.md`
+  - `docs/status.md`
+  - `docs/release-acceptance.md`
+  - `tests/smoke/README.md`
+  - `docs/worklog.md`
+- 具体改动：
+  - 新增 `scripts/serve_controlled_web.py`，本地可按正式托管口径服务 `builds/web/`，显式返回 gzip、`application/wasm`、受控缓存头、CORS、`OPTIONS` 与 `/healthz`。
+  - 新增 `docs/deployment/nginx-web-controlled.conf`，把自管正式托管模板写进仓库：直接服务 `builds/web/`，对 `index.html` 关闭强缓存，对 `js/wasm/pck` 开 `gzip_static on;` 并补 `Vary: Accept-Encoding`。
+  - 新增 `tests/smoke/controlled_web_guard.sh`，在现有 `release_guard.sh` 之上继续校验自管链路的关键响应头，而不是只停留在“静态文件 200”。
+  - 新增 `docs/deployment-controlled-web.md`，把“为什么它比 Pages 更可控、如何本地预览、如何最短上线”收口成一份交接文档。
+  - 更新 README / deployment-plan / status / release-acceptance / smoke README，统一将推荐正式发布方式改成：**自管 Nginx 直接托管 `builds/web/`**；Cloudflare Pages 仅保留为旧备份链路。
+- 验证：
+  - `chmod +x tests/smoke/controlled_web_guard.sh`
+  - `./tests/smoke/controlled_web_guard.sh`
+  - `python3 scripts/serve_controlled_web.py --port 18084`
+  - `curl -I http://127.0.0.1:18084/index.html`
+  - `curl -I -H 'Accept-Encoding: gzip' http://127.0.0.1:18084/index.wasm`
+  - `curl -I -H 'Accept-Encoding: gzip' http://127.0.0.1:18084/index.js`
+  - `curl -I -H 'Accept-Encoding: gzip' http://127.0.0.1:18084/index.pck`
+  - `curl -i -X OPTIONS http://127.0.0.1:18084/index.wasm`
+  - `curl http://127.0.0.1:18084/healthz`
+- 验证结果：
+  - `controlled_web_guard.sh` 完整通过，退出码 `0`。
+  - `index.html` 返回 `Cache-Control: no-cache, max-age=0, must-revalidate`。
+  - `index.wasm` 返回 `Content-Type: application/wasm`、`Content-Encoding: gzip`、`Vary: Accept-Encoding`。
+  - `index.js / index.pck` 返回 gzip 与受控缓存头。
+  - `OPTIONS` 返回 `204`，`/healthz` 返回 `ok`。
+- 结论：
+  - 当前仓库已具备一条**不依赖 Pages / GitHub Pages 平台 header 规则**的完整可控 Web 发布链路。
+  - 由于当前机器没有现成公网 Nginx / 域名 / HTTPS，本轮无法给出新的自管公网正式链接；但主线已补齐到“拿到任意一台公网机即可直接上线”的状态。

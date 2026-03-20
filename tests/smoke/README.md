@@ -28,6 +28,9 @@
 ### `pages_release_guard.sh`
 用途：校验 `builds/pages-deploy/` 与当前压缩交付目录一致、目标文件确实为 gzip 内容、`_headers` 配置齐全，并做一轮本地静态服务可访问性检查。
 
+### `controlled_web_guard.sh`
+用途：把“自管可控 Web 正式链路”跑成一键校验，覆盖 `builds/web/` 的 gzip / wasm MIME / 缓存 / CORS / OPTIONS / `healthz`，并检查 `docs/deployment/nginx-web-controlled.conf` 与 `scripts/serve_controlled_web.py` 的关键口径。
+
 覆盖范围：
 - 导出前先运行 `build_ui_font_subset.py`，确保字体子集始终与当前 UI 文案同步
 - Godot headless 加载 `game/scenes/main.tscn`
@@ -66,6 +69,6 @@ RUN_BUILD=1 GODOT_SOURCE_DIR=/ABS/PATH/TO/godot-4.6.1-stable ./tests/smoke/godot
 
 ## 当前执行口径
 - `builds/web-release/` = 当前统一验收 / 首发目录
-- `builds/web/` = 压缩交付 / 部署优化目录
-- `builds/pages-deploy/` = Cloudflare Pages 正式发布目录
-- 正式托管前，默认至少跑一遍 `release_guard.sh`；若走 Pages，再补一遍 `pages_release_guard.sh`
+- `builds/web/` = 当前推荐的自管正式托管目录
+- `builds/pages-deploy/` = Cloudflare Pages 旧备份发布目录
+- 正式托管前，默认至少跑一遍 `release_guard.sh`；若走自管链路，再补一遍 `controlled_web_guard.sh`；若走 Pages，再补一遍 `pages_release_guard.sh`

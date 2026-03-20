@@ -24,11 +24,13 @@ Godot 4.x 2D 割草 Roguelike 样板项目。
 - `game/`：Godot 工程
 - `builds/web-release/`：验收基线版本（未预压缩，适合任意静态服务器直接托管）
 - `builds/web/`：交付/部署版本（附带 `.gz` 资源和 `serve_compressed.py`，适合本地演示或支持 gzip 的静态托管）
-- `builds/pages-deploy/`：Cloudflare Pages 正式托管目录（把 `.gz` 运行时资源改名为正式文件名，并配好 `_headers`）
+- `builds/pages-deploy/`：Cloudflare Pages 正式托管目录（旧平台链路保留，不再作为本轮推荐主线）
 - `docs/release-acceptance.md`：验收版本说明、验证结果、构建命令
 - `docs/deployment-plan.md`：更稳的发布 / 托管方案建议
+- `docs/deployment-controlled-web.md`：当前推荐的自管 Web 发布链路说明
 - `docs/release-minimum-checklist.md`：真正上线托管前的最小发布清单
 - `docs/deployment/nginx-web-release.conf`：当前验收基线目录的 Nginx 静态托管模板
+- `docs/deployment/nginx-web-controlled.conf`：当前推荐的自管 Nginx 托管模板（直接服务 `builds/web/`）
 - `docs/ui-art-agent-split.md`：后续 UI / 美术 agent 拆分建议
 - `docs/status.md`：项目当前状态收口
 - `docs/worklog.md`：工程操作与交付日志
@@ -40,6 +42,8 @@ Godot 4.x 2D 割草 Roguelike 样板项目。
 - `tests/smoke/sync_compressed_build.sh`：把 `builds/web-release/` 同步到 `builds/web/` 并重建 `.gz` 资源，避免交付目录漂移
 - `tests/smoke/sync_pages_build.sh`：把 `builds/web/` 的预压缩运行时资源同步成 `builds/pages-deploy/` 的 Pages 可发布目录
 - `tests/smoke/pages_release_guard.sh`：验证 `builds/pages-deploy/` 的文件对齐、gzip 资源和 `_headers` 口径
+- `tests/smoke/controlled_web_guard.sh`：验证自管 Web 路线的 gzip / wasm MIME / 缓存 / CORS / OPTIONS / healthz
+- `scripts/serve_controlled_web.py`：本地等价预览受控发布链路的静态服务脚本
 
 ## 运行方式
 ### 1) 本地 Godot 运行
@@ -78,6 +82,13 @@ python3 serve_compressed.py
 ```
 浏览器打开：`http://127.0.0.1:8000/index.html`
 
+### 4) 本地预览“可控正式链路”（推荐给发布验收）
+```bash
+cd /Users/mac/game-studio/projects/survivor-demo
+python3 scripts/serve_controlled_web.py --port 18084
+```
+浏览器打开：`http://127.0.0.1:18084/index.html`
+
 ## 重新导出 Web 验收版
 已在本机用 Godot `4.6.1.stable` 验证下面命令可成功导出：
 
@@ -102,21 +113,20 @@ python3 serve_compressed.py
 - 优点：不依赖额外脚本，任意普通静态服务器都能直接托管
 
 ### 后续正式分享 / 正式托管
-- 第一选择：Cloudflare Pages，直接发布 `builds/pages-deploy/`
-- 第二选择：对象存储静态托管 + CDN，先上传 `builds/web-release/`
-- 第三选择：自管 Caddy / Nginx 静态站，稳定后再考虑切到 `builds/web/`
-- 若走 Nginx，可直接参考 `docs/deployment/nginx-web-release.conf`
-- 当前机器已直接发布 Cloudflare Pages，稳定地址：`https://survivor-demo.pages.dev`
-- 一键重新发布命令：`./tests/smoke/publish_pages.sh`
-- 当前机器可本地执行 `tests/smoke/pages_release_guard.sh` 验证 Pages 发布目录；但 `wrangler pages dev` 受本机 macOS 12.6 限制，无法完整跑起 Cloudflare 本地运行时
-- **不建议继续用 GitHub Pages 当当前完整版本验收主链路**：它无法像 `builds/pages-deploy/` 那样为压缩后的 wasm / pck 提供 `Content-Encoding: gzip`，用户仍要硬吃约 `35.94 MiB` 原始 wasm，实际可用性太差
-- 当前发布口径已回到**完整版本**：优先换托管/CDN，不再默认对手机或窄屏切轻量模式
-- 不建议继续把临时隧道当正式验收链路
-- 真正上线前，先过一遍 `docs/release-minimum-checklist.md`，并建议执行 `tests/smoke/release_guard.sh` 与 `tests/smoke/pages_release_guard.sh`
+- **当前推荐主线：自管 Nginx 静态站，直接托管 `builds/web/`**
+- 对应模板：`docs/deployment/nginx-web-controlled.conf`
+- 本地等价预览：`python3 scripts/serve_controlled_web.py --port 18084`
+- 一键校验：`./tests/smoke/controlled_web_guard.sh`
+- 这条路把 `application/wasm`、`Content-Encoding: gzip`、`Cache-Control`、CORS、`OPTIONS`、`/healthz` 全部收回到仓库配置里，而不是依赖 Pages / 平台 `_headers`
+- 由于当前 Godot Web 产物仍使用固定文件名 `index.*`，新模板把 `index.html` 设为 `no-cache`，并把 `js/wasm/pck` 设为 `max-age=600, must-revalidate`，避免“平台上 200 了但浏览器还吃旧缓存”的黑屏假故障
+- **不建议继续用 GitHub Pages 当当前完整版本验收主链路**：它无法像自管路由或 `builds/pages-deploy/` 那样稳定提供 gzip 版 wasm/pck，用户仍可能硬吃约 `35.94 MiB` 原始 wasm
+- Cloudflare Pages 链路保留为旧备份方案，稳定地址仍是：`https://survivor-demo.pages.dev`
+- 真正上线前，先过一遍 `docs/release-minimum-checklist.md`，并建议执行 `tests/smoke/controlled_web_guard.sh`
 
 ### `builds/web/` 什么时候用
-- 用于部署优化、本地压缩回归、后续正式站点带宽优化
-- 只有在托管平台确认支持 gzip 静态资源或边缘压缩后，再作为正式线上目录
+- 现在就作为**自管正式站点**的推荐目录
+- 也用于本地压缩回归与带宽优化
+- 若临时退回平台托管，再从它同步生成 `builds/pages-deploy/`
 
 ## 当前工程结论
 - 已具备一个可本地验收的 Web demo 基线

@@ -1,61 +1,59 @@
 # 发布 / 托管方案建议
 
 ## 结论先行
-当前最需要解决的问题不是“能不能跑起来”，而是**把分享链路从临时隧道切到稳定的静态托管方案**。
+当前最需要解决的问题不是“能不能跑起来”，而是**把分享链路从平台型静态托管切到真正可控的自管静态服务**。
 
-建议把发布链路分成三层：
+当前推荐把发布链路分成三层：
 
 1. **验收层**：`builds/web-release/`
    - 给项目负责人、策划、QA 验收
    - 任何静态服务器都能直接打开
 
-2. **交付层**：`builds/web/`
+2. **交付层 / 自管正式目录**：`builds/web/`
    - 包含 `.gz` 预压缩资源
-   - 用于部署优化和带宽节省
+   - 直接作为 Nginx 自管正式站点目录
 
-3. **正式分享层**：稳定静态托管 + HTTPS + 明确缓存策略
-   - 不再依赖临时隧道
+3. **备份平台层**：`builds/pages-deploy/`
+   - 仅保留为旧平台备份链路
+   - 不再作为本轮推荐主线
 
 ---
 
-## 2026-03-20 国内验收最短托管结论
+## 2026-03-20 可控 Web 主线结论
 
-### 可行候选对比（按这次实际可落地程度排序）
-1. **Cloudflare Pages + `builds/pages-deploy/`（最终采用）**
-   - 可用性：这台机器已登录 Wrangler，已有 Pages 项目 `survivor-demo`
-   - 优势：可直接上传压缩后的 `index.wasm` / `index.pck`，线上实测返回 `Content-Encoding: gzip`，比 GitHub Pages 更适合当前大陆验收
-   - 风险：本机不能完整跑 `wrangler pages dev`，但不影响真实发布
+### 可行候选对比（按当前“可控度”排序）
+1. **自管 Nginx 静态站 + `builds/web/`（当前推荐主线）**
+   - 优势：header、gzip、MIME、缓存、CORS、健康检查都能写进仓库并本地等价复验
+   - 已落地：`docs/deployment/nginx-web-controlled.conf`、`scripts/serve_controlled_web.py`、`tests/smoke/controlled_web_guard.sh`
+   - 风险：这台机器当前没有现成公网 Nginx / 域名 / HTTPS，因此本轮只能把方案、脚本和本地验证链路补齐，不能直接给新的公网正式链接
 
-2. **GitHub 仓库 + jsDelivr CDN（放弃）**
-   - 优势：无需额外账号，理论上比 GitHub Pages 在大陆更容易命中 CDN
-   - 实测结果：`index.html / index.js / index.pck` 可访问，但 `index.wasm` 通过 jsDelivr 直接请求返回 `403`，无法作为最终验收链路
-   - 结论：不满足当前 Godot Web 包的核心资源要求
+2. **Cloudflare Pages + `builds/pages-deploy/`（保留为旧备份链路）**
+   - 优势：当前机器已实发成功，稳定地址仍可访问
+   - 问题：本轮任务已经明确不再把 Pages 作为推荐主线，因为 `_headers`、缓存和静态分发细节仍受平台规则约束
 
-3. **自管 Nginx / Caddy 静态站（备选）**
-   - 优势：长期最稳、最可控
-   - 问题：这次任务目标是“今天能打开并验收”，当前没有现成公网机器 / 域名 / HTTPS 收口，落地速度不如 Pages
-   - 结论：适合作为后续长期方案，不适合作为今晚最短路径
+3. **GitHub Pages / jsDelivr（放弃）**
+   - 问题：要么无法稳定给 gzip 版 wasm/pck 做正确返回，要么核心资源请求直接失败，不再适合作为完整版本主链路
 
-### 最终选型理由
-- **最短路径**：不需要新账号交互，当前机器已经具备 Cloudflare 登录态与现成 Pages 项目。
-- **最贴合当前包体问题**：之前 GitHub Pages 主要卡在原始 wasm 太大、页面首开差；这次直接发布 `builds/pages-deploy/`，把上传与分发体积压到 `index.wasm ≈ 8.9M`、`index.pck ≈ 1.6M` 的量级。
-- **比 GitHub Pages 更适合大陆验收**：Cloudflare 在中国大陆周边链路通常明显优于 GitHub Pages，且这次能让浏览器实际收到 gzip 版本 wasm，而不是硬吃约 `35.94 MiB` 原始 wasm。
+### 当前最终推荐理由
+- **控制面回仓库**：Nginx 模板、受控本地服务、冒烟校验都在项目内，不再靠平台“帮忙处理”。
+- **能提前发现黑屏根因**：本地现在不只是看 `200`，而是验证 `application/wasm`、`Content-Encoding: gzip`、`Vary: Accept-Encoding`、缓存策略、CORS / OPTIONS。
+- **更适合当前 Godot 固定文件名产物**：新的自管模板把 `index.html` 设为 `no-cache`，把 `js/wasm/pck` 设为 `max-age=600, must-revalidate`，避免旧版本长缓存导致的假黑屏。
 
-### 实际落地步骤（已打通）
-1. `./tests/smoke/sync_pages_build.sh`
-2. `./tests/smoke/pages_release_guard.sh`
-3. `npx wrangler pages deploy builds/pages-deploy --project-name survivor-demo --commit-dirty=true`
-4. 稳定访问地址：`https://survivor-demo.pages.dev`
-5. 已补仓库内一键命令：`./tests/smoke/publish_pages.sh`
+### 当前可执行链路（已打通）
+1. `./tests/smoke/release_guard.sh`
+2. `./tests/smoke/controlled_web_guard.sh`
+3. 本地预览：`python3 scripts/serve_controlled_web.py --port 18084`
+4. 目标服务器套用：`docs/deployment/nginx-web-controlled.conf`
+5. 把 `builds/web/` 上传到 `/srv/survivor-demo/builds/web/` 后 reload Nginx
 
-### 验证结果
-- Pages 发布成功，Wrangler 返回部署地址：`https://d33168fa.survivor-demo.pages.dev`
-- 稳定域名 `https://survivor-demo.pages.dev` 返回 `HTTP 200`
-- `https://survivor-demo.pages.dev/index.wasm` 返回 `HTTP 200`
-- 线上 `GET /index.wasm` 已确认包含：
-  - `Content-Type: application/wasm`
-  - `Content-Encoding: gzip`
-  - `Cache-Control: public, max-age=31536000, immutable`
+### 本轮验证结果
+- `controlled_web_guard.sh` 已本地通过：
+  - `index.html` 返回 `Cache-Control: no-cache, max-age=0, must-revalidate`
+  - `index.wasm` 返回 `Content-Type: application/wasm`、`Content-Encoding: gzip`、`Vary: Accept-Encoding`
+  - `index.js / index.pck` 返回 gzip 与受控缓存头
+  - `OPTIONS` 返回 `204`
+  - `/healthz` 返回 `ok`
+- 这说明当前仓库已经具备“自管正式站点”的最小可执行链路，只差目标公网机器 / 域名接手上线
 
 ---
 
