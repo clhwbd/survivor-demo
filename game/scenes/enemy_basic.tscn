@@ -18,6 +18,11 @@ position = Vector2(0, 10)
 color = Color(0.11, 0.07, 0.05, 0.28)
 polygon = PackedVector2Array(-13, -4, -8, 3, 0, 5, 8, 3, 13, -4, 0, -7)
 
+[node name="BackRibbon" type="Polygon2D" parent="."]
+position = Vector2(0, 1)
+color = Color(0.552941, 0.14902, 0.12549, 0.7)
+polygon = PackedVector2Array(-2, -10, 4, -6, 3, 10, -3, 14, -6, 3)
+
 [node name="Body" type="Polygon2D" parent="."]
 color = Color(0.776471, 0.333333, 0.231373, 1)
 polygon = PackedVector2Array(0, -14, 10, -11, 14, -1, 10, 12, 0, 15, -10, 12, -14, -1, -10, -11)

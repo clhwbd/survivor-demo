@@ -146,6 +146,29 @@
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 600`
 - 验证结果：两次 headless 运行均退出码 `0`；其中第二次复验确认经验球报错已消除。
 
+### 13. 高优先级内容演出补强第三轮
+- 动作：继续补强命中 / 击杀 / 连斩 / 暂停结算的演出读感，并给主角与三类敌人再加一层轻量动势与视觉部件，提升试玩版完成感。
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `game/scripts/player.gd`
+  - `game/scripts/enemy_basic.gd`
+  - `game/scenes/main.tscn`
+  - `game/scenes/player.tscn`
+  - `game/scenes/enemy_basic.tscn`
+  - `game/scenes/enemy_runner.tscn`
+  - `game/scenes/enemy_tank.tscn`
+- 具体改动：
+  - 中部战报面板新增“战绩牌”行，暂停 / 失败 / 通关时会根据表现给出更直观的战绩称号，截图和结算观感更完整。
+  - 补了快速连斩节奏读感：记录本局最长连斩，并在连斩达到关键节点时触发中心提示；状态卡会在短时间连杀时切到“连斩起势”文案。
+  - 结算摘要新增“最长连斩”字段，让短局表现除了斩妖总数外，多一个更像动作试玩 demo 的结果指标。
+  - 玩家新增淡金气场层，配合移动 / 闪避做呼吸与拉伸；基础敌 / 快敌 / 重装敌都补了背后飘带，使群怪在跑动时更有戏曲纸片人的动势。
+  - 敌人脚本把飘带纳入摆动动画链路，保持三类敌人的动势统一。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 3`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 180`
+- 验证结果：两次 headless 运行均退出码 `0`，主场景加载与新增结算 / 连斩 / 动势逻辑正常。
+- 提交：`4f5a514` `feat: boost combat presentation and settlement feedback`
+
 ### 13. HUD / 状态签 / 横幅副标题 + 角色敌人细节第三轮
 - 动作：继续沿“西游记古风 Q 版”方向做高优先级验收收口，这轮重点是 HUD 信息层级、状态签样式、横幅播报副标题、按钮主次，以及角色/敌人的第一眼识别细节。
 - 涉及文件：

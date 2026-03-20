@@ -24,7 +24,9 @@ var _last_move_direction: Vector2 = Vector2.DOWN
 var _cape_base_rotation: float = 0.0
 var _staff_base_rotation: float = 0.0
 var _shadow_base_scale: Vector2 = Vector2.ONE
+var _aura_base_scale: Vector2 = Vector2.ONE
 
+@onready var aura_polygon: Polygon2D = get_node_or_null("Aura") as Polygon2D
 @onready var body_polygon: Polygon2D = $Body
 @onready var cape_polygon: Polygon2D = $Cape
 @onready var headband_polygon: Polygon2D = $Headband
@@ -39,6 +41,8 @@ func _ready() -> void:
 		_staff_base_rotation = staff_polygon.rotation
 	if shadow_polygon != null:
 		_shadow_base_scale = shadow_polygon.scale
+	if aura_polygon != null:
+		_aura_base_scale = aura_polygon.scale
 	xp_changed.emit(xp, xp_to_next, level)
 	stats_changed.emit(health, max_health, level)
 	dash_state_changed.emit(true, 0.0, false)
@@ -163,6 +167,10 @@ func _update_visuals(delta: float, input_dir: Vector2) -> void:
 	rotation = lerpf(rotation, motion_dir.x * 0.08, delta * 10.0)
 	if shadow_polygon != null:
 		shadow_polygon.scale = shadow_polygon.scale.lerp(_shadow_base_scale * Vector2(1.0 + move_ratio * 0.18, 1.0 - move_ratio * 0.10), delta * 8.0)
+	if aura_polygon != null:
+		aura_polygon.rotation = lerpf(aura_polygon.rotation, -motion_dir.x * 0.14 + bob * 0.04, delta * 5.0)
+		aura_polygon.scale = aura_polygon.scale.lerp(_aura_base_scale * Vector2(1.0 + move_ratio * 0.16, 1.0 + move_ratio * 0.06), delta * 6.0)
+		aura_polygon.color.a = lerpf(aura_polygon.color.a, 0.14 + move_ratio * 0.16 + (_dash_remaining / maxf(0.01, dash_duration)) * 0.18, delta * 6.0)
 	if cape_polygon != null:
 		cape_polygon.rotation = lerpf(cape_polygon.rotation, _cape_base_rotation - motion_dir.x * 0.30 - move_ratio * 0.26 + bob * 0.06, delta * 8.0)
 		cape_polygon.position.y = lerpf(cape_polygon.position.y, 2.0 + abs(motion_dir.y) * 1.6 + bob * 1.4, delta * 8.0)

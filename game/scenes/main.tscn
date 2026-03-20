@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/touch_joystick.gd" id="6_joystick"]
 [ext_resource type="PackedScene" path="res://scenes/enemy_tank.tscn" id="7_tank"]
 [ext_resource type="PackedScene" path="res://scenes/feedback_burst.tscn" id="8_burst"]
+[ext_resource type="PackedScene" path="res://scenes/slash_fx.tscn" id="9_slash"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -16,6 +17,7 @@ fast_enemy_scene = ExtResource("5_runner")
 tank_enemy_scene = ExtResource("7_tank")
 projectile_scene = ExtResource("4_projectile")
 feedback_burst_scene = ExtResource("8_burst")
+slash_fx_scene = ExtResource("9_slash")
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 position = Vector2(640, 360)
@@ -37,6 +39,15 @@ one_shot = false
 wait_time = 0.55
 
 [node name="HUD" type="CanvasLayer" parent="."]
+
+[node name="ScreenFlash" type="ColorRect" parent="HUD"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 0.88, 0.58, 0)
 
 [node name="HudCardBg" type="ColorRect" parent="HUD"]
 offset_left = 12.0
@@ -80,12 +91,20 @@ text = "时辰 00:00 / 03:00"
 [node name="KillLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 text = "斩妖 0 · 头目 0"
 
+[node name="MetaDivider" type="ColorRect" parent="HUD/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 2)
+color = Color(0.94, 0.82, 0.55, 0.42)
+
 [node name="WaveLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 text = "第1劫：花果山热身 · 下波 30s"
 autowrap_mode = 3
 
 [node name="WeaponLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 text = "法术：1 伤 · 1 连发 · 0 穿透"
+
+[node name="ObjectiveDivider" type="ColorRect" parent="HUD/MarginContainer/VBoxContainer"]
+custom_minimum_size = Vector2(0, 2)
+color = Color(0.80, 0.36, 0.25, 0.38)
 
 [node name="ObjectiveLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 text = "本局目标：撑到 03:00。每 25 连斩回 1 命，双数劫波常有头目压阵。"
@@ -169,12 +188,23 @@ color = Color(0.94, 0.82, 0.55, 0.95)
 visible = false
 layout_mode = 0
 offset_left = 0.0
-offset_top = 0.0
+offset_top = -2.0
 offset_right = 560.0
-offset_bottom = 64.0
+offset_bottom = 40.0
 horizontal_alignment = 1
 vertical_alignment = 1
 text = "第一劫 · 花果山热身"
+
+[node name="BannerSubLabel" type="Label" parent="HUD/TopCenter"]
+visible = false
+layout_mode = 0
+offset_left = 48.0
+offset_top = 34.0
+offset_right = 512.0
+offset_bottom = 64.0
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "妖潮播报"
 
 [node name="CenterNotice" type="Control" parent="HUD"]
 visible = false
@@ -262,6 +292,11 @@ text = "花果山戏报"
 horizontal_alignment = 1
 text = "轻点戏台，唤醒身法"
 
+[node name="MedalLabel" type="Label" parent="HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer"]
+visible = false
+horizontal_alignment = 1
+text = "战绩牌：花果银章 · 山门守成"
+
 [node name="DetailLabel" type="Label" parent="HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer"]
 autowrap_mode = 3
 horizontal_alignment = 1
@@ -295,10 +330,10 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -112.0
+offset_left = -124.0
 offset_top = -96.0
-offset_right = 112.0
-offset_bottom = -30.0
+offset_right = 124.0
+offset_bottom = -34.0
 grow_horizontal = 2
 grow_vertical = 0
 text = "继续试炼"
@@ -308,9 +343,9 @@ anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -438.0
-offset_top = 104.0
-offset_right = -330.0
-offset_bottom = 154.0
+offset_top = 108.0
+offset_right = -276.0
+offset_bottom = 162.0
 grow_horizontal = 0
 text = "暂停"
 

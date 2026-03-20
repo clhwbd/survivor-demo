@@ -16,6 +16,11 @@ position = Vector2(0, 10)
 color = Color(0.11, 0.07, 0.05, 0.32)
 polygon = PackedVector2Array(-13, -4, -8, 3, 0, 5, 8, 3, 13, -4, 0, -7)
 
+[node name="Aura" type="Polygon2D" parent="."]
+position = Vector2(0, -2)
+color = Color(0.94902, 0.827451, 0.494118, 0.18)
+polygon = PackedVector2Array(0, -24, 20, 0, 0, 24, -20, 0)
+
 [node name="Body" type="Polygon2D" parent="."]
 color = Color(0.956863, 0.768627, 0.423529, 1)
 polygon = PackedVector2Array(0, -16, 15, -2, 10, 14, -10, 14, -15, -2)

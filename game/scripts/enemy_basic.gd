@@ -37,7 +37,7 @@ func _ready() -> void:
 	if ornament_polygon != null:
 		_ornament_base_rotation = ornament_polygon.rotation
 		_ornament_base_position = ornament_polygon.position
-	for node_name in ["Mask", "Scarf", "Armor", "Crown"]:
+	for node_name in ["BackRibbon", "Mask", "Scarf", "Armor", "Crown"]:
 		if ornament_polygon == null:
 			ornament_polygon = get_node_or_null(node_name) as Polygon2D
 			if ornament_polygon != null:

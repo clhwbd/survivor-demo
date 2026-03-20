@@ -20,6 +20,7 @@ extends Node2D
 @export var xp_orb_scene: PackedScene
 @export var damage_popup_scene: PackedScene
 @export var feedback_burst_scene: PackedScene
+@export var slash_fx_scene: PackedScene
 
 const WAVE_TITLES := [
 	"花果山热身",
@@ -67,6 +68,13 @@ var _camera_shake_time: float = 0.0
 var _camera_base_offset: Vector2 = Vector2.ZERO
 var _focus_overlay_visible_state: bool = false
 var _center_notice_tween: Tween
+var _screen_flash_tween: Tween
+var _ui_motion_time: float = 0.0
+var _center_notice_base_position: Vector2 = Vector2.ZERO
+var _focus_panel_base_position: Vector2 = Vector2.ZERO
+var _kill_streak: int = 0
+var _best_kill_streak: int = 0
+var _kill_streak_timer: float = 0.0
 
 @onready var player: CharacterBody2D = $Player
 @onready var player_camera: Camera2D = $Player/Camera2D
@@ -81,26 +89,32 @@ var _center_notice_tween: Tween
 @onready var hud_enemies: Label = $HUD/MarginContainer/VBoxContainer/EnemyLabel
 @onready var hud_timer: Label = $HUD/MarginContainer/VBoxContainer/TimerLabel
 @onready var hud_kills: Label = $HUD/MarginContainer/VBoxContainer/KillLabel
+@onready var hud_meta_divider: ColorRect = get_node_or_null("HUD/MarginContainer/VBoxContainer/MetaDivider") as ColorRect
 @onready var hud_weapon: Label = $HUD/MarginContainer/VBoxContainer/WeaponLabel
+@onready var hud_objective_divider: ColorRect = get_node_or_null("HUD/MarginContainer/VBoxContainer/ObjectiveDivider") as ColorRect
 @onready var hud_wave: Label = $HUD/MarginContainer/VBoxContainer/WaveLabel
 @onready var hud_objective: Label = $HUD/MarginContainer/VBoxContainer/ObjectiveLabel
 @onready var hud_tip: Label = $HUD/MarginContainer/VBoxContainer/TipLabel
 @onready var hud_xp_bar: ProgressBar = $HUD/MarginContainer/VBoxContainer/XPBar
+@onready var screen_flash: ColorRect = get_node_or_null("HUD/ScreenFlash") as ColorRect
 @onready var status_card_bg: ColorRect = $HUD/StatusCardBg
 @onready var status_card_accent: ColorRect = $HUD/StatusCardAccent
+@onready var status_badge: Label = get_node_or_null("HUD/StatusBadge") as Label
 @onready var status_label: Label = $HUD/StatusLabel
 @onready var banner_backing: ColorRect = $HUD/TopCenter/BannerBacking
 @onready var banner_accent: ColorRect = $HUD/TopCenter/BannerAccent
 @onready var banner_label: Label = $HUD/TopCenter/BannerLabel
-@onready var center_notice: Control = $HUD/CenterNotice
-@onready var center_notice_backing: ColorRect = $HUD/CenterNotice/Backing
-@onready var center_notice_accent: ColorRect = $HUD/CenterNotice/Accent
-@onready var center_notice_label: Label = $HUD/CenterNotice/Label
+@onready var banner_sub_label: Label = get_node_or_null("HUD/TopCenter/BannerSubLabel") as Label
+@onready var center_notice: Control = get_node_or_null("HUD/CenterNotice") as Control
+@onready var center_notice_backing: ColorRect = get_node_or_null("HUD/CenterNotice/Backing") as ColorRect
+@onready var center_notice_accent: ColorRect = get_node_or_null("HUD/CenterNotice/Accent") as ColorRect
+@onready var center_notice_label: Label = get_node_or_null("HUD/CenterNotice/Label") as Label
 @onready var focus_overlay: Control = $HUD/FocusOverlay
 @onready var focus_tint: ColorRect = $HUD/FocusOverlay/Tint
 @onready var focus_panel: PanelContainer = $HUD/FocusOverlay/PanelContainer
 @onready var focus_badge: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/BadgeLabel
 @onready var focus_title: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/TitleLabel
+@onready var medal_label: Label = get_node_or_null("HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/MedalLabel") as Label
 @onready var focus_detail: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/DetailLabel
 @onready var summary_label: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/SummaryLabel
 @onready var restart_button: Button = $HUD/RestartButton
@@ -129,6 +143,8 @@ func _ready() -> void:
 		damage_popup_scene = load("res://scenes/damage_popup.tscn")
 	if feedback_burst_scene == null:
 		feedback_burst_scene = load("res://scenes/feedback_burst.tscn")
+	if slash_fx_scene == null:
+		slash_fx_scene = load("res://scenes/slash_fx.tscn")
 
 	_apply_ui_style()
 
@@ -167,6 +183,13 @@ func _ready() -> void:
 		continue_button.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
 	if pause_button != null:
 		pause_button.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	if center_notice != null:
+		_center_notice_base_position = center_notice.position
+	if focus_panel != null:
+		_focus_panel_base_position = focus_panel.position
+	if screen_flash != null:
+		screen_flash.color = Color(1.0, 0.88, 0.58, 0.0)
+		screen_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	_on_player_xp_changed(player.xp, player.xp_to_next, player.level)
 	_on_player_stats_changed(player.health, player.max_health, player.level)
@@ -175,7 +198,7 @@ func _ready() -> void:
 	_update_meta_hud()
 	_apply_wave_state(true)
 	_setup_web_ui()
-	_show_banner("第一劫 · %s" % _get_wave_title(1))
+	_show_banner("第一劫 · %s" % _get_wave_title(1), "戏台开场")
 	_show_center_notice("花果山开场 · 点按后起势", HUD_GOLD)
 	_update_tip_text()
 
@@ -186,6 +209,7 @@ func _process(delta: float) -> void:
 		elapsed_time += delta
 		_update_difficulty()
 		_update_wave_progress()
+		_update_kill_streak(delta)
 		if elapsed_time >= demo_goal_seconds:
 			_on_demo_clear()
 	_update_enemy_count()
@@ -194,6 +218,7 @@ func _process(delta: float) -> void:
 	_update_status_card()
 	_update_pause_button()
 	_update_camera_feedback(delta)
+	_update_ui_motion(delta)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
@@ -272,6 +297,9 @@ func _update_focus_overlay() -> void:
 			focus_detail.text = "网页端首次进入或浏览器失焦后，需要先点一下游戏画面。\n桌面端：WASD 走位、Space 筋斗闪；手机端：左下摇杆走位、右下按钮闪身。"
 	if focus_badge != null:
 		focus_badge.text = badge_text
+	if medal_label != null:
+		medal_label.visible = pause_requested or game_over or demo_clear
+		medal_label.text = _get_medal_line()
 	if summary_label != null:
 		summary_label.visible = pause_requested or game_over or demo_clear
 		if not summary_label.visible:
@@ -293,7 +321,7 @@ func _update_difficulty() -> void:
 	spawn_timer.wait_time = maxf(0.28, spawn_interval - difficulty_stage * 0.06)
 	max_alive_enemies = mini(88, 18 + difficulty_stage * 5 + wave_index * 2)
 	if difficulty_stage > 0:
-		_show_banner("妖势渐盛 · %s" % _get_stage_title(difficulty_stage + 1))
+		_show_banner("妖势渐盛 · %s" % _get_stage_title(difficulty_stage + 1), "妖潮播报")
 		_show_center_notice("妖势升级 · %s" % _get_stage_title(difficulty_stage + 1), HUD_WARNING)
 		_add_camera_shake(5.0, 0.18)
 
@@ -309,7 +337,7 @@ func _apply_wave_state(is_initial: bool) -> void:
 	spawn_timer.wait_time = maxf(0.28, spawn_interval - wave_index * 0.08 - difficulty_stage * 0.05)
 	if not is_initial:
 		player.heal(1)
-		_show_banner("第%d劫 · %s" % [wave_index, _get_wave_title(wave_index)])
+		_show_banner("第%d劫 · %s" % [wave_index, _get_wave_title(wave_index)], "劫波播报")
 		_show_center_notice("第%d劫开场 · %s" % [wave_index, _get_wave_title(wave_index)], HUD_GOLD)
 		_spawn_popup(player.global_position + Vector2(0, -32), "+1 命", HUD_MINT)
 		_spawn_burst(player.global_position, HUD_MINT, 1.2, 1.15)
@@ -421,25 +449,46 @@ func _get_nearest_enemy_in_range(range_limit: float) -> Node2D:
 
 	return nearest
 
-func _on_enemy_damaged(_enemy: Node, hit_position: Vector2, remaining_health: int, max_health_value: int, was_elite: bool) -> void:
+func _on_enemy_damaged(enemy: Node, hit_position: Vector2, remaining_health: int, max_health_value: int, was_elite: bool) -> void:
 	var color_value := HUD_WARNING if was_elite else HUD_GOLD
 	var radius_scale := 0.82 + (0.35 if was_elite else 0.0)
+	var hit_direction := Vector2.RIGHT
+	if enemy != null and enemy is Node2D:
+		hit_direction = ((enemy as Node2D).global_position - player.global_position).normalized()
+	if hit_direction == Vector2.ZERO:
+		hit_direction = Vector2.RIGHT
 	_spawn_burst(hit_position, color_value, radius_scale, 0.78)
+	_spawn_slash(hit_position, hit_direction.angle(), color_value, 0.72 + (0.22 if was_elite else 0.0), 0.82)
+	if was_elite:
+		_flash_screen(color_value, 0.08, 0.12)
 	if remaining_health > 0 and max_health_value >= 4:
 		_spawn_popup(hit_position + Vector2(0, -18), "%d/%d" % [remaining_health, max_health_value], HUD_PAPER)
 
 func _on_enemy_died(enemy: Node, death_position: Vector2, xp_reward: int) -> void:
 	kill_count += 1
+	_kill_streak += 1
+	_kill_streak_timer = 2.4
+	_best_kill_streak = maxi(_best_kill_streak, _kill_streak)
 	var popup_color := HUD_MINT
 	var popup_text := "修为 +%d" % xp_reward
 	var burst_scale := 1.1
+	var slash_scale := 1.0
+	var flash_alpha := 0.10
 	if enemy != null and bool(enemy.get("is_elite")):
 		popup_color = HUD_WARNING
 		popup_text = "头目修为 +%d" % xp_reward
 		burst_scale = 1.55
+		slash_scale = 1.32
+		flash_alpha = 0.16
 		_add_camera_shake(8.0, 0.22)
 	_spawn_popup(death_position, popup_text, popup_color)
 	_spawn_burst(death_position, popup_color, burst_scale, 1.0)
+	_spawn_slash(death_position, randf_range(-0.65, 0.65), popup_color, slash_scale, 1.0)
+	_flash_screen(popup_color, flash_alpha, 0.15)
+	if _kill_streak == 6 or _kill_streak == 12 or _kill_streak == 20:
+		_show_center_notice("连斩 %d · 妖群失势" % _kill_streak, HUD_WARNING if _kill_streak < 20 else HUD_MINT)
+		_spawn_burst(player.global_position, HUD_WARNING if _kill_streak < 20 else HUD_MINT, 1.35 + _kill_streak * 0.02, 1.05)
+		_spawn_slash(player.global_position, -PI * 0.5, HUD_WARNING if _kill_streak < 20 else HUD_MINT, 1.22 + _kill_streak * 0.01, 1.12)
 	var expected_heal_rewards := int(kill_count / 25)
 	if expected_heal_rewards > _heals_awarded_by_kills:
 		_heals_awarded_by_kills = expected_heal_rewards
@@ -447,6 +496,8 @@ func _on_enemy_died(enemy: Node, death_position: Vector2, xp_reward: int) -> voi
 		_spawn_popup(player.global_position + Vector2(0, -28), "连斩福泽 +1 命", HUD_SKY)
 		_show_center_notice("连斩福泽 · 命火回涌", HUD_SKY)
 		_spawn_burst(player.global_position, HUD_SKY, 1.15, 1.05)
+		_spawn_slash(player.global_position, -PI * 0.5, HUD_SKY, 1.18, 1.05)
+		_flash_screen(HUD_SKY, 0.12, 0.16)
 	if xp_orb_scene == null:
 		return
 
@@ -474,9 +525,11 @@ func _on_player_xp_changed(current_xp: int, xp_to_next: int, level: int) -> void
 	var damage := 1 + int((level - 1) / 3) + int((wave_index - 1) / 4)
 	hud_weapon.text = "法术：%d 伤 · %d 连发 · %d 穿透" % [damage, shots, pierce]
 	if level > _last_level:
-		_show_banner("修为精进 · 行者 %d重" % level)
+		_show_banner("修为精进 · 行者 %d重" % level, "修为播报")
 		_show_center_notice("修为精进 · 行者 %d 重" % level, HUD_MINT)
 		_spawn_burst(player.global_position, HUD_MINT, 1.45, 1.25)
+		_spawn_slash(player.global_position, -PI * 0.5, HUD_MINT, 1.55, 1.24)
+		_flash_screen(HUD_MINT, 0.14, 0.18)
 		_add_camera_shake(6.0, 0.18)
 	_last_level = level
 
@@ -489,6 +542,8 @@ func _on_player_stats_changed(health: int, max_health: int, _level: int) -> void
 	if _last_health >= 0 and health < _last_health and not game_over:
 		_spawn_popup(player.global_position + Vector2(0, -22), "-%d 命" % (_last_health - health), HUD_DANGER)
 		_spawn_burst(player.global_position, HUD_DANGER, 1.05, 0.95)
+		_spawn_slash(player.global_position, PI * 0.5, HUD_DANGER, 1.12, 0.92)
+		_flash_screen(HUD_DANGER, 0.16, 0.14)
 		_show_center_notice("命火受创 · 先拉开身位", HUD_DANGER)
 		_add_camera_shake(10.0, 0.16)
 	_last_health = health
@@ -515,6 +570,7 @@ func _on_dash_button_pressed() -> void:
 			_browser_hint_acknowledged = true
 			_spawn_popup(player.global_position + Vector2(0, -38), "筋斗闪", HUD_WARNING)
 			_spawn_burst(player.global_position, HUD_WARNING, 0.95, 0.82)
+			_spawn_slash(player.global_position, player.rotation, HUD_WARNING, 0.92, 0.78)
 			_add_camera_shake(4.0, 0.12)
 
 func _on_player_died() -> void:
@@ -525,9 +581,11 @@ func _on_player_died() -> void:
 	attack_timer.stop()
 	hud_tip.text = "功行散尽 · 按 R 或点右下再闯一局"
 	_set_pause_state(false)
-	_show_banner("此局止步 · 斩妖 %d" % kill_count)
+	_show_banner("此局止步 · 斩妖 %d" % kill_count, "战报播报")
 	_show_center_notice("此局止步 · 再闯一局", HUD_DANGER)
 	_spawn_burst(player.global_position, HUD_DANGER, 1.9, 1.35)
+	_spawn_slash(player.global_position, PI * 0.5, HUD_DANGER, 1.75, 1.22)
+	_flash_screen(HUD_DANGER, 0.22, 0.22)
 	_add_camera_shake(12.0, 0.28)
 	if restart_button != null:
 		restart_button.visible = true
@@ -540,9 +598,11 @@ func _on_demo_clear() -> void:
 	attack_timer.stop()
 	hud_tip.text = "试炼通关 · 按 R 或点右下再走一遭"
 	_set_pause_state(false)
-	_show_banner("大圣护场 · 存活 %02d:%02d" % [int(elapsed_time) / 60, int(elapsed_time) % 60])
+	_show_banner("大圣护场 · 存活 %02d:%02d" % [int(elapsed_time) / 60, int(elapsed_time) % 60], "喝彩播报")
 	_show_center_notice("通关喝彩 · 大圣护场", HUD_MINT)
 	_spawn_burst(player.global_position, HUD_MINT, 2.1, 1.5)
+	_spawn_slash(player.global_position, -PI * 0.5, HUD_MINT, 1.9, 1.38)
+	_flash_screen(HUD_MINT, 0.18, 0.22)
 	_add_camera_shake(10.0, 0.35)
 	if restart_button != null:
 		restart_button.visible = true
@@ -565,42 +625,53 @@ func _update_status_card() -> void:
 		return
 	var next_heal_goal := (_heals_awarded_by_kills + 1) * 25
 	var kills_to_heal := maxi(0, next_heal_goal - kill_count)
+	var badge_text := "香火签"
 	var status_title := "金箍势稳"
 	var status_detail := "福泽香火未满，离下一口回命还差 %d 斩妖。" % kills_to_heal
+	if _kill_streak >= 4 and _kill_streak_timer > 0.0:
+		badge_text = "连斩签"
+		status_title = "连斩起势"
+		status_detail = "当前连斩 %d · 再接住节奏，可把妖潮压成空档。" % _kill_streak
 	var status_color := HUD_PAPER
 	var accent_color := HUD_GOLD
 	var background_color := HUD_PANEL
 	if game_over:
+		badge_text = "败阵签"
 		status_title = "败阵回看"
 		status_detail = "本局招式已经记下，按 R / 按钮重开，再试一套更顺的走位。"
 		status_color = HUD_DANGER
 		accent_color = HUD_DANGER
 		background_color = Color(0.22, 0.08, 0.08, 0.82)
 	elif demo_clear:
+		badge_text = "喝彩签"
 		status_title = "大圣喝彩"
 		status_detail = "三分钟试炼已过，可立刻再闯一局，继续冲更高斩妖与修为。"
 		status_color = HUD_MINT
 		accent_color = HUD_MINT
 		background_color = Color(0.10, 0.16, 0.12, 0.82)
 	elif pause_requested:
+		badge_text = "暂歇签"
 		status_title = "戏台暂歇"
 		status_detail = "当前波次与战报都保留着，点继续试炼即可无缝回场。"
 		status_color = HUD_SKY
 		accent_color = HUD_SKY
 		background_color = Color(0.08, 0.12, 0.18, 0.82)
 	elif player.health <= 2:
+		badge_text = "告急签"
 		status_title = "命火告急"
 		status_detail = "先筋斗闪拉位，再收修为球续命；这局别跟妖群硬换。"
 		status_color = HUD_DANGER
 		accent_color = HUD_DANGER
 		background_color = Color(0.22, 0.08, 0.08, 0.82)
 	elif wave_index >= 5:
+		badge_text = "压阵签"
 		status_title = "火云压阵"
 		status_detail = "终局妖潮已起：先避重装贴脸，留一段筋斗闪穿出包围。"
 		status_color = HUD_WARNING
 		accent_color = HUD_WARNING
 		background_color = Color(0.20, 0.12, 0.05, 0.82)
 	elif kills_to_heal <= 5:
+		badge_text = "福泽签"
 		status_title = "福泽将满"
 		status_detail = "再斩 %d 妖，就有一口回命香火续上。" % kills_to_heal
 		status_color = HUD_MINT
@@ -608,10 +679,21 @@ func _update_status_card() -> void:
 		background_color = Color(0.10, 0.16, 0.12, 0.82)
 	status_label.text = "%s\n%s" % [status_title, status_detail]
 	status_label.add_theme_color_override("font_color", status_color)
+	if status_badge != null:
+		status_badge.text = badge_text
+		status_badge.add_theme_color_override("font_color", accent_color)
 	if status_card_accent != null:
 		status_card_accent.color = accent_color
 	if status_card_bg != null:
 		status_card_bg.color = background_color
+
+func _update_kill_streak(delta: float) -> void:
+	if _kill_streak_timer > 0.0:
+		_kill_streak_timer = maxf(0.0, _kill_streak_timer - delta)
+		if _kill_streak_timer == 0.0:
+			if _kill_streak >= 8:
+				_show_center_notice("连斩收势 · 最长 %d" % _kill_streak, HUD_SKY)
+			_kill_streak = 0
 
 func _spawn_popup(world_position: Vector2, text_value: String, color_value: Color) -> void:
 	if damage_popup_scene == null:
@@ -635,12 +717,44 @@ func _spawn_burst(world_position: Vector2, color_value: Color, scale_mul: float 
 		burst.setup(color_value, Color(1.0, 1.0, 1.0, 0.9), scale_mul, duration_mul)
 	feedback.add_child(burst)
 
-func _show_banner(text_value: String) -> void:
+func _spawn_slash(world_position: Vector2, rotation_value: float, color_value: Color, scale_mul: float = 1.0, duration_mul: float = 1.0) -> void:
+	if slash_fx_scene == null:
+		return
+	var slash := slash_fx_scene.instantiate()
+	if slash == null:
+		return
+	if slash is Node2D:
+		(slash as Node2D).position = world_position
+		(slash as Node2D).rotation = rotation_value
+	if slash.has_method("setup"):
+		slash.setup(color_value, Color(1.0, 0.98, 0.92, 0.96), scale_mul, duration_mul)
+	feedback.add_child(slash)
+
+func _flash_screen(color_value: Color, alpha: float = 0.12, duration: float = 0.16) -> void:
+	if screen_flash == null:
+		return
+	var flash_color := color_value
+	flash_color.a = clampf(alpha, 0.0, 0.45)
+	screen_flash.color = flash_color
+	if _screen_flash_tween != null:
+		_screen_flash_tween.kill()
+	screen_flash.visible = true
+	_screen_flash_tween = create_tween()
+	_screen_flash_tween.tween_property(screen_flash, "color", Color(flash_color.r, flash_color.g, flash_color.b, 0.0), maxf(0.08, duration))
+	_screen_flash_tween.finished.connect(func():
+		screen_flash.visible = false
+	)
+
+func _show_banner(text_value: String, subtitle_text: String = "妖潮播报") -> void:
 	if banner_label == null:
 		return
 	banner_label.text = text_value
 	banner_label.modulate = Color(1, 1, 1, 1)
 	banner_label.visible = true
+	if banner_sub_label != null:
+		banner_sub_label.text = subtitle_text
+		banner_sub_label.modulate = Color(1, 1, 1, 1)
+		banner_sub_label.visible = true
 	if banner_backing != null:
 		banner_backing.modulate = Color(1, 1, 1, 1)
 		banner_backing.visible = true
@@ -650,12 +764,16 @@ func _show_banner(text_value: String) -> void:
 	var tween := create_tween()
 	tween.tween_interval(1.15)
 	tween.parallel().tween_property(banner_label, "modulate", Color(1, 1, 1, 0), 0.45)
+	if banner_sub_label != null:
+		tween.parallel().tween_property(banner_sub_label, "modulate", Color(1, 1, 1, 0), 0.45)
 	if banner_backing != null:
 		tween.parallel().tween_property(banner_backing, "modulate", Color(1, 1, 1, 0), 0.45)
 	if banner_accent != null:
 		tween.parallel().tween_property(banner_accent, "modulate", Color(1, 1, 1, 0), 0.45)
 	tween.finished.connect(func():
 		banner_label.visible = false
+		if banner_sub_label != null:
+			banner_sub_label.visible = false
 		if banner_backing != null:
 			banner_backing.visible = false
 		if banner_accent != null:
@@ -666,9 +784,12 @@ func _show_center_notice(text_value: String, accent_color: Color = HUD_GOLD) -> 
 	if center_notice == null or center_notice_label == null:
 		return
 	center_notice.visible = true
+	center_notice.position = _center_notice_base_position + Vector2(0.0, 8.0)
+	center_notice.scale = Vector2(0.96, 0.96)
+	center_notice.rotation = deg_to_rad(-1.2)
 	center_notice_label.text = text_value
 	center_notice_label.modulate = Color(1, 1, 1, 1)
-	center_notice_label.scale = Vector2(0.94, 0.94)
+	center_notice_label.scale = Vector2(0.92, 0.92)
 	center_notice_backing.color = Color(0.12, 0.08, 0.06, 0.84)
 	center_notice_backing.modulate = Color(1, 1, 1, 0.0)
 	center_notice_accent.color = accent_color
@@ -677,16 +798,23 @@ func _show_center_notice(text_value: String, accent_color: Color = HUD_GOLD) -> 
 		_center_notice_tween.kill()
 	_center_notice_tween = create_tween()
 	_center_notice_tween.set_parallel(true)
-	_center_notice_tween.tween_property(center_notice_backing, "modulate", Color(1, 1, 1, 1), 0.14)
-	_center_notice_tween.tween_property(center_notice_accent, "modulate", Color(1, 1, 1, 1), 0.14)
+	_center_notice_tween.tween_property(center_notice_backing, "modulate", Color(1, 1, 1, 1), 0.12)
+	_center_notice_tween.tween_property(center_notice_accent, "modulate", Color(1, 1, 1, 1), 0.12)
+	_center_notice_tween.tween_property(center_notice, "position", _center_notice_base_position, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_center_notice_tween.tween_property(center_notice, "rotation", 0.0, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_center_notice_tween.tween_property(center_notice, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_center_notice_tween.tween_property(center_notice_label, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_center_notice_tween.chain().tween_interval(0.7)
+	_center_notice_tween.chain().tween_interval(0.72)
 	_center_notice_tween.set_parallel(true)
-	_center_notice_tween.tween_property(center_notice_backing, "modulate", Color(1, 1, 1, 0), 0.28)
-	_center_notice_tween.tween_property(center_notice_accent, "modulate", Color(1, 1, 1, 0), 0.28)
-	_center_notice_tween.tween_property(center_notice_label, "modulate", Color(1, 1, 1, 0), 0.28)
+	_center_notice_tween.tween_property(center_notice_backing, "modulate", Color(1, 1, 1, 0), 0.24)
+	_center_notice_tween.tween_property(center_notice_accent, "modulate", Color(1, 1, 1, 0), 0.24)
+	_center_notice_tween.tween_property(center_notice_label, "modulate", Color(1, 1, 1, 0), 0.24)
+	_center_notice_tween.tween_property(center_notice, "position", _center_notice_base_position + Vector2(0.0, -6.0), 0.24)
 	_center_notice_tween.finished.connect(func():
 		center_notice.visible = false
+		center_notice.position = _center_notice_base_position
+		center_notice.scale = Vector2.ONE
+		center_notice.rotation = 0.0
 	)
 
 func _set_focus_overlay_visible(should_show: bool) -> void:
@@ -702,14 +830,18 @@ func _set_focus_overlay_visible(should_show: bool) -> void:
 			focus_tint.modulate = Color(1, 1, 1, 0)
 		if focus_panel != null:
 			focus_panel.modulate = Color(1, 1, 1, 0)
-			focus_panel.scale = Vector2(0.92, 0.92)
+			focus_panel.scale = Vector2(0.90, 0.90)
+			focus_panel.position = _focus_panel_base_position + Vector2(0.0, 14.0)
+			focus_panel.rotation = deg_to_rad(-1.6)
 		var tween_in := create_tween()
 		tween_in.set_parallel(true)
 		if focus_tint != null:
 			tween_in.tween_property(focus_tint, "modulate", Color(1, 1, 1, 1), 0.18)
 		if focus_panel != null:
 			tween_in.tween_property(focus_panel, "modulate", Color(1, 1, 1, 1), 0.18)
-			tween_in.tween_property(focus_panel, "scale", Vector2.ONE, 0.20).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tween_in.tween_property(focus_panel, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tween_in.tween_property(focus_panel, "position", _focus_panel_base_position, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tween_in.tween_property(focus_panel, "rotation", 0.0, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	else:
 		var tween_out := create_tween()
 		tween_out.set_parallel(true)
@@ -718,10 +850,27 @@ func _set_focus_overlay_visible(should_show: bool) -> void:
 		if focus_panel != null:
 			tween_out.tween_property(focus_panel, "modulate", Color(1, 1, 1, 0), 0.14)
 			tween_out.tween_property(focus_panel, "scale", Vector2(0.96, 0.96), 0.14)
+			tween_out.tween_property(focus_panel, "position", _focus_panel_base_position + Vector2(0.0, 10.0), 0.14)
 		tween_out.finished.connect(func():
 			if not _focus_overlay_visible_state:
 				focus_overlay.visible = false
+				if focus_panel != null:
+					focus_panel.position = _focus_panel_base_position
+					focus_panel.rotation = 0.0
 		)
+
+func _update_ui_motion(delta: float) -> void:
+	_ui_motion_time += delta
+	if center_notice != null and center_notice.visible and _center_notice_tween != null:
+		center_notice.scale = center_notice.scale.lerp(Vector2.ONE * (1.0 + sin(_ui_motion_time * 10.0) * 0.015), delta * 4.5)
+	if focus_panel != null and _focus_overlay_visible_state and focus_panel.visible:
+		var bob := sin(_ui_motion_time * 3.2) * 4.0
+		focus_panel.position = focus_panel.position.lerp(_focus_panel_base_position + Vector2(0.0, bob), delta * 3.2)
+		focus_panel.rotation = lerpf(focus_panel.rotation, deg_to_rad(sin(_ui_motion_time * 2.1) * 0.7), delta * 2.8)
+		focus_panel.scale = focus_panel.scale.lerp(Vector2.ONE * (1.0 + sin(_ui_motion_time * 4.0) * 0.01), delta * 3.4)
+	elif focus_panel != null and not _focus_overlay_visible_state:
+		focus_panel.position = focus_panel.position.lerp(_focus_panel_base_position, delta * 6.0)
+		focus_panel.rotation = lerpf(focus_panel.rotation, 0.0, delta * 6.0)
 
 func _update_tip_text() -> void:
 	if game_over or demo_clear:
@@ -825,9 +974,27 @@ func _get_settlement_title(cleared: bool) -> String:
 		return "流沙试锋"
 	return "花果山试手"
 
+func _get_medal_line() -> String:
+	var medal := "铜符"
+	var detail := "稳住节奏"
+	if demo_clear and kill_count >= 180:
+		medal = "金箍金章"
+		detail = "大圣巡山"
+	elif demo_clear and kill_count >= 140:
+		medal = "花果银章"
+		detail = "山门守成"
+	elif wave_index >= 5 or _best_kill_streak >= 12:
+		medal = "流沙铜章"
+		detail = "妖潮试锋"
+	if pause_requested and not game_over and not demo_clear:
+		detail = "暂歇整装"
+	if game_over:
+		detail = "再闯可破"
+	return "战绩牌：%s · %s" % [medal, detail]
+
 func _build_run_summary(title_text: String) -> String:
 	var total_seconds := int(elapsed_time)
-	return "西游评语：%s\n时辰：%02d:%02d / %02d:%02d\n斩妖：%d    头目：%d\n行者：%d重    命火：%d/%d\n劫波：第%d劫 · %s" % [
+	return "西游评语：%s\n时辰：%02d:%02d / %02d:%02d\n斩妖：%d    头目：%d\n行者：%d重    命火：%d/%d\n连斩：最长 %d\n劫波：第%d劫 · %s" % [
 		title_text,
 		int(total_seconds / 60),
 		total_seconds % 60,
@@ -838,6 +1005,7 @@ func _build_run_summary(title_text: String) -> String:
 		player.level,
 		player.health,
 		player.max_health,
+		_best_kill_streak,
 		wave_index,
 		_get_wave_title(wave_index)
 	]
@@ -914,6 +1082,23 @@ func _apply_ui_style() -> void:
 	primary_button_disabled.bg_color = Color(0.38, 0.26, 0.21, 0.85)
 	primary_button_disabled.border_color = Color(0.68, 0.58, 0.42, 0.7)
 
+	var secondary_button := panel_soft.duplicate() as StyleBoxFlat
+	secondary_button.border_color = Color(0.72, 0.63, 0.44, 0.95)
+	secondary_button.border_width_left = 2
+	secondary_button.border_width_top = 2
+	secondary_button.border_width_right = 2
+	secondary_button.border_width_bottom = 2
+
+	var secondary_button_hover := secondary_button.duplicate() as StyleBoxFlat
+	secondary_button_hover.bg_color = Color(0.28, 0.17, 0.13, 0.92)
+
+	var secondary_button_pressed := secondary_button.duplicate() as StyleBoxFlat
+	secondary_button_pressed.bg_color = Color(0.18, 0.11, 0.08, 0.95)
+
+	var secondary_button_disabled := secondary_button.duplicate() as StyleBoxFlat
+	secondary_button_disabled.bg_color = Color(0.20, 0.14, 0.11, 0.72)
+	secondary_button_disabled.border_color = Color(0.56, 0.50, 0.39, 0.58)
+
 	var label_color_map := {
 		hud_level: HUD_GOLD,
 		hud_health: HUD_PAPER,
@@ -924,11 +1109,14 @@ func _apply_ui_style() -> void:
 		hud_weapon: HUD_MINT,
 		hud_objective: HUD_PAPER,
 		hud_tip: HUD_SKY,
+		status_badge: HUD_GOLD,
 		status_label: HUD_PAPER,
 		banner_label: HUD_GOLD,
+		banner_sub_label: HUD_PAPER,
 		center_notice_label: HUD_PAPER,
 		focus_badge: HUD_WARNING,
 		focus_title: HUD_GOLD,
+		medal_label: HUD_WARNING,
 		focus_detail: HUD_PAPER,
 		summary_label: HUD_PAPER,
 		mobile_hint: HUD_PAPER
@@ -946,11 +1134,18 @@ func _apply_ui_style() -> void:
 	hud_wave.add_theme_font_size_override("font_size", 20)
 	hud_objective.add_theme_font_size_override("font_size", 17)
 	hud_tip.add_theme_font_size_override("font_size", 16)
+	if status_badge != null:
+		status_badge.add_theme_font_size_override("font_size", 14)
 	status_label.add_theme_font_size_override("font_size", 16)
 	banner_label.add_theme_font_size_override("font_size", 26)
-	center_notice_label.add_theme_font_size_override("font_size", 24)
+	if banner_sub_label != null:
+		banner_sub_label.add_theme_font_size_override("font_size", 14)
+	if center_notice_label != null:
+		center_notice_label.add_theme_font_size_override("font_size", 24)
 	focus_badge.add_theme_font_size_override("font_size", 15)
 	focus_title.add_theme_font_size_override("font_size", 24)
+	if medal_label != null:
+		medal_label.add_theme_font_size_override("font_size", 18)
 	focus_detail.add_theme_font_size_override("font_size", 17)
 	summary_label.add_theme_font_size_override("font_size", 16)
 	mobile_hint.add_theme_font_size_override("font_size", 16)
@@ -958,23 +1153,29 @@ func _apply_ui_style() -> void:
 	hud_xp_bar.add_theme_stylebox_override("fill", fill_style)
 	hud_xp_bar.add_theme_stylebox_override("background", background_style)
 	hud_xp_bar.add_theme_color_override("font_color", HUD_INK)
+	if hud_meta_divider != null:
+		hud_meta_divider.color = Color(HUD_GOLD.r, HUD_GOLD.g, HUD_GOLD.b, 0.42)
+	if hud_objective_divider != null:
+		hud_objective_divider.color = Color(HUD_ACCENT.r, HUD_ACCENT.g, HUD_ACCENT.b, 0.38)
 
 	if focus_panel != null:
 		focus_panel.add_theme_stylebox_override("panel", panel_style)
 	if restart_button != null:
 		_apply_button_style(restart_button, primary_button, primary_button_hover, primary_button_pressed, primary_button_disabled)
 		restart_button.text = "再闯一局"
+		restart_button.add_theme_font_size_override("font_size", 24)
 	if continue_button != null:
-		_apply_button_style(continue_button, primary_button, primary_button_hover, primary_button_pressed, primary_button_disabled)
+		_apply_button_style(continue_button, secondary_button, secondary_button_hover, secondary_button_pressed, secondary_button_disabled)
 		continue_button.text = "继续试炼"
+		continue_button.add_theme_font_size_override("font_size", 22)
 	if pause_button != null:
-		_apply_button_style(pause_button, panel_soft, primary_button_hover, primary_button_pressed, primary_button_disabled)
+		_apply_button_style(pause_button, secondary_button, secondary_button_hover, secondary_button_pressed, secondary_button_disabled)
 		pause_button.text = "暂停"
 		pause_button.add_theme_color_override("font_color", HUD_GOLD)
 		pause_button.add_theme_font_size_override("font_size", 20)
 	if dash_button != null:
-		_apply_button_style(dash_button, panel_soft, primary_button_hover, primary_button_pressed, primary_button_disabled)
-		dash_button.add_theme_color_override("font_color", HUD_GOLD)
+		_apply_button_style(dash_button, primary_button, primary_button_hover, primary_button_pressed, primary_button_disabled)
+		dash_button.add_theme_color_override("font_color", HUD_PAPER)
 		dash_button.add_theme_font_size_override("font_size", 22)
 
 func _apply_button_style(button: Button, normal_style: StyleBoxFlat, hover_style: StyleBoxFlat, pressed_style: StyleBoxFlat, disabled_style: StyleBoxFlat) -> void:
