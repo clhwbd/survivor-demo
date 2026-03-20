@@ -17,7 +17,30 @@
 
 ## 2026-03-21
 
-### 1. Web 加载页阶段式提示收口
+### 1. 手机验收阻塞修复：UI 太小 + 摇杆被其他元素遮挡
+
+- 动作：针对"手机适配差、UI 显示很小、摇杆被别的 UI 挡住"的验收阻塞做专项修复，修复到代码层，不只给方案。
+- 根因判断（两层）：
+  1. **UI 太小**：HUD 所有字体大小都是硬编码绝对像素值（如 `font_size = 22`），在 360x800、390x844 等小屏手机上完全不缩放，文字极小难以阅读。
+  2. **摇杆被挡**：`TouchJoystick`、`DashButton`、`MobileHintBg` 与 `ActionTrayBg` 都在同一个 CanvasLayer（HUD，layer=1）里。竖屏模式下，`ActionTrayBg` 覆盖整个底部宽度，`MobileHintBg` 底部定位直接盖在左下摇杆区域上方，虽然它们有 `mouse_filter=2`（事件穿透），但视觉上仍然遮住摇杆。
+- 涉及文件：
+  - `game/scenes/main.tscn` — 新增 `MobileControls` CanvasLayer（layer=2），把摇杆、闪避按钮、手机提示移入新层，确保始终渲染在 HUD 层之上。
+  - `game/scripts/main.gd` — 更新 `@onready` 引用路径为 `$MobileControls/...`；新增 `_apply_mobile_font_scaling()`，基于视口宽度对所有 HUD 标签/按钮字体做 0.45-1.0x 缩放（基准 1280px）；竖屏模式下将操作栏移至 HUD 卡上方（避免遮挡左下角摇杆），将手机提示移至右上区域。
+  - `game/tests/portrait_layout_smoke.gd` — 更新节点路径为 `MobileControls/` 前缀，并正确处理 CanvasLayer 在 SubViewport 内的坐标空间问题。
+- 具体改动：
+  - 新增 `MobileControls` CanvasLayer（layer=2），接管所有触控操作元素（摇杆、闪避按钮、手机提示），比 HUD CanvasLayer（layer=1）层级更高，视觉上永远在最前。
+  - 竖屏模式下：操作栏移至 HUD 卡上方（y≈hud_card_bottom+8 至 hud_card_bottom+68），完全避开左下摇杆区域；手机提示移至右上侧（状态卡下方），不再占据底部空间。
+  - 新增 `_apply_mobile_font_scaling()`：根据视口宽度（基准 1280px）按比例缩放所有 HUD 字体，最小不低于基准的 45%；竖屏模式额外乘 1.08 系数，保证小屏可读性。
+  - 摇杆在竖屏模式下尺寸调整为 `min(192px, 视口宽×44%)`，触控目标更大更容易按到。
+- 验证：
+  - `portrait_layout_smoke: ok`（360x800 / 390x844 / 430x932 三组手机竖屏尺寸）
+  - `touch_joystick_smoke: ok`（触控按下、失焦归零、隐藏归零）
+  - 主场景 headless 加载（5s / 45s）均退出码 0
+  - `release_guard.sh` 完整通过（Web 导出、gzip、HEAD、MIME 校验全部通过）
+- 验证结果：所有冒烟回归通过，发布链路完整。
+- 提交：`f6962fa` `fix: mobile UI scale and unblock joystick from other HUD elements`
+
+### 2. Web 加载页阶段式提示收口
 - 动作：复用 `tests/smoke/patch_web_index.py` 的 Web 壳层补丁逻辑，把原本偏模糊的加载条改成更明确的分阶段提示，并同步刷新 `builds/web-release/`、`builds/web/`、`builds/pages-deploy/` 的页面壳层产物。
 - 涉及文件：
   - `tests/smoke/patch_web_index.py`
