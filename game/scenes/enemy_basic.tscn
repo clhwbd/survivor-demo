@@ -42,6 +42,11 @@ position = Vector2(0, -1)
 color = Color(0.560784, 0.180392, 0.14902, 0.88)
 polygon = PackedVector2Array(-12, -3, -7, -7, -2, -2, 2, -2, 7, -7, 12, -3, 9, 2, -9, 2)
 
+[node name="WaistSash" type="Polygon2D" parent="."]
+position = Vector2(0, 9)
+color = Color(0.952941, 0.768627, 0.376471, 0.9)
+polygon = PackedVector2Array(-8, -1, 8, -1, 6, 3, -6, 3)
+
 [node name="Crest" type="Polygon2D" parent="."]
 position = Vector2(0, -12)
 color = Color(0.945098, 0.768627, 0.376471, 1)

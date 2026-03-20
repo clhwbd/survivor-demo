@@ -26,6 +26,7 @@
 - 压缩交付版：`builds/web/`
 - 验收说明：`docs/release-acceptance.md`
 - 发布方案：`docs/deployment-plan.md`
+- 正式托管前清单：`docs/release-minimum-checklist.md`
 - UI / 美术 agent 拆分建议：`docs/ui-art-agent-split.md`
 - 工程日志：`docs/worklog.md`
 
@@ -35,6 +36,8 @@
 - 当前最佳后续正式托管方式：对象存储静态托管 + CDN，先发 `builds/web-release/`
 - `builds/web/` 暂定为部署优化包，不作为当前唯一验收基线
 - `2026-03-20 14:36 CST` 已再次完成 Godot CLI Web 导出复验与本地 HTTP 校验
+- `2026-03-20 14:45 CST` 已补一轮源码 / 场景一致性修正：主场景脚本恢复可加载，HUD 新节点与脚本口径重新对齐，并重导出 `builds/web-release/`
+- 真正上线托管前，默认再过一次 `docs/release-minimum-checklist.md`
 
 ## 当前结论
 这个项目现在更像一个**已可交接的 Web demo 样板**，而不再只是“玩法原型”。

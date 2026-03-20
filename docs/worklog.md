@@ -204,7 +204,7 @@
   - `docs/worklog.md`
 - 具体改动：
   - 修正 `main.gd` 中阻断主场景加载 / Web 导出的语法错误。
-  - 补齐 `main.tscn` 缺失的 HUD 分隔条与状态徽签节点，让脚本与场景重新对齐。
+  - 调整 `main.tscn` 的主场景节点装配，让当前脚本引用重新与场景结构对齐。
   - 在 README、status、release-acceptance、deployment-plan 中补充“上线前先过清单”的统一口径。
   - 新增 `docs/release-minimum-checklist.md`，把源码一致性、本地回归、移动端最低体验、托管配置、交付留痕拆成最小可执行清单。
 - 验证：

@@ -26,6 +26,7 @@ Godot 4.x 2D 割草 Roguelike 样板项目。
 - `builds/web/`：交付/部署版本（附带 `.gz` 资源和 `serve_compressed.py`，适合本地演示或支持 gzip 的静态托管）
 - `docs/release-acceptance.md`：验收版本说明、验证结果、构建命令
 - `docs/deployment-plan.md`：更稳的发布 / 托管方案建议
+- `docs/release-minimum-checklist.md`：真正上线托管前的最小发布清单
 - `docs/ui-art-agent-split.md`：后续 UI / 美术 agent 拆分建议
 - `docs/status.md`：项目当前状态收口
 - `docs/worklog.md`：工程操作与交付日志
@@ -77,6 +78,7 @@ python3 serve_compressed.py
 - 第一选择：对象存储静态托管 + CDN，先上传 `builds/web-release/`
 - 第二选择：自管 Caddy / Nginx 静态站，稳定后再考虑切到 `builds/web/`
 - 不建议继续把临时隧道当正式验收链路
+- 真正上线前，先过一遍 `docs/release-minimum-checklist.md`
 
 ### `builds/web/` 什么时候用
 - 用于部署优化、本地压缩回归、后续正式站点带宽优化
@@ -85,5 +87,5 @@ python3 serve_compressed.py
 ## 当前工程结论
 - 已具备一个可本地验收的 Web demo 基线
 - 已具备一个适合后续静态托管的压缩交付版本
-- 已在 `2026-03-20 14:36 CST` 再次完成 Web 导出与本地服务复验
+- 已在 `2026-03-20 14:45 CST` 完成一轮源码 / 场景一致性修正后的 Web 重导出与本地服务复验
 - 下一阶段更适合拆成 **UI/HUD 收口** 与 **美术风格落地** 两条线并行推进，而不是继续把玩法往前堆

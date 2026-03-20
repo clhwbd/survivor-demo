@@ -20,6 +20,7 @@ var _knockback_velocity: Vector2 = Vector2.ZERO
 var _body_base_scale: Vector2 = Vector2.ONE
 var _shadow_base_scale: Vector2 = Vector2.ONE
 var _ornament_base_rotation: float = 0.0
+var _ornament_base_position: Vector2 = Vector2.ZERO
 
 @onready var body_polygon: Polygon2D = $Body
 @onready var shadow_polygon: Polygon2D = get_node_or_null("Shadow") as Polygon2D
@@ -35,11 +36,13 @@ func _ready() -> void:
 		_shadow_base_scale = shadow_polygon.scale
 	if ornament_polygon != null:
 		_ornament_base_rotation = ornament_polygon.rotation
+		_ornament_base_position = ornament_polygon.position
 	for node_name in ["Mask", "Scarf", "Armor", "Crown"]:
 		if ornament_polygon == null:
 			ornament_polygon = get_node_or_null(node_name) as Polygon2D
 			if ornament_polygon != null:
 				_ornament_base_rotation = ornament_polygon.rotation
+				_ornament_base_position = ornament_polygon.position
 				break
 
 func _physics_process(delta: float) -> void:
@@ -142,4 +145,4 @@ func _update_visuals(delta: float) -> void:
 		shadow_polygon.scale = shadow_polygon.scale.lerp(_shadow_base_scale * Vector2(1.0 + move_ratio * 0.12, 1.0 - move_ratio * 0.08), delta * 7.0)
 	if ornament_polygon != null:
 		ornament_polygon.rotation = lerpf(ornament_polygon.rotation, _ornament_base_rotation - velocity.normalized().x * 0.12 + bob * 0.05, delta * 7.0)
-		ornament_polygon.position.y = lerpf(ornament_polygon.position.y, ornament_polygon.position.y + bob * 0.02, delta * 2.0)
+		ornament_polygon.position = ornament_polygon.position.lerp(_ornament_base_position + Vector2(0.0, bob * 0.6), delta * 6.0)

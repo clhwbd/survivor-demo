@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://scenes/enemy_runner.tscn" id="5_runner"]
 [ext_resource type="Script" path="res://scripts/touch_joystick.gd" id="6_joystick"]
 [ext_resource type="PackedScene" path="res://scenes/enemy_tank.tscn" id="7_tank"]
+[ext_resource type="PackedScene" path="res://scenes/feedback_burst.tscn" id="8_burst"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -14,6 +15,7 @@ enemy_scene = ExtResource("3_enemy")
 fast_enemy_scene = ExtResource("5_runner")
 tank_enemy_scene = ExtResource("7_tank")
 projectile_scene = ExtResource("4_projectile")
+feedback_burst_scene = ExtResource("8_burst")
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 position = Vector2(640, 360)
@@ -78,21 +80,12 @@ text = "时辰 00:00 / 03:00"
 [node name="KillLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 text = "斩妖 0 · 头目 0"
 
-[node name="MetaDivider" type="ColorRect" parent="HUD/MarginContainer/VBoxContainer"]
-custom_minimum_size = Vector2(0, 2)
-color = Color(0.94, 0.82, 0.55, 0.42)
-
 [node name="WaveLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 text = "第1劫：花果山热身 · 下波 30s"
-
 autowrap_mode = 3
 
 [node name="WeaponLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 text = "法术：1 伤 · 1 连发 · 0 穿透"
-
-[node name="ObjectiveDivider" type="ColorRect" parent="HUD/MarginContainer/VBoxContainer"]
-custom_minimum_size = Vector2(0, 2)
-color = Color(0.80, 0.36, 0.25, 0.38)
 
 [node name="ObjectiveLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
 text = "本局目标：撑到 03:00。每 25 连斩回 1 命，双数劫波常有头目压阵。"
@@ -140,25 +133,12 @@ offset_bottom = 17.0
 grow_horizontal = 0
 color = Color(0.94, 0.82, 0.55, 0.95)
 
-[node name="StatusBadge" type="Label" parent="HUD"]
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -314.0
-offset_top = 22.0
-offset_right = -30.0
-offset_bottom = 42.0
-grow_horizontal = 0
-horizontal_alignment = 2
-vertical_alignment = 1
-text = "花果山军情"
-
 [node name="StatusLabel" type="Label" parent="HUD"]
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -314.0
-offset_top = 42.0
+offset_top = 24.0
 offset_right = -30.0
 offset_bottom = 88.0
 grow_horizontal = 0
@@ -189,23 +169,50 @@ color = Color(0.94, 0.82, 0.55, 0.95)
 visible = false
 layout_mode = 0
 offset_left = 0.0
-offset_top = -2.0
+offset_top = 0.0
 offset_right = 560.0
-offset_bottom = 40.0
+offset_bottom = 64.0
 horizontal_alignment = 1
 vertical_alignment = 1
 text = "第一劫 · 花果山热身"
 
-[node name="BannerSubLabel" type="Label" parent="HUD/TopCenter"]
+[node name="CenterNotice" type="Control" parent="HUD"]
 visible = false
-layout_mode = 0
-offset_left = 48.0
-offset_top = 34.0
-offset_right = 512.0
-offset_bottom = 64.0
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -244.0
+offset_top = -168.0
+offset_right = 244.0
+offset_bottom = -108.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Backing" type="ColorRect" parent="HUD/CenterNotice"]
+offset_left = 24.0
+offset_top = 10.0
+offset_right = 464.0
+offset_bottom = 52.0
+color = Color(0.12, 0.08, 0.06, 0.84)
+
+[node name="Accent" type="ColorRect" parent="HUD/CenterNotice"]
+offset_left = 86.0
+offset_top = 12.0
+offset_right = 402.0
+offset_bottom = 16.0
+color = Color(0.94, 0.82, 0.55, 0.95)
+
+[node name="Label" type="Label" parent="HUD/CenterNotice"]
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 488.0
+offset_bottom = 60.0
 horizontal_alignment = 1
 vertical_alignment = 1
-text = "妖潮播报"
+text = "修为精进 · 行者 2 重"
 
 [node name="FocusOverlay" type="Control" parent="HUD"]
 visible = false
@@ -288,10 +295,10 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -124.0
+offset_left = -112.0
 offset_top = -96.0
-offset_right = 124.0
-offset_bottom = -34.0
+offset_right = 112.0
+offset_bottom = -30.0
 grow_horizontal = 2
 grow_vertical = 0
 text = "继续试炼"
@@ -301,9 +308,9 @@ anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -438.0
-offset_top = 108.0
-offset_right = -276.0
-offset_bottom = 162.0
+offset_top = 104.0
+offset_right = -330.0
+offset_bottom = 154.0
 grow_horizontal = 0
 text = "暂停"
 

@@ -56,6 +56,14 @@
 - `builds/web/` 通过 `python3 serve_compressed.py` 复验，使用 `GET` 请求访问 `index.wasm` 时返回 `Content-Encoding: gzip`
 - 补充确认：`serve_compressed.py` 对 `HEAD` 仍返回 `501`，这是脚本实现限制，不影响浏览器实际加载
 
+## 2026-03-20 14:45 CST 一致性复核
+- 发现 `game/scripts/main.gd` 新一轮 HUD / 战报收口改动一度存在语法错误，导致源码与 `builds/web-release/` 出现暂时脱节
+- 已修正阻断导出的语法问题，并把主场景节点装配重新对齐到当前脚本版本
+- 处理后主场景可再次通过 headless 加载，并重新导出 `builds/web-release/`，最新四个核心文件时间戳已刷新到 `2026-03-20 14:45:28 CST`
+- 通过 `python3 -m http.server 18081` 复验时，`index.html / index.js / index.wasm / index.pck` 仍全部返回 `200`
+- 补充注意：Python 简易静态服务对 `index.wasm` 返回的是 `application/octet-stream`，可用于本地快速验收，但正式托管时仍应显式配置为 `application/wasm`
+- 真正上线托管前，先过 `docs/release-minimum-checklist.md`
+
 ## 本地访问验证
 
 ### A. 验收基线版本验证

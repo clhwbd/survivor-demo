@@ -46,6 +46,11 @@ position = Vector2(0, 1)
 color = Color(0.690196, 0.239216, 0.188235, 0.92)
 polygon = PackedVector2Array(-7, -1, 7, -1, 5, 3, -5, 3)
 
+[node name="TailFlare" type="Polygon2D" parent="."]
+position = Vector2(0, 11)
+color = Color(0.835294, 0.282353, 0.215686, 0.9)
+polygon = PackedVector2Array(-4, -1, 4, -1, 2, 5, 0, 8, -2, 5)
+
 [node name="Scarf" type="Polygon2D" parent="."]
 position = Vector2(0, 2)
 color = Color(0.72549, 0.180392, 0.160784, 0.95)

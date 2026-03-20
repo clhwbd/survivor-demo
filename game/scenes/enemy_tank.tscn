@@ -51,6 +51,11 @@ position = Vector2(0, 12)
 color = Color(0.694118, 0.227451, 0.188235, 0.92)
 polygon = PackedVector2Array(-11, -2, 11, -2, 9, 5, 0, 8, -9, 5)
 
+[node name="ChestSeal" type="Polygon2D" parent="."]
+position = Vector2(0, 2)
+color = Color(0.803922, 0.301961, 0.231373, 0.95)
+polygon = PackedVector2Array(0, -4, 4, 0, 0, 4, -4, 0)
+
 [node name="Crown" type="Polygon2D" parent="."]
 position = Vector2(0, -15)
 color = Color(0.835294, 0.282353, 0.215686, 1)

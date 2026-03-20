@@ -55,6 +55,16 @@ position = Vector2(0, 11)
 color = Color(0.611765, 0.184314, 0.145098, 0.9)
 polygon = PackedVector2Array(-9, -2, 9, -2, 7, 6, 0, 10, -7, 6)
 
+[node name="CheekMarks" type="Polygon2D" parent="."]
+position = Vector2(0, -1)
+color = Color(0.92549, 0.52549, 0.415686, 0.68)
+polygon = PackedVector2Array(-7, 0, -4, -1, -3, 1, -6, 2, 4, -1, 7, 0, 6, 2, 3, 1)
+
+[node name="BeltKnot" type="Polygon2D" parent="."]
+position = Vector2(0, 7)
+color = Color(0.94902, 0.827451, 0.494118, 0.95)
+polygon = PackedVector2Array(0, -3, 4, 0, 0, 4, -4, 0)
+
 [node name="Staff" type="Polygon2D" parent="."]
 position = Vector2(13, 0)
 rotation = -0.42

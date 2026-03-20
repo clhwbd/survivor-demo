@@ -154,6 +154,18 @@ server {
 
 ---
 
+## 真正上线托管前的最小发布清单
+正式把 demo 放到固定地址前，至少再过一遍：`docs/release-minimum-checklist.md`
+
+其中最关键的最小项只有五个：
+1. 源码主场景能正常加载，`game/scenes/main.tscn` 与 `game/scripts/main.gd` 没脱节
+2. 用 Godot CLI 重新导出 `builds/web-release/`，确保托管包和当前源码一致
+3. 本地静态服务复验 `index.html / index.js / index.wasm / index.pck` 全部返回 `200`
+4. 托管侧确认 `application/wasm`、缓存策略、固定分享地址
+5. 在 `docs/worklog.md` 留下本次导出、验证与提交记录
+
+---
+
 ## 版本与目录建议
 建议保持下面的约定，不要混用：
 
