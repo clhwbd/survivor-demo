@@ -791,3 +791,31 @@
 - 当前结论：
   - **Godot 4.6.1 官方 Web 模板下，survivor-demo 当前 wasm 本体不能靠项目分包显著下降。**
   - **当前最有效的落地方向仍是：压缩传输 + 正确托管/CDN + 更清楚的加载壳层；资源分包更适合留给后续内容膨胀阶段。**
+
+### 31. 自定义 Godot Web 模板裁剪专项验证（源码/模板层）
+- 动作：专项核对“要不要继续走自编译 Godot Web 模板 / 剔除无用引擎代码”这条线，目标不是再谈 preset 理论，而是确认 survivor-demo 当前 36 MB 级 wasm 里，哪些是官方模板固定成本、哪些真能通过模板层裁掉，并明确本机是否具备立即落地条件。
+- 涉及文件：
+  - `docs/web-template-trim-verification.md`
+  - `docs/worklog.md`
+- 实际验证路径：
+  - 复核本项目现有 Web preset：`game/export_presets.cfg`
+  - 直接检查本机 Godot 4.6.1 官方模板目录：`~/Library/Application Support/Godot/export_templates/4.6.1.stable/`
+  - 对照官方模板变体大小：`web_nothreads_release.zip`、`web_release.zip`、`web_dlink_nothreads_release.zip`、`web_dlink_release.zip`
+  - 直接核对 Godot 4.6.1 源码关键文件：`SConstruct`、`platform/web/detect.py`、`platform/web/export/export_plugin.cpp`、`modules/text_server_adv/SCsub`、`modules/text_server_fb/SCsub`、`modules/freetype/SCsub`
+  - 检查本机自编译工具链：`python3`、`scons`、`emcc`、`em++`、`pkg-config`、`cmake`、`ninja`、`llvm-ar`
+- 关键发现：
+  - Web export preset 层真正能选的只有 `custom_template/debug|release`、`variant/thread_support`、`variant/extensions_support` 和若干 HTML/PWA 选项；源码确认 preset 逻辑只是“选哪个模板 zip”，不会按项目重新裁引擎模块。
+  - 当前 survivor-demo 基线实际仍落在 `web_nothreads_release.zip` 这一档，`builds/web-release/index.wasm = 37,685,705 B`。
+  - 本机官方模板变体里，`web_release.zip` 相比当前基线只小 `681,763 B`（约 `-1.8%`）；`dlink` 变体虽然把主 `wasm` 拆小，但会引入更大的 `side.wasm` / `js`，不是当前要的有效减包。
+  - 真正能继续动刀的地方在 `SConstruct` 构建层：`disable_3d`、`disable_physics_3d`、`disable_navigation_3d`、`disable_xr`、`module_<name>_enabled`、`build_profile`、`lto` 等；其中 `text_server_adv` 会带进 HarfBuzz / ICU / Graphite / ThorVG，是后续最值得怀疑的固定成本之一。
+  - 本机当前不具备直接完成自编译 Web 模板的条件：`scons` / `emcc` / `em++` / `pkg-config` / `cmake` / `ninja` / `llvm-ar` 缺失，且 `python3` 仅 `3.7.3`，低于 Godot `SConstruct` 要求的 `3.8+`。
+- 最小实验 / 体积变化：
+  - 当前机器上已完成的最小模板实验为官方模板替换：
+    - 基线 `web_nothreads_release.zip`：`37,685,705 B`
+    - `web_release.zip`：`37,003,942 B`
+    - 变化：`-681,763 B`（约 `-1.8%`）
+  - 说明：现成模板变体只能给小幅变化，若要再往下走，必须进入源码自编译裁剪。
+- 当前结论：
+  - **A/B/C 判定：C. 需要特定环境后再做。**
+  - preset 层继续抠开关不值得；如果后续把网页首开速度继续视为阻塞项，建议补齐 Emscripten + SCons + Python 3.8+ 后，做一次低风险自编译模板 spike（优先 `disable_3d + disable_physics_3d + disable_navigation_3d + disable_xr`，再视情况尝试 `module_text_server_adv_enabled=no`）。
+  - 保守预估：这条线若成立，收益更像“数 MB 级”，而不是把 36 MB 直接砍到个位数 MB；需逐轮复验中文、竖屏、HUD 与发布链路，避免破坏现有已修问题。
