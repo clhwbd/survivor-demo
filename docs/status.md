@@ -44,6 +44,8 @@
 - Web 交付故障排查：`docs/web-delivery-troubleshooting.md`
 - UI / 美术 agent 拆分建议：`docs/ui-art-agent-split.md`
 - 工程日志：`docs/worklog.md`
+- 工作室总览：`docs/studio-readout-2026-03-21.md`
+- 未开发 / 待收口任务清单：`docs/open-development-tasks.md`
 
 ## 当前验收 / 交付判断
 - 当前统一验收目录：`builds/web-release/`
