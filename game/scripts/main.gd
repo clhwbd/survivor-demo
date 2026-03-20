@@ -855,7 +855,7 @@ func _on_player_dash_state_changed(is_ready: bool, cooldown_remaining: float, is
 func _show_dash_cooldown_bar(remaining: float) -> void:
 	if dash_cooldown_bar == null or player == null:
 		return
-	var total := player.dash_cooldown
+	var total: float = player.dash_cooldown
 	if total <= 0.0:
 		return
 	var fill_ratio := clampf(remaining / total, 0.0, 1.0)

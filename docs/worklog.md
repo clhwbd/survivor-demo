@@ -526,12 +526,14 @@
   - 通过 Godot 导出日志可直接看到旧包在保存 `res://addons/godot_mcp/*.gdc`、`res://tests/touch_joystick_smoke.gdc`、`res://.godot/exported/*` 等文件；这些就是本轮首包的主要可疑来源。
 - 涉及文件：
   - `game/export_presets.cfg`
+  - `game/scripts/main.gd`
   - `builds/web-release/*`
   - `builds/web/*`
   - `docs/worklog.md`
 - 具体改动：
   - 把 `Web` 导出 preset 的 `exclude_filter` 收紧为 `addons/godot_mcp/*,tests/*,.godot/*`，明确排除开发期 addon、测试脚本和编辑器缓存。
   - 把 preset 的默认 `export_path` 改为 `../builds/web-release/index.html`，让编辑器默认导出目标与当前“验收基线目录”一致，再由压缩同步脚本生成 `builds/web/`。
+  - 为恢复 headless 校验链路，顺手把 `main.gd` 里 `player.dash_cooldown` 的局部变量改成显式 `float` 类型，修掉 Godot 4.6.1 CLI 下的类型推断报错；不改玩法行为。
   - 重新导出 `builds/web-release/`，并同步刷新 `builds/web/` 压缩交付目录，避免收紧配置后两套目录口径再次漂移。
 - 验证：
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 5`
@@ -543,4 +545,7 @@
   - 主场景 headless 运行退出码 `0`。
   - Web 导出成功，收紧前后 `index.wasm` 均为 `37,685,705 B`（`35.94 MiB`），确认 wasm 体积主要由引擎模板决定。
   - `index.pck` 从 `763,524 B`（`745.6 KiB`）降到 `349,740 B`（`341.5 KiB`），减少 `413,784 B`（约 `404.1 KiB`，`-54.2%`）。
+  - 最终回写到仓库产物后的 `builds/web-release/index.pck` / `builds/web/index.pck` 为 `349,756 B`（与对比导出相差 `16 B`，属于导出时间戳级别抖动，不影响结论）。
+  - `builds/web/index.wasm.gz` 为 `9,377,158 B`，`builds/web/index.pck.gz` 为 `99,653 B`。
+  - 导出后仍存在一条 Dash 冷却条 `Control.size` 的 UI 警告，但不影响本轮 headless 与 Web 导出通过；该问题不属于首包 P0 范围，后续可单独收口。
   - `builds/web-release/` 与 `builds/web/` 已按新规则重建完成。
