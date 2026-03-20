@@ -27,9 +27,11 @@ Godot 4.x 2D 割草 Roguelike 样板项目。
 - `docs/release-acceptance.md`：验收版本说明、验证结果、构建命令
 - `docs/deployment-plan.md`：更稳的发布 / 托管方案建议
 - `docs/release-minimum-checklist.md`：真正上线托管前的最小发布清单
+- `docs/deployment/nginx-web-release.conf`：当前验收基线目录的 Nginx 静态托管模板
 - `docs/ui-art-agent-split.md`：后续 UI / 美术 agent 拆分建议
 - `docs/status.md`：项目当前状态收口
 - `docs/worklog.md`：工程操作与交付日志
+- `tests/smoke/release_guard.sh`：把导出 / 本地服务 / gzip 返回 / 文档口径串起来的一键发布冒烟检查
 
 ## 运行方式
 ### 1) 本地 Godot 运行
@@ -43,6 +45,20 @@ cd /Users/mac/game-studio/projects/survivor-demo/builds/web-release
 python3 -m http.server 18081
 ```
 浏览器打开：`http://127.0.0.1:18081/index.html`
+
+### 2.5) 一键跑发布冒烟检查
+```bash
+cd /Users/mac/game-studio/projects/survivor-demo
+chmod +x tests/smoke/release_guard.sh
+./tests/smoke/release_guard.sh
+```
+
+这会串行完成：
+- 主场景 headless 加载
+- Web 验收版重导出
+- `builds/web-release/` 四个核心文件 `200` 校验
+- `builds/web/` gzip / `HEAD` / `Content-Type` 返回校验
+- README / status / release-acceptance / deployment-plan 的关键交付口径存在性检查
 
 ### 3) 本地预览压缩交付版
 ```bash
@@ -77,8 +93,9 @@ python3 serve_compressed.py
 ### 后续正式分享 / 正式托管
 - 第一选择：对象存储静态托管 + CDN，先上传 `builds/web-release/`
 - 第二选择：自管 Caddy / Nginx 静态站，稳定后再考虑切到 `builds/web/`
+- 若走 Nginx，可直接参考 `docs/deployment/nginx-web-release.conf`
 - 不建议继续把临时隧道当正式验收链路
-- 真正上线前，先过一遍 `docs/release-minimum-checklist.md`
+- 真正上线前，先过一遍 `docs/release-minimum-checklist.md`，并建议执行 `tests/smoke/release_guard.sh`
 
 ### `builds/web/` 什么时候用
 - 用于部署优化、本地压缩回归、后续正式站点带宽优化

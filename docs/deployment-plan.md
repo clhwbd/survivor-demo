@@ -71,6 +71,7 @@
 - 若使用 `builds/web/`，需确认平台支持：
   - gzip 静态资源直出，或
   - 边缘压缩
+- 若走自管 Nginx，可直接从 `docs/deployment/nginx-web-release.conf` 起步
 
 优点：
 - 稳定
@@ -89,6 +90,11 @@
 - 需要完全控制缓存、压缩、域名、HTTPS
 - 后续可能继续挂多个 demo
 - 需要一条长期稳定的团队验收地址
+
+当前仓库已附：`docs/deployment/nginx-web-release.conf`
+- 默认对齐当前统一验收目录 `builds/web-release/`
+- 已带 `index.html` 短缓存、`js/wasm/pck` 长缓存、`application/wasm` MIME 口径
+- 若后续切到 `builds/web/`，再在此基础上补 `gzip_static on;`
 
 推荐部署方式：
 - 1 台轻量云主机 / 家用常开主机 / NAS
@@ -157,12 +163,13 @@ server {
 ## 真正上线托管前的最小发布清单
 正式把 demo 放到固定地址前，至少再过一遍：`docs/release-minimum-checklist.md`
 
-其中最关键的最小项只有五个：
+其中最关键的最小项只有六个：
 1. 源码主场景能正常加载，`game/scenes/main.tscn` 与 `game/scripts/main.gd` 没脱节
 2. 用 Godot CLI 重新导出 `builds/web-release/`，确保托管包和当前源码一致
 3. 本地静态服务复验 `index.html / index.js / index.wasm / index.pck` 全部返回 `200`
-4. 托管侧确认 `application/wasm`、缓存策略、固定分享地址
-5. 在 `docs/worklog.md` 留下本次导出、验证与提交记录
+4. 跑一次 `tests/smoke/release_guard.sh`，把导出 / 资源返回 / gzip / 文档口径串起来复验
+5. 托管侧确认 `application/wasm`、缓存策略、固定分享地址
+6. 在 `docs/worklog.md` 留下本次导出、验证与提交记录
 
 ---
 

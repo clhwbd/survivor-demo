@@ -53,8 +53,8 @@
 ## 2026-03-20 14:36 CST 复验结论
 - 再次执行 Godot CLI 导出命令，退出码 `0`
 - `builds/web-release/` 通过 `python3 -m http.server 18081` 复验，`index.html / index.js / index.wasm / index.pck` 全部返回 `200`
-- `builds/web/` 通过 `python3 serve_compressed.py` 复验，使用 `GET` 请求访问 `index.wasm` 时返回 `Content-Encoding: gzip`
-- 补充确认：`serve_compressed.py` 对 `HEAD` 仍返回 `501`，这是脚本实现限制，不影响浏览器实际加载
+- `builds/web/` 通过 `python3 serve_compressed.py` 复验，使用 `GET` 与 `HEAD` 请求访问 `index.wasm` 时都可返回正确的 gzip / MIME 头
+- 当前压缩版服务已可用于本地健康检查、自动化冒烟校验与浏览器实际加载
 
 ## 2026-03-20 14:45 CST 一致性复核
 - 发现 `game/scripts/main.gd` 新一轮 HUD / 战报收口改动一度存在语法错误，导致源码与 `builds/web-release/` 出现暂时脱节
@@ -120,11 +120,10 @@ python3 serve_compressed.py
    - `builds/web-release/` 是通过 CLI 输出路径覆盖导出的
    - 这没有问题，但需要在 README / 文档中明确写死命令，避免后续误导出到别的目录
 
-2. 自定义压缩服务脚本当前只实现了 `GET`
-   - 因此用 `curl -I` 发 `HEAD` 请求会得到 `501`
-   - 这不影响浏览器正常加载
-   - 若后续需要接健康检查或自动化探测，可补一个 `do_HEAD`
-   - 所以压缩版验收时应优先用浏览器实测或 `curl -D - ... -o /dev/null` 的 `GET` 请求，而不是只看 `HEAD`
+2. 自定义压缩服务脚本当前已同时支持 `GET` / `HEAD`
+   - 可直接用于浏览器加载验证
+   - 也可用于健康检查或自动化冒烟探测
+   - 压缩版验收时建议同时保留 `GET` 和 `HEAD` 两种校验：`GET` 看真实返回，`HEAD` 看响应头是否正确
 
 3. 临时隧道不适合继续作为正式验收链路
    - 它适合临时演示

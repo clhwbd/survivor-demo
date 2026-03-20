@@ -234,3 +234,25 @@
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 12`
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 45`
 - 验证结果：三次 headless 运行均退出码 `0`；包含跨波次与中时长运行复验，确认新增目标逻辑、HUD 节点装配与战斗导演代码未引入场景加载错误。
+
+### 16. 发布基线补强：冒烟脚本 / Nginx 模板 / 压缩服务 HEAD 支持
+- 动作：继续承接发布收口线，把“最小发布清单”里原本偏手工的步骤补成可执行工程项，不改玩法基线、不碰 P0 摇杆。
+- 涉及文件：
+  - `builds/web/serve_compressed.py`
+  - `tests/smoke/release_guard.sh`
+  - `docs/deployment/nginx-web-release.conf`
+  - `README.md`
+  - `docs/status.md`
+  - `docs/release-acceptance.md`
+  - `docs/release-minimum-checklist.md`
+  - `docs/deployment-plan.md`
+  - `docs/worklog.md`
+- 具体改动：
+  - 给 `serve_compressed.py` 补 `HEAD` 支持，压缩版本地服务现在既能给浏览器正常加载，也能接健康检查 / 自动化探测。
+  - 新增 `tests/smoke/release_guard.sh`，把主场景 headless 加载、Godot CLI 导出、`builds/web-release/` 四个核心资源 `200` 校验、`builds/web/` 的 gzip / `HEAD` / MIME 校验、文档口径存在性检查串成一键冒烟流程。
+  - 新增 `docs/deployment/nginx-web-release.conf`，把当前统一验收目录 `builds/web-release/` 的缓存策略与 `application/wasm` MIME 落成可直接改路径套用的 Nginx 模板。
+  - 更新 README / status / release-acceptance / release-minimum-checklist / deployment-plan，统一把“自动化冒烟校验 + Nginx 模板”纳入当前发布口径。
+- 验证：
+  - `chmod +x tests/smoke/release_guard.sh`
+  - `./tests/smoke/release_guard.sh`
+- 验证结果：脚本完整跑通，退出码 `0`；已串行通过主场景加载、Web 验收版重导出、`builds/web-release/` 核心资源 `200` 校验、`builds/web/` 的 `GET` / `HEAD` gzip 头与 `application/wasm` 校验。

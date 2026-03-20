@@ -6,8 +6,9 @@ import mimetypes
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 
+
 class CompressedHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
+    def _serve(self, send_body: bool) -> None:
         rel = unquote(self.path.split('?', 1)[0].split('#', 1)[0])
         if rel == '/':
             rel = '/index.html'
@@ -22,6 +23,7 @@ class CompressedHandler(BaseHTTPRequestHandler):
         accept = self.headers.get('Accept-Encoding', '')
         use_gzip = os.path.exists(full + '.gz') and 'gzip' in accept
         serve_path = full + '.gz' if use_gzip else full
+        size = os.path.getsize(serve_path)
 
         ctype, _ = mimetypes.guess_type(full)
         if full.endswith('.wasm'):
@@ -31,18 +33,25 @@ class CompressedHandler(BaseHTTPRequestHandler):
         elif ctype is None:
             ctype = 'application/octet-stream'
 
-        with open(serve_path, 'rb') as f:
-            data = f.read()
-
         self.send_response(200)
         self.send_header('Content-Type', ctype)
-        self.send_header('Content-Length', str(len(data)))
+        self.send_header('Content-Length', str(size))
         self.send_header('Cache-Control', 'public, max-age=300')
         if use_gzip:
             self.send_header('Content-Encoding', 'gzip')
             self.send_header('Vary', 'Accept-Encoding')
         self.end_headers()
-        self.wfile.write(data)
+
+        if send_body:
+            with open(serve_path, 'rb') as f:
+                self.wfile.write(f.read())
+
+    def do_GET(self):
+        self._serve(send_body=True)
+
+    def do_HEAD(self):
+        self._serve(send_body=False)
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', '8000'))

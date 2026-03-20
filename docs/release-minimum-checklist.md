@@ -34,6 +34,11 @@
 - [ ] 重要收口成果已提交 Git
 - [ ] 若给他人验收，明确本次验收地址、目录版本、验证时间
 
+## F. 自动化冒烟校验
+- [ ] 执行 `tests/smoke/release_guard.sh`
+- [ ] 确认脚本已覆盖主场景加载、Web 导出、`builds/web-release/` 资源 `200` 校验、`builds/web/` 的 gzip / `HEAD` / `Content-Type` 校验
+- [ ] 若准备走 Nginx 静态托管，参考 `docs/deployment/nginx-web-release.conf`
+
 ## 当前执行口径
 - **当前统一验收 / 首发目录：** `builds/web-release/`
 - **当前本地复验方式：** `python3 -m http.server 18081`
