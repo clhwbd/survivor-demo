@@ -52,7 +52,7 @@
   - 让后续 UI / Godot 实装优先沿现有 `main.tscn` 骨架收口，降低大重构和脚本引用断裂风险。
 - 验证：
   - 人工复核 `docs/ui-godot-mapping-plan.md`，确认文档直接引用当前 `main.tscn` 现有节点分区，覆盖 HUD 与结算页两大块，并明确推荐落地顺序与不改运行逻辑边界。
-- 提交：`429779f` `docs: map HUD and settlement UI onto current Godot scene`
+- 提交：本轮文档提交已完成（提交信息：`docs: map HUD and settlement UI onto current Godot scene`）
 
 ### 03:28 Web 用户侧简化验收说明补齐（最终试玩者 / 手机端优先）
 
