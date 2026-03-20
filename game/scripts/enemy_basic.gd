@@ -21,6 +21,8 @@ var _body_base_scale: Vector2 = Vector2.ONE
 var _shadow_base_scale: Vector2 = Vector2.ONE
 var _ornament_base_rotation: float = 0.0
 var _ornament_base_position: Vector2 = Vector2.ZERO
+var _body_base_position: Vector2 = Vector2.ZERO
+var _shadow_base_position: Vector2 = Vector2.ZERO
 
 @onready var body_polygon: Polygon2D = $Body
 @onready var shadow_polygon: Polygon2D = get_node_or_null("Shadow") as Polygon2D
@@ -32,8 +34,10 @@ func _ready() -> void:
 		target = get_node_or_null(target_path) as Node2D
 	if body_polygon != null:
 		_body_base_scale = body_polygon.scale
+		_body_base_position = body_polygon.position
 	if shadow_polygon != null:
 		_shadow_base_scale = shadow_polygon.scale
+		_shadow_base_position = shadow_polygon.position
 	if ornament_polygon != null:
 		_ornament_base_rotation = ornament_polygon.rotation
 		_ornament_base_position = ornament_polygon.position
@@ -136,13 +140,17 @@ func _punch_scale() -> void:
 	tween.tween_property(self, "scale", base_scale, 0.10)
 
 func _update_visuals(delta: float) -> void:
+	var move_dir := velocity.normalized()
 	var move_ratio := clampf(velocity.length() / maxf(1.0, move_speed * 1.6), 0.0, 1.0)
+	var elite_ratio := 0.16 if is_elite else 0.0
 	var bob := sin(Time.get_ticks_msec() * (0.010 + move_ratio * 0.025) + float(get_instance_id() % 17))
-	rotation = lerpf(rotation, clampf(velocity.normalized().x, -1.0, 1.0) * 0.08, delta * 8.0)
+	rotation = lerpf(rotation, clampf(move_dir.x, -1.0, 1.0) * (0.08 + elite_ratio * 0.35), delta * 8.0)
 	if body_polygon != null:
-		body_polygon.scale = body_polygon.scale.lerp(_body_base_scale * Vector2(1.0 + move_ratio * 0.05, 1.0 - move_ratio * 0.04), delta * 7.0)
+		body_polygon.scale = body_polygon.scale.lerp(_body_base_scale * Vector2(1.0 + move_ratio * 0.05 + elite_ratio * 0.08, 1.0 - move_ratio * 0.04), delta * 7.0)
+		body_polygon.position = body_polygon.position.lerp(_body_base_position + Vector2(0.0, bob * (0.7 + elite_ratio * 3.2)), delta * 6.5)
 	if shadow_polygon != null:
-		shadow_polygon.scale = shadow_polygon.scale.lerp(_shadow_base_scale * Vector2(1.0 + move_ratio * 0.12, 1.0 - move_ratio * 0.08), delta * 7.0)
+		shadow_polygon.scale = shadow_polygon.scale.lerp(_shadow_base_scale * Vector2(1.0 + move_ratio * 0.12, 1.0 - move_ratio * 0.08 - elite_ratio * 0.05), delta * 7.0)
+		shadow_polygon.position = shadow_polygon.position.lerp(_shadow_base_position + Vector2(0.0, bob * 0.18), delta * 6.0)
 	if ornament_polygon != null:
-		ornament_polygon.rotation = lerpf(ornament_polygon.rotation, _ornament_base_rotation - velocity.normalized().x * 0.12 + bob * 0.05, delta * 7.0)
-		ornament_polygon.position = ornament_polygon.position.lerp(_ornament_base_position + Vector2(0.0, bob * 0.6), delta * 6.0)
+		ornament_polygon.rotation = lerpf(ornament_polygon.rotation, _ornament_base_rotation - move_dir.x * 0.12 + bob * (0.05 + elite_ratio * 0.12), delta * 7.0)
+		ornament_polygon.position = ornament_polygon.position.lerp(_ornament_base_position + Vector2(0.0, bob * (0.6 + elite_ratio * 1.8)), delta * 6.0)

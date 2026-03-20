@@ -25,11 +25,19 @@ var _cape_base_rotation: float = 0.0
 var _staff_base_rotation: float = 0.0
 var _shadow_base_scale: Vector2 = Vector2.ONE
 var _aura_base_scale: Vector2 = Vector2.ONE
+var _face_base_position: Vector2 = Vector2.ZERO
+var _eyes_base_position: Vector2 = Vector2.ZERO
+var _brow_base_rotation: float = 0.0
+var _skirt_base_position: Vector2 = Vector2.ZERO
 
 @onready var aura_polygon: Polygon2D = get_node_or_null("Aura") as Polygon2D
 @onready var body_polygon: Polygon2D = $Body
 @onready var cape_polygon: Polygon2D = $Cape
 @onready var headband_polygon: Polygon2D = $Headband
+@onready var face_polygon: Polygon2D = get_node_or_null("Face") as Polygon2D
+@onready var eyes_polygon: Polygon2D = get_node_or_null("Eyes") as Polygon2D
+@onready var brow_polygon: Polygon2D = get_node_or_null("Brow") as Polygon2D
+@onready var skirt_polygon: Polygon2D = get_node_or_null("Skirt") as Polygon2D
 @onready var staff_polygon: Polygon2D = $Staff
 @onready var shadow_polygon: Polygon2D = $Shadow
 
@@ -43,6 +51,14 @@ func _ready() -> void:
 		_shadow_base_scale = shadow_polygon.scale
 	if aura_polygon != null:
 		_aura_base_scale = aura_polygon.scale
+	if face_polygon != null:
+		_face_base_position = face_polygon.position
+	if eyes_polygon != null:
+		_eyes_base_position = eyes_polygon.position
+	if brow_polygon != null:
+		_brow_base_rotation = brow_polygon.rotation
+	if skirt_polygon != null:
+		_skirt_base_position = skirt_polygon.position
 	xp_changed.emit(xp, xp_to_next, level)
 	stats_changed.emit(health, max_health, level)
 	dash_state_changed.emit(true, 0.0, false)
@@ -163,19 +179,28 @@ func _update_visuals(delta: float, input_dir: Vector2) -> void:
 	if motion_dir == Vector2.ZERO:
 		motion_dir = Vector2.DOWN
 	var move_ratio := clampf(velocity.length() / maxf(1.0, dash_speed), 0.0, 1.0)
+	var dash_ratio := clampf(_dash_remaining / maxf(0.01, dash_duration), 0.0, 1.0)
 	var bob := sin(Time.get_ticks_msec() * (0.012 + move_ratio * 0.02))
-	rotation = lerpf(rotation, motion_dir.x * 0.08, delta * 10.0)
+	rotation = lerpf(rotation, motion_dir.x * 0.08 + dash_ratio * _dash_direction.x * 0.10, delta * 10.0)
 	if shadow_polygon != null:
 		shadow_polygon.scale = shadow_polygon.scale.lerp(_shadow_base_scale * Vector2(1.0 + move_ratio * 0.18, 1.0 - move_ratio * 0.10), delta * 8.0)
 	if aura_polygon != null:
-		aura_polygon.rotation = lerpf(aura_polygon.rotation, -motion_dir.x * 0.14 + bob * 0.04, delta * 5.0)
-		aura_polygon.scale = aura_polygon.scale.lerp(_aura_base_scale * Vector2(1.0 + move_ratio * 0.16, 1.0 + move_ratio * 0.06), delta * 6.0)
-		aura_polygon.color.a = lerpf(aura_polygon.color.a, 0.14 + move_ratio * 0.16 + (_dash_remaining / maxf(0.01, dash_duration)) * 0.18, delta * 6.0)
+		aura_polygon.rotation = lerpf(aura_polygon.rotation, -motion_dir.x * 0.14 + bob * 0.04 + dash_ratio * 0.10, delta * 5.0)
+		aura_polygon.scale = aura_polygon.scale.lerp(_aura_base_scale * Vector2(1.0 + move_ratio * 0.16 + dash_ratio * 0.10, 1.0 + move_ratio * 0.06), delta * 6.0)
+		aura_polygon.color.a = lerpf(aura_polygon.color.a, 0.14 + move_ratio * 0.16 + dash_ratio * 0.18, delta * 6.0)
 	if cape_polygon != null:
-		cape_polygon.rotation = lerpf(cape_polygon.rotation, _cape_base_rotation - motion_dir.x * 0.30 - move_ratio * 0.26 + bob * 0.06, delta * 8.0)
-		cape_polygon.position.y = lerpf(cape_polygon.position.y, 2.0 + abs(motion_dir.y) * 1.6 + bob * 1.4, delta * 8.0)
+		cape_polygon.rotation = lerpf(cape_polygon.rotation, _cape_base_rotation - motion_dir.x * 0.30 - move_ratio * 0.26 + bob * 0.06 - dash_ratio * 0.16, delta * 8.0)
+		cape_polygon.position.y = lerpf(cape_polygon.position.y, 2.0 + abs(motion_dir.y) * 1.6 + bob * 1.4 - dash_ratio * 2.0, delta * 8.0)
+	if face_polygon != null:
+		face_polygon.position = face_polygon.position.lerp(_face_base_position + Vector2(0.0, bob * 0.9 - dash_ratio * 1.6), delta * 7.5)
+	if eyes_polygon != null:
+		eyes_polygon.position = eyes_polygon.position.lerp(_eyes_base_position + Vector2(motion_dir.x * 1.2, bob * 0.35), delta * 9.0)
+	if brow_polygon != null:
+		brow_polygon.rotation = lerpf(brow_polygon.rotation, _brow_base_rotation - motion_dir.x * 0.08 - dash_ratio * 0.16, delta * 8.0)
+	if skirt_polygon != null:
+		skirt_polygon.position = skirt_polygon.position.lerp(_skirt_base_position + Vector2(0.0, abs(motion_dir.y) * 0.8 + bob * 0.8 + dash_ratio * 1.4), delta * 7.0)
 	if staff_polygon != null:
-		staff_polygon.rotation = lerpf(staff_polygon.rotation, _staff_base_rotation + motion_dir.x * 0.18 + move_ratio * 0.10, delta * 9.0)
+		staff_polygon.rotation = lerpf(staff_polygon.rotation, _staff_base_rotation + motion_dir.x * 0.18 + move_ratio * 0.10 + dash_ratio * 0.22, delta * 9.0)
 	if headband_polygon != null:
-		headband_polygon.rotation = lerpf(headband_polygon.rotation, -motion_dir.x * 0.10 + bob * 0.05, delta * 8.0)
-	scale = scale.lerp(Vector2(1.0 + move_ratio * 0.08, 1.0 - move_ratio * 0.06), delta * 8.0)
+		headband_polygon.rotation = lerpf(headband_polygon.rotation, -motion_dir.x * 0.10 + bob * 0.05 + dash_ratio * 0.10, delta * 8.0)
+	scale = scale.lerp(Vector2(1.0 + move_ratio * 0.08 + dash_ratio * 0.10, 1.0 - move_ratio * 0.06 - dash_ratio * 0.12), delta * 8.0)
