@@ -57,6 +57,17 @@
 - 后续影响范围：UI、角色造型、敌人设计、按钮/面板、提示文案、演出氛围均需向该方向统一
 - 执行策略：先在交互与玩法持续推进的同时，逐步把 HUD、提示层、敌人命名/演出语言往“西游记古风 Q 版”靠拢，再整理成正式视觉规范
 
+### 9. HUD / 文案 / 风格化第一轮落地（P1-5 / P2-7）
+- 动作：收口 HUD 与提示层可用性，统一按钮、阶段名、目标提示、触控提示、战斗弹字语气，并给主 HUD / 顶部横幅 / 触控摇杆补第一轮古风 Q 版配色与视觉语言
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `game/scripts/touch_joystick.gd`
+  - `game/scenes/main.tscn`
+  - `game/scenes/damage_popup.tscn`
+  - `docs/ui-style-guide.md`
+- 结果：demo 从英文原型 HUD 提升为中文化、可读性更强、氛围更统一的一版“西游记古风 Q 版”界面
+- 验证：通过 Godot headless 语法检查主场景加载（见本次提交说明）
+
 ### 9. 工程交付面收口（验收版 / 发布方案 / 文档）
 - 动作：补齐 README、`docs/status.md`、`docs/worklog.md`，新增 Web 验收版本说明、发布/托管方案文档、UI/美术 agent 拆分建议文档
 - 结果：项目从“有网页包的玩法 demo”收口为“有验收基线、有部署建议、有后续分工接口”的可交接工程包
@@ -74,3 +85,23 @@
   - `index.html / index.js / index.wasm / index.pck` 均返回 `200`
   - `builds/web/serve_compressed.py` 可正确返回 gzip 版 `index.wasm`
 - 发现：`serve_compressed.py` 当前未实现 `HEAD`，因此 `curl -I` 会返回 `501`，但不影响浏览器实际加载
+
+### 11. P1-4 战斗节奏与手感调优
+- 动作：重做 3 分钟短局的波次配置与出怪压力，延后重装与精英的关键出场时机；同时补玩家成长曲线、击杀节奏反馈、刷怪公平性与受击/击杀手感
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `game/scripts/player.gd`
+  - `game/scripts/enemy_basic.gd`
+- 具体改动：
+  - 改为更明确的 6 段波次节奏：热身 → 追兵提速 → 精英试炼 → 重装入场 → 双精英压阵 → 终局冲阵
+  - 敌人生成加入手工配置的 batch / alive / interval / fast_weight / tank_weight，降低前期乱压、提升中后期层次感
+  - 精英改为从第 3 波开始，重装改为第 4 波登场，避免前期过早“硬卡手”
+  - 低血量时自动减轻新一轮刷新压力，并降低快敌 / 重装占比，提升公平性
+  - 新刷敌人加入短暂起手保护（spawn grace），避免刚刷出就贴脸判伤
+  - 敌人受击增加短击退与缩放反馈，提升命中手感与读感
+  - 玩家升级前几级所需经验下调，并增加 3 级加血上限 / 4 级加移速 / 升级回更多血，优化成长曲线
+  - 新增连斩计数、12 连斩临时急速射击、分阶段目标文案与达成提示，强化短局目标感与滚雪球反馈
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 10`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 1200`
+- 验证结果：两次 headless 运行均退出码 `0`；过程中发现 XP Orb 在物理查询刷新期直接 `add_child` 会报错，已改为 `call_deferred` 延迟生成并复验通过

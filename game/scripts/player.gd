@@ -110,11 +110,20 @@ func collect_xp(amount: int) -> void:
 	while xp >= xp_to_next:
 		xp -= xp_to_next
 		level += 1
-		xp_to_next = int(round(xp_to_next * 1.35)) + 1
+		var xp_growth := 1.24
+		if level >= 5:
+			xp_growth = 1.30
+		if level >= 8:
+			xp_growth = 1.34
+		xp_to_next = int(round(float(xp_to_next) * xp_growth)) + 1
 		leveled_up = true
+		if level % 3 == 0 and max_health < 8:
+			max_health += 1
+		if level % 4 == 0:
+			speed += 8.0
 
 	if leveled_up:
-		health = min(max_health, health + 1)
+		health = min(max_health, health + 2)
 		_flash(Color(0.5, 1.0, 0.6, 1.0), 0.15)
 
 	xp_changed.emit(xp, xp_to_next, level)

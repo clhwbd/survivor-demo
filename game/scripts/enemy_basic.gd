@@ -14,6 +14,8 @@ var health: int
 var _last_hit_msec: int = 0
 var is_elite: bool = false
 var elite_bonus_scale: float = 1.0
+var _spawn_grace_remaining: float = 0.0
+var _knockback_velocity: Vector2 = Vector2.ZERO
 
 @onready var body_polygon: Polygon2D = $Body
 
@@ -22,18 +24,32 @@ func _ready() -> void:
 	if target == null and not target_path.is_empty():
 		target = get_node_or_null(target_path) as Node2D
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	if _spawn_grace_remaining > 0.0:
+		_spawn_grace_remaining = maxf(0.0, _spawn_grace_remaining - delta)
+		if body_polygon != null:
+			body_polygon.modulate = Color(1.0, 1.0, 1.0, 0.55 + sin(Time.get_ticks_msec() * 0.015) * 0.18)
+	elif body_polygon != null:
+		body_polygon.modulate = Color(1.0, 1.0, 1.0, 1.0)
+
 	if target == null or not is_instance_valid(target):
-		velocity = Vector2.ZERO
+		velocity = _knockback_velocity
+		_knockback_velocity = _knockback_velocity.lerp(Vector2.ZERO, delta * 10.0)
 		move_and_slide()
 		return
 
 	var to_target := target.global_position - global_position
+	var desired_velocity := Vector2.ZERO
+	if to_target != Vector2.ZERO:
+		desired_velocity = to_target.normalized() * move_speed
+		if _spawn_grace_remaining > 0.0:
+			desired_velocity *= 0.82
+
 	var hit_distance_sq := 324.0
 	if is_elite:
 		hit_distance_sq = 484.0
-	if to_target.length_squared() <= hit_distance_sq:
-		velocity = Vector2.ZERO
+	if _spawn_grace_remaining <= 0.0 and to_target.length_squared() <= hit_distance_sq:
+		desired_velocity = Vector2.ZERO
 		var now := Time.get_ticks_msec()
 		var hit_cooldown := 700
 		if is_elite:
@@ -42,13 +58,20 @@ func _physics_process(_delta: float) -> void:
 			_last_hit_msec = now
 			if target.has_method("take_damage"):
 				target.take_damage(contact_damage)
-	else:
-		velocity = to_target.normalized() * move_speed
 
+	velocity = desired_velocity + _knockback_velocity
+	_knockback_velocity = _knockback_velocity.lerp(Vector2.ZERO, delta * 11.0)
 	move_and_slide()
 
 func take_damage(amount: int) -> void:
 	health -= amount
+	var away := Vector2.ZERO
+	if target != null and is_instance_valid(target):
+		away = (global_position - target.global_position).normalized()
+	if away == Vector2.ZERO:
+		away = Vector2.UP
+	_knockback_velocity = away * (70.0 + float(amount) * 42.0)
+	_punch_scale()
 	if is_elite:
 		_flash(Color(1.0, 0.92, 0.35, 1.0), 0.10)
 	else:
@@ -62,14 +85,17 @@ func make_elite(scale_bonus: float = 1.22) -> void:
 		return
 	is_elite = true
 	elite_bonus_scale = scale_bonus
-	move_speed = move_speed * 1.10
-	max_health = maxi(max_health + 3, int(round(float(max_health) * 2.2)))
+	move_speed = move_speed * 1.08
+	max_health = maxi(max_health + 3, int(round(float(max_health) * 2.0)))
 	health = max_health
 	contact_damage += 1
 	xp_reward = maxi(xp_reward + 3, xp_reward * 2)
 	scale = Vector2.ONE * scale_bonus
 	if body_polygon != null:
 		body_polygon.color = Color(1.0, 0.72, 0.26, 1.0)
+
+func set_spawn_grace(duration: float = 0.45) -> void:
+	_spawn_grace_remaining = maxf(_spawn_grace_remaining, duration)
 
 func _flash(color_value: Color, duration: float) -> void:
 	if body_polygon == null:
@@ -78,3 +104,9 @@ func _flash(color_value: Color, duration: float) -> void:
 	body_polygon.color = color_value
 	var tween := create_tween()
 	tween.tween_property(body_polygon, "color", original, duration)
+
+func _punch_scale() -> void:
+	var base_scale := Vector2.ONE * elite_bonus_scale
+	scale = base_scale * 1.08
+	var tween := create_tween()
+	tween.tween_property(self, "scale", base_scale, 0.10)
