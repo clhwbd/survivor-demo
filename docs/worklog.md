@@ -57,6 +57,13 @@
 - 后续影响范围：UI、角色造型、敌人设计、按钮/面板、提示文案、演出氛围均需向该方向统一
 - 执行策略：先在交互与玩法持续推进的同时，逐步把 HUD、提示层、敌人命名/演出语言往“西游记古风 Q 版”靠拢，再整理成正式视觉规范
 
+### 9. 程序执行面扩容
+- 用户确认新增两个程序 Agent：
+  - `godot-gameplay-programmer`
+  - `godot-web-input-programmer`
+- 目的：增强工作室内真正能稳定产出代码的执行单元，避免 main 再被迫亲自下场做细项开发
+- 执行原则：main 负责拆解、调度、验收、汇报；新增 Agent 立即接手对应编码任务
+
 ### 9. HUD / 文案 / 风格化第一轮落地（P1-5 / P2-7）
 - 动作：收口 HUD 与提示层可用性，统一按钮、阶段名、目标提示、触控提示、战斗弹字语气，并给主 HUD / 顶部横幅 / 触控摇杆补第一轮古风 Q 版配色与视觉语言
 - 涉及文件：
@@ -167,7 +174,9 @@
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 3`
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 180`
 - 验证结果：两次 headless 运行均退出码 `0`，主场景加载与新增结算 / 连斩 / 动势逻辑正常。
-- 提交：`0a9ee50` `feat: boost combat presentation and settlement feedback`
+- 提交：
+  - `0a9ee50` `feat: boost combat presentation and settlement feedback`
+  - `6881473` `feat: add motion polish to player and enemies`
 
 ### 13. HUD / 状态签 / 横幅副标题 + 角色敌人细节第三轮
 - 动作：继续沿“西游记古风 Q 版”方向做高优先级验收收口，这轮重点是 HUD 信息层级、状态签样式、横幅播报副标题、按钮主次，以及角色/敌人的第一眼识别细节。
