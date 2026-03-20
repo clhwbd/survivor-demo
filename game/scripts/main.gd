@@ -55,6 +55,7 @@ var difficulty_stage: int = 0
 var wave_index: int = 1
 var game_over: bool = false
 var demo_clear: bool = false
+var pause_requested: bool = false
 var _last_health: int = -1
 var _last_level: int = 1
 var _browser_hint_acknowledged: bool = false
@@ -82,14 +83,20 @@ var _camera_base_offset: Vector2 = Vector2.ZERO
 @onready var hud_objective: Label = $HUD/MarginContainer/VBoxContainer/ObjectiveLabel
 @onready var hud_tip: Label = $HUD/MarginContainer/VBoxContainer/TipLabel
 @onready var hud_xp_bar: ProgressBar = $HUD/MarginContainer/VBoxContainer/XPBar
+@onready var status_card_bg: ColorRect = $HUD/StatusCardBg
+@onready var status_card_accent: ColorRect = $HUD/StatusCardAccent
 @onready var status_label: Label = $HUD/StatusLabel
 @onready var banner_backing: ColorRect = $HUD/TopCenter/BannerBacking
 @onready var banner_accent: ColorRect = $HUD/TopCenter/BannerAccent
 @onready var banner_label: Label = $HUD/TopCenter/BannerLabel
 @onready var focus_overlay: Control = $HUD/FocusOverlay
+@onready var focus_badge: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/BadgeLabel
 @onready var focus_title: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/TitleLabel
 @onready var focus_detail: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/DetailLabel
+@onready var summary_label: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/SummaryLabel
 @onready var restart_button: Button = $HUD/RestartButton
+@onready var continue_button: Button = $HUD/ContinueButton
+@onready var pause_button: Button = $HUD/PauseButton
 @onready var joystick: Control = $HUD/TouchJoystick
 @onready var dash_button: Button = $HUD/DashButton
 @onready var mobile_hint_bg: ColorRect = $HUD/MobileHintBg
@@ -97,6 +104,7 @@ var _camera_base_offset: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
 	randomize()
+	process_mode = Node.PROCESS_MODE_ALWAYS
 
 	if enemy_scene == null:
 		enemy_scene = load("res://scenes/enemy_basic.tscn")
@@ -134,8 +142,20 @@ func _ready() -> void:
 		dash_button.pressed.connect(_on_dash_button_pressed)
 	if restart_button != null:
 		restart_button.pressed.connect(_reload_scene)
+	if continue_button != null:
+		continue_button.pressed.connect(_resume_run)
+	if pause_button != null:
+		pause_button.pressed.connect(_toggle_pause)
 	if player_camera != null:
 		_camera_base_offset = player_camera.offset
+	if focus_overlay != null:
+		focus_overlay.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	if restart_button != null:
+		restart_button.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	if continue_button != null:
+		continue_button.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	if pause_button != null:
+		pause_button.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
 
 	_on_player_xp_changed(player.xp, player.xp_to_next, player.level)
 	_on_player_stats_changed(player.health, player.max_health, player.level)
@@ -150,7 +170,7 @@ func _ready() -> void:
 	print("survivor-demo polished demo ready")
 
 func _process(delta: float) -> void:
-	if not game_over and not demo_clear:
+	if not pause_requested and not game_over and not demo_clear:
 		elapsed_time += delta
 		_update_difficulty()
 		_update_wave_progress()
@@ -159,6 +179,8 @@ func _process(delta: float) -> void:
 	_update_enemy_count()
 	_update_meta_hud()
 	_update_focus_overlay()
+	_update_status_card()
+	_update_pause_button()
 	_update_camera_feedback(delta)
 
 func _input(event: InputEvent) -> void:
@@ -175,7 +197,11 @@ func _notification(what: int) -> void:
 			_browser_hint_acknowledged = false
 
 func _unhandled_input(event: InputEvent) -> void:
-	if (game_over or demo_clear) and event.is_action_pressed("restart_run"):
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE or event.keycode == KEY_P:
+			_toggle_pause()
+			return
+	if (game_over or demo_clear or pause_requested) and event.is_action_pressed("restart_run"):
 		_reload_scene()
 
 func _setup_web_ui() -> void:
@@ -192,19 +218,35 @@ func _setup_web_ui() -> void:
 		focus_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if restart_button != null:
 		restart_button.visible = false
+	if continue_button != null:
+		continue_button.visible = false
 
 func _update_focus_overlay() -> void:
 	if focus_overlay == null or focus_title == null or focus_detail == null:
 		return
 	var overlay_visible := false
-	if game_over:
+	var badge_text := "花果山戏报"
+	if pause_requested:
 		overlay_visible = true
+		badge_text = "西游小戏台 · 暂歇"
+		focus_title.text = "戏台暂歇，行者可先缓一口气"
+		focus_detail.text = "此处会保留本局战报。按 Esc / P 或点下方“继续试炼”回战场；若想换一局手感，也可直接重开。"
+		if summary_label != null:
+			summary_label.text = _build_run_summary("暂歇整装")
+	elif game_over:
+		overlay_visible = true
+		badge_text = "花果山战报 · 败阵"
 		focus_title.text = "此局止步，行者请再整旗鼓"
-		focus_detail.text = "本局斩妖 %d，头目来袭 %d 次。按 R 或点右下角“再闯一局”，立刻重开。" % [kill_count, _elites_spawned_total]
+		focus_detail.text = "本局斩妖 %d，头目来袭 %d 次。按 R 或点“再闯一局”，马上回到花果山继续清妖。" % [kill_count, _elites_spawned_total]
+		if summary_label != null:
+			summary_label.text = _build_run_summary(_get_settlement_title(false))
 	elif demo_clear:
 		overlay_visible = true
+		badge_text = "花果山战报 · 通关"
 		focus_title.text = "三分钟试炼已过，花果山喝彩"
-		focus_detail.text = "你已撑过 %02d:%02d，当前修为 %d 重。按 R 或点右下角按钮，可继续复盘手感。" % [int(elapsed_time) / 60, int(elapsed_time) % 60, player.level]
+		focus_detail.text = "你已撑过 %02d:%02d，当前修为 %d 重。按 R 或点按钮再走一遭，还能继续压更高斩妖分数。" % [int(elapsed_time) / 60, int(elapsed_time) % 60, player.level]
+		if summary_label != null:
+			summary_label.text = _build_run_summary(_get_settlement_title(true))
 	else:
 		var needs_hint := false
 		if OS.has_feature("web"):
@@ -213,9 +255,22 @@ func _update_focus_overlay() -> void:
 				needs_hint = true
 		overlay_visible = needs_hint
 		if needs_hint:
+			badge_text = "西游小戏台 · 开场"
 			focus_title.text = "轻点戏台，唤醒身法"
-			focus_detail.text = "网页端首次进入或浏览器失焦后，需要先点一下游戏画面。\n桌面端：WASD 走位、Space 闪身；手机端：左下摇杆走位、右下按钮闪身。"
+			focus_detail.text = "网页端首次进入或浏览器失焦后，需要先点一下游戏画面。\n桌面端：WASD 走位、Space 筋斗闪；手机端：左下摇杆走位、右下按钮闪身。"
+	if focus_badge != null:
+		focus_badge.text = badge_text
+	if summary_label != null:
+		summary_label.visible = pause_requested or game_over or demo_clear
+		if not summary_label.visible:
+			summary_label.text = ""
 	focus_overlay.visible = overlay_visible
+	if continue_button != null:
+		continue_button.visible = pause_requested
+	if restart_button != null:
+		restart_button.visible = pause_requested or game_over or demo_clear
+	if pause_button != null:
+		pause_button.visible = not game_over and not demo_clear
 
 func _update_difficulty() -> void:
 	var next_stage := int(floor(elapsed_time / difficulty_step_seconds))
@@ -373,7 +428,7 @@ func _on_enemy_died(enemy: Node, death_position: Vector2, xp_reward: int) -> voi
 	xp_orb.set("target", player)
 	xp_orb.set("magnet_distance", 110.0 + player.level * 6.0 + (18.0 if enemy != null and bool(enemy.get("is_elite")) else 0.0))
 	xp_orb.set("move_speed", 180.0 + player.level * 7.0)
-	pickups.add_child(xp_orb)
+	pickups.call_deferred("add_child", xp_orb)
 
 func _on_player_xp_changed(current_xp: int, xp_to_next: int, level: int) -> void:
 	attack_timer.wait_time = maxf(0.14, attack_interval - (level - 1) * 0.02)
@@ -433,6 +488,7 @@ func _on_player_died() -> void:
 	spawn_timer.stop()
 	attack_timer.stop()
 	hud_tip.text = "功行散尽 · 按 R 或点右下再闯一局"
+	_set_pause_state(false)
 	_show_banner("此局止步 · 斩妖 %d" % kill_count)
 	_add_camera_shake(12.0, 0.28)
 	if restart_button != null:
@@ -445,6 +501,7 @@ func _on_demo_clear() -> void:
 	spawn_timer.stop()
 	attack_timer.stop()
 	hud_tip.text = "试炼通关 · 按 R 或点右下再走一遭"
+	_set_pause_state(false)
 	_show_banner("大圣护场 · 存活 %02d:%02d" % [int(elapsed_time) / 60, int(elapsed_time) % 60])
 	_add_camera_shake(10.0, 0.35)
 	if restart_button != null:
@@ -461,38 +518,60 @@ func _update_meta_hud() -> void:
 	hud_timer.text = "时辰 %02d:%02d / %02d:%02d" % [minutes, seconds, int(demo_goal_seconds) / 60, int(demo_goal_seconds) % 60]
 	hud_kills.text = "斩妖 %d  ·  头目 %d" % [kill_count, _elites_spawned_total]
 	hud_wave.text = "第%d劫：%s  ·  下波 %02ds" % [wave_index, _get_wave_title(wave_index), next_wave_in]
-	hud_objective.text = "本局目标：撑到 %02d:%02d。每 25 连斩回 1 命，双数劫波常有头目压阵。" % [int(demo_goal_seconds) / 60, int(demo_goal_seconds) % 60]
+	hud_objective.text = "花果山小目标：撑到 %02d:%02d。每 25 连斩续 1 命，双数劫波多半会有头目压阵。" % [int(demo_goal_seconds) / 60, int(demo_goal_seconds) % 60]
 
 func _update_status_card() -> void:
 	if status_label == null:
 		return
 	var next_heal_goal := (_heals_awarded_by_kills + 1) * 25
 	var kills_to_heal := maxi(0, next_heal_goal - kill_count)
-	var status_title := "福泽未满"
-	var status_detail := "下一口回命：还差 %d 斩妖" % kills_to_heal
+	var status_title := "金箍势稳"
+	var status_detail := "福泽香火未满，离下一口回命还差 %d 斩妖。" % kills_to_heal
 	var status_color := HUD_PAPER
+	var accent_color := HUD_GOLD
+	var background_color := HUD_PANEL
 	if game_over:
-		status_title = "此局止步"
-		status_detail = "按 R / 按钮重开，继续试手感"
+		status_title = "败阵回看"
+		status_detail = "本局招式已经记下，按 R / 按钮重开，再试一套更顺的走位。"
 		status_color = HUD_DANGER
+		accent_color = HUD_DANGER
+		background_color = Color(0.22, 0.08, 0.08, 0.82)
 	elif demo_clear:
-		status_title = "试炼已过"
-		status_detail = "可立刻再闯一局，继续压分"
+		status_title = "大圣喝彩"
+		status_detail = "三分钟试炼已过，可立刻再闯一局，继续冲更高斩妖与修为。"
 		status_color = HUD_MINT
+		accent_color = HUD_MINT
+		background_color = Color(0.10, 0.16, 0.12, 0.82)
+	elif pause_requested:
+		status_title = "戏台暂歇"
+		status_detail = "当前波次与战报都保留着，点继续试炼即可无缝回场。"
+		status_color = HUD_SKY
+		accent_color = HUD_SKY
+		background_color = Color(0.08, 0.12, 0.18, 0.82)
 	elif player.health <= 2:
 		status_title = "命火告急"
-		status_detail = "先筋斗闪拉位，再捡修为球续命"
+		status_detail = "先筋斗闪拉位，再收修为球续命；这局别跟妖群硬换。"
 		status_color = HUD_DANGER
+		accent_color = HUD_DANGER
+		background_color = Color(0.22, 0.08, 0.08, 0.82)
 	elif wave_index >= 5:
-		status_title = "终局压阵"
-		status_detail = "优先避开重装贴脸，留筋斗闪穿包围"
+		status_title = "火云压阵"
+		status_detail = "终局妖潮已起：先避重装贴脸，留一段筋斗闪穿出包围。"
 		status_color = HUD_WARNING
+		accent_color = HUD_WARNING
+		background_color = Color(0.20, 0.12, 0.05, 0.82)
 	elif kills_to_heal <= 5:
 		status_title = "福泽将满"
-		status_detail = "再斩 %d 妖即可回 1 命" % kills_to_heal
+		status_detail = "再斩 %d 妖，就有一口回命香火续上。" % kills_to_heal
 		status_color = HUD_MINT
+		accent_color = HUD_MINT
+		background_color = Color(0.10, 0.16, 0.12, 0.82)
 	status_label.text = "%s\n%s" % [status_title, status_detail]
 	status_label.add_theme_color_override("font_color", status_color)
+	if status_card_accent != null:
+		status_card_accent.color = accent_color
+	if status_card_bg != null:
+		status_card_bg.color = background_color
 
 func _spawn_popup(world_position: Vector2, text_value: String, color_value: Color) -> void:
 	if damage_popup_scene == null:
@@ -535,20 +614,26 @@ func _show_banner(text_value: String) -> void:
 func _update_tip_text() -> void:
 	if game_over or demo_clear:
 		return
-	var tip := "行者走位：WASD 挪身 · Space 筋斗闪 · 法术会自动寻妖"
+	var tip := "行者起手：WASD 挪身 · Space 筋斗闪 · 如意法术会自动寻妖。"
 	if OS.has_feature("web"):
-		tip = "网页端先轻点画面，再用 WASD / 摇杆走位；Space / 右下按钮可筋斗闪。"
-	if player.health <= 2:
-		tip = "命火将熄：先闪身穿妖群，吃修为球冲等级，别硬站着换血。"
-	elif wave_index >= 4:
-		tip = "妖潮已起：重装妖先拉开，再回头清小怪，别贪一口气吃满伤害。"
+		tip = "网页端先轻点画面，再用 WASD / 摇杆走位；Space / 右下按钮可使筋斗闪。"
+	if pause_requested:
+		tip = "戏台暂歇中：继续试炼会原地接回，不会丢当前节奏。"
+	elif player.health <= 2:
+		tip = "命火将熄：先闪身穿妖群，收修为球冲等级，别跟贴脸怪硬换。"
+	elif wave_index >= 5:
+		tip = "火云压阵：先拆边路、躲重装，再回头收尾，筋斗闪尽量留给穿围。"
+	elif wave_index >= 3:
+		tip = "妖潮转急：看见头目先拉开半步，再借自动法术慢慢磨。"
 	hud_tip.text = tip
 	if mobile_hint != null:
-		var mobile_text := "左下摇杆走位\n右下筋斗闪穿怪\nR / 按钮可再开一局"
-		if player.health <= 2:
+		var mobile_text := "左下摇杆走位\n右下筋斗闪穿怪\n暂停/重开都在右侧"
+		if pause_requested:
+			mobile_text = "戏台暂歇中\n点继续试炼回场\n战报会原样保留"
+		elif player.health <= 2:
 			mobile_text = "命火告急先走位\n筋斗闪穿包围\n吃修为球补节奏"
 		elif wave_index >= 5:
-			mobile_text = "终局别贪站撸\n留筋斗闪过重装\n清边路再回头收尾"
+			mobile_text = "火云压阵别贪站撸\n留筋斗闪过重装\n清边路再回头收尾"
 		mobile_hint.text = mobile_text
 
 func _get_spawn_position() -> Vector2:
@@ -589,7 +674,61 @@ func _update_camera_feedback(delta: float) -> void:
 		_camera_shake_strength = 0.0
 		player_camera.offset = player_camera.offset.lerp(_camera_base_offset, delta * 12.0)
 
+func _toggle_pause() -> void:
+	if game_over or demo_clear:
+		return
+	_set_pause_state(not pause_requested)
+
+func _resume_run() -> void:
+	_set_pause_state(false)
+
+func _set_pause_state(should_pause: bool) -> void:
+	pause_requested = should_pause
+	get_tree().paused = should_pause
+	if pause_button != null:
+		pause_button.text = "继续试炼" if should_pause else "暂停"
+	_update_focus_overlay()
+
+func _update_pause_button() -> void:
+	if pause_button == null:
+		return
+	pause_button.text = "继续试炼" if pause_requested else "暂停"
+	pause_button.disabled = game_over or demo_clear
+
+func _get_settlement_title(cleared: bool) -> String:
+	if cleared:
+		if kill_count >= 180:
+			return "大圣巡山"
+		if kill_count >= 140:
+			return "金箍镇场"
+		return "山门守成"
+	if kill_count >= 120:
+		return "披挂再战"
+	if wave_index >= 5:
+		return "火云鏖战"
+	if wave_index >= 3:
+		return "流沙试锋"
+	return "花果山试手"
+
+func _build_run_summary(title_text: String) -> String:
+	var total_seconds := int(elapsed_time)
+	return "西游评语：%s\n时辰：%02d:%02d / %02d:%02d\n斩妖：%d    头目：%d\n行者：%d重    命火：%d/%d\n劫波：第%d劫 · %s" % [
+		title_text,
+		int(total_seconds / 60),
+		total_seconds % 60,
+		int(demo_goal_seconds) / 60,
+		int(demo_goal_seconds) % 60,
+		kill_count,
+		_elites_spawned_total,
+		player.level,
+		player.health,
+		player.max_health,
+		wave_index,
+		_get_wave_title(wave_index)
+	]
+
 func _reload_scene() -> void:
+	get_tree().paused = false
 	get_tree().reload_current_scene()
 
 func _get_wave_title(index: int) -> String:
@@ -672,8 +811,10 @@ func _apply_ui_style() -> void:
 		hud_tip: HUD_SKY,
 		status_label: HUD_PAPER,
 		banner_label: HUD_GOLD,
+		focus_badge: HUD_WARNING,
 		focus_title: HUD_GOLD,
 		focus_detail: HUD_PAPER,
+		summary_label: HUD_PAPER,
 		mobile_hint: HUD_PAPER
 	}
 
@@ -691,8 +832,10 @@ func _apply_ui_style() -> void:
 	hud_tip.add_theme_font_size_override("font_size", 16)
 	status_label.add_theme_font_size_override("font_size", 16)
 	banner_label.add_theme_font_size_override("font_size", 26)
+	focus_badge.add_theme_font_size_override("font_size", 15)
 	focus_title.add_theme_font_size_override("font_size", 24)
 	focus_detail.add_theme_font_size_override("font_size", 17)
+	summary_label.add_theme_font_size_override("font_size", 16)
 	mobile_hint.add_theme_font_size_override("font_size", 16)
 
 	hud_xp_bar.add_theme_stylebox_override("fill", fill_style)
@@ -705,6 +848,14 @@ func _apply_ui_style() -> void:
 	if restart_button != null:
 		_apply_button_style(restart_button, primary_button, primary_button_hover, primary_button_pressed, primary_button_disabled)
 		restart_button.text = "再闯一局"
+	if continue_button != null:
+		_apply_button_style(continue_button, primary_button, primary_button_hover, primary_button_pressed, primary_button_disabled)
+		continue_button.text = "继续试炼"
+	if pause_button != null:
+		_apply_button_style(pause_button, panel_soft, primary_button_hover, primary_button_pressed, primary_button_disabled)
+		pause_button.text = "暂停"
+		pause_button.add_theme_color_override("font_color", HUD_GOLD)
+		pause_button.add_theme_font_size_override("font_size", 20)
 	if dash_button != null:
 		_apply_button_style(dash_button, panel_soft, primary_button_hover, primary_button_pressed, primary_button_disabled)
 		dash_button.add_theme_color_override("font_color", HUD_GOLD)

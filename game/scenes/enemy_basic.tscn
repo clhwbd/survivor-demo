@@ -13,6 +13,21 @@ script = ExtResource("1_enemy")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("1_collision")
 
+[node name="Shadow" type="Polygon2D" parent="."]
+position = Vector2(0, 10)
+color = Color(0.11, 0.07, 0.05, 0.28)
+polygon = PackedVector2Array(-13, -4, -8, 3, 0, 5, 8, 3, 13, -4, 0, -7)
+
 [node name="Body" type="Polygon2D" parent="."]
-color = Color(0.85098, 0.341176, 0.388235, 1)
-polygon = PackedVector2Array(0, -14, 9.8995, -9.8995, 14, 0, 9.8995, 9.8995, 0, 14, -9.8995, 9.8995, -14, 0, -9.8995, -9.8995)
+color = Color(0.776471, 0.333333, 0.231373, 1)
+polygon = PackedVector2Array(0, -14, 10, -11, 14, -1, 10, 12, 0, 15, -10, 12, -14, -1, -10, -11)
+
+[node name="Face" type="Polygon2D" parent="."]
+position = Vector2(0, -1)
+color = Color(0.996078, 0.890196, 0.690196, 0.9)
+polygon = PackedVector2Array(0, -8, 7, -3, 5, 5, -5, 5, -7, -3)
+
+[node name="Crest" type="Polygon2D" parent="."]
+position = Vector2(0, -12)
+color = Color(0.945098, 0.768627, 0.376471, 1)
+polygon = PackedVector2Array(0, -6, 6, 2, -6, 2)

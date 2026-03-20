@@ -11,9 +11,40 @@ script = ExtResource("1_player")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("1_collision")
 
+[node name="Shadow" type="Polygon2D" parent="."]
+position = Vector2(0, 10)
+color = Color(0.11, 0.07, 0.05, 0.32)
+polygon = PackedVector2Array(-13, -4, -8, 3, 0, 5, 8, 3, 13, -4, 0, -7)
+
 [node name="Body" type="Polygon2D" parent="."]
-color = Color(0.4, 0.9, 1, 1)
-polygon = PackedVector2Array(0, -16, 16, 0, 0, 16, -16, 0)
+color = Color(0.956863, 0.768627, 0.423529, 1)
+polygon = PackedVector2Array(0, -16, 15, -2, 10, 14, -10, 14, -15, -2)
+
+[node name="Cape" type="Polygon2D" parent="."]
+position = Vector2(0, 2)
+color = Color(0.760784, 0.266667, 0.203922, 0.92)
+polygon = PackedVector2Array(0, -12, 11, -2, 8, 12, -8, 12, -11, -2)
+
+[node name="Headband" type="Polygon2D" parent="."]
+position = Vector2(0, -9)
+color = Color(0.929412, 0.858824, 0.580392, 1)
+polygon = PackedVector2Array(-9, -2, 9, -2, 8, 2, -8, 2)
+
+[node name="Face" type="Polygon2D" parent="."]
+position = Vector2(0, -3)
+color = Color(1, 0.921569, 0.741176, 1)
+polygon = PackedVector2Array(0, -9, 8, -3, 6, 5, -6, 5, -8, -3)
+
+[node name="Staff" type="Polygon2D" parent="."]
+position = Vector2(13, 0)
+rotation = -0.42
+color = Color(0.45098, 0.254902, 0.109804, 1)
+polygon = PackedVector2Array(-2, -16, 2, -16, 2, 16, -2, 16)
+
+[node name="StaffTip" type="Polygon2D" parent="Staff"]
+position = Vector2(0, -15)
+color = Color(0.94902, 0.827451, 0.494118, 1)
+polygon = PackedVector2Array(-4, -3, 4, -3, 2, 3, -2, 3)
 
 [node name="Camera2D" type="Camera2D" parent="."]
 enabled = true

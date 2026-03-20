@@ -123,3 +123,25 @@
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 3`
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 10`
 - 验证结果：两次 headless 运行均退出码 `0`，主场景可正常加载，新增 HUD 节点与脚本逻辑未引入语法或装配错误
+
+### 12. 暂停 / 结算面板 + 角色敌人视觉统一第二轮
+- 动作：补一轮对验收感知最强的 UI / 演出完善，重点收口暂停、失败、通关的“戏台战报”面板，并把主角与三类敌人从纯色几何块推进到更统一的西游 Q 版纸片戏轮廓。
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `game/scripts/damage_popup.gd`
+  - `game/scenes/main.tscn`
+  - `game/scenes/player.tscn`
+  - `game/scenes/enemy_basic.tscn`
+  - `game/scenes/enemy_runner.tscn`
+  - `game/scenes/enemy_tank.tscn`
+  - `docs/ui-style-guide.md`
+- 具体改动：
+  - 新增暂停体系：支持 `Esc / P` 与 HUD 常驻“暂停”按钮，暂停时弹出中部战报面板，并提供“继续试炼 / 再闯一局”操作。
+  - 失败 / 通关面板改成统一的中文战报样式，增加题头、评语、本局时辰 / 斩妖 / 头目 / 命火 / 当前劫波摘要，更适合网页验收与录屏截图。
+  - 右上状态卡增加多状态底色 / 强调色切换，让低血量、终局压阵、暂停、通关等信息一眼更明显。
+  - 玩家与三类敌人补阴影、脸谱 / 面甲、披风、冠饰、护甲、棍身等简部件，第一眼更统一到“西游记古风 Q 版”方向。
+  - 修正敌人死亡时经验球在物理查询刷新阶段直接 `add_child` 产生的报错，改为 `call_deferred` 延迟挂载。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 10`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 600`
+- 验证结果：两次 headless 运行均退出码 `0`；其中第二次复验确认经验球报错已消除。
