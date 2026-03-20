@@ -28,6 +28,14 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	queue_redraw()
 
+func configure_layout(new_base_radius: float, new_knob_radius: float = -1.0, new_engage_radius: float = -1.0) -> void:
+	base_radius = maxf(40.0, new_base_radius)
+	knob_radius = maxf(18.0, new_knob_radius if new_knob_radius > 0.0 else base_radius * 0.42)
+	engage_radius = maxf(base_radius + 12.0, new_engage_radius if new_engage_radius > 0.0 else base_radius * 1.24)
+	custom_minimum_size = Vector2(engage_radius * 2.0 + 18.0, engage_radius * 2.0 + 18.0)
+	_knob_offset = _current_vector * base_radius
+	queue_redraw()
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT or what == NOTIFICATION_EXIT_TREE:
 		cancel_input()

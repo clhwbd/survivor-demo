@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://scenes/feedback_burst.tscn" id="8_burst"]
 [ext_resource type="PackedScene" path="res://scenes/slash_fx.tscn" id="9_slash"]
 [ext_resource type="PackedScene" path="res://scenes/reward_pulse.tscn" id="10_pulse"]
+[ext_resource type="Script" path="res://scripts/map_presence.gd" id="11_map_presence"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -20,6 +21,10 @@ projectile_scene = ExtResource("4_projectile")
 feedback_burst_scene = ExtResource("8_burst")
 slash_fx_scene = ExtResource("9_slash")
 reward_pulse_scene = ExtResource("10_pulse")
+
+[node name="MapPresence" type="Node2D" parent="."]
+script = ExtResource("11_map_presence")
+tracked_node_path = NodePath("../Player")
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 position = Vector2(640, 360)

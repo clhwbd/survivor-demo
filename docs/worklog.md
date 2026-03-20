@@ -17,6 +17,36 @@
 
 ## 2026-03-21
 
+### 03:09 地图表现模块（Map Presence Module）首版落地
+
+- 动作：直接把“地图存在感 / 位移参照物”做进主场景，新增一个**可复用、按世界坐标程序化生成**的地图表现模块，不靠手摆死图。
+- 根因判断：
+  1. **地图底层是空白舞台**：主场景此前没有稳定的地表底纹、路痕、散点物或中型参照物，玩家移动时相机虽然在跟，但视野里缺少足够的相对位移对象，所以“人动了，场没动”的感知很重。
+  2. **缺少远近层级参照**：只有角色、敌人、弹道在动，场景层没有“小散点 + 中型地标”的组合，导致玩家很难从地面变化和空间锚点判断自己已经移动了多远。
+  3. **不能靠一次性摆图解决**：当前 demo 需要继续迭代波次、刷怪和 Web 验收，地图表现必须是模块化、低干扰、可复用的，不然之后一换尺寸 / 一扩地图就得重摆。
+- 涉及文件：
+  - `game/scripts/map_presence.gd` — 新增程序化地图表现模块；基于玩家位置和视口范围，稳定生成地表底纹、路痕、小散点环境元素与中型参照物。
+  - `game/scenes/main.tscn` — 挂载 `MapPresence` 到主场景，并放在角色/敌人之后渲染层级的底下，不抢战斗识别。
+  - `game/tests/map_presence_smoke.gd` — 新增最小 smoke，校验单屏内地表变化、小散点和中型参照物数量，并验证镜头位移后场景签名发生变化。
+  - `game/scripts/touch_joystick.gd` — 保持现有触控布局链路可通过（沿用 `configure_layout` 配置入口，确保 headless / 验收脚本正常）。
+- 具体改动：
+  - 地表层：加入低对比度底色块、斑驳底纹与路痕段，先把“地上有东西”补起来。
+  - 小散点层：按世界网格程序化生成石头、枯草、碎片、车辙/路痕等小元素，密度足够让移动时持续有近景参照滑过。
+  - 中型参照层：程序化生成石碑、经幡、残柱、灯桩、小树等中型锚点，并在玩家近身安全半径内自动留白，避免压住主角和敌人判读。
+  - 复用方式：全部由固定 hash + 世界坐标生成，同一块区域每次进入都保持稳定布局；相机移动到新区域时会自然出现新的地面变化与参照物，不需要手工铺图。
+  - 视觉约束：整体使用低饱和土黄 / 青灰 / 木褐系，压在角色、敌人、弹道下方，不上高亮描边，不抢战斗信息。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/map_presence_smoke.gd`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/touch_joystick_smoke.gd`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/portrait_layout_smoke.gd`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 5`
+  - `./tests/smoke/release_guard.sh`
+- 验证结果：
+  - `map_presence_smoke: ok`，单屏内稳定生成足量底纹 / 散点 / 中型参照物；把视口中心从 `(640, 360)` 移到 `(1640, 1040)` 后，场景签名发生变化，证明移动时会看到新地貌与新参照物，不再是一块“空底板”。
+  - `touch_joystick_smoke: ok`、`portrait_layout_smoke: ok`，中文字体、手机 UI 与触控链路未被这次地图模块改动破坏。
+  - 主场景 headless 加载退出码 `0`；`release_guard.sh` 全链路通过，当前 Web 验收导出链路未被打断。
+- 提交：本轮 Git 提交已完成（提交信息：`feat: add procedural map presence module`）
+
 ### 1. UI 设计执行线推进：HUD / 结算页低保真线框 + AI 出图提示词包（戏台战报风主、云纹卷轴风辅）
 
 - 动作：承接上一轮 UI 方向板，把“西游记古风 Q 版”的抽象方向继续压实为**可直接衔接出图与 UI 落地**的设计产物，先只聚焦 HUD 与结算页，避免范围失控。
