@@ -22,6 +22,7 @@ extends Node2D
 @export var feedback_burst_scene: PackedScene
 @export var slash_fx_scene: PackedScene
 @export var reward_pulse_scene: PackedScene
+@export var milestone_flare_scene: PackedScene
 
 const WAVE_TITLES := [
 	"花果山热身",
@@ -140,6 +141,8 @@ var _queued_spawn_entries: Array[Dictionary] = []
 @onready var hud_xp_bar: ProgressBar = $HUD/MarginContainer/VBoxContainer/XPBar
 @onready var screen_flash: ColorRect = get_node_or_null("HUD/ScreenFlash") as ColorRect
 @onready var low_health_vignette: ColorRect = get_node_or_null("HUD/LowHealthVignette") as ColorRect
+@onready var hud_card_bg: ColorRect = get_node_or_null("HUD/HudCardBg") as ColorRect
+@onready var hud_card_border: ColorRect = get_node_or_null("HUD/HudCardBorder") as ColorRect
 @onready var status_card_bg: ColorRect = $HUD/StatusCardBg
 @onready var status_card_accent: ColorRect = $HUD/StatusCardAccent
 @onready var status_badge: Label = get_node_or_null("HUD/StatusBadge") as Label
@@ -162,12 +165,17 @@ var _queued_spawn_entries: Array[Dictionary] = []
 @onready var focus_detail: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/DetailLabel
 @onready var settlement_stamp: Label = get_node_or_null("HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/SettlementStamp") as Label
 @onready var summary_label: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/SummaryLabel
+@onready var action_tray_bg: ColorRect = get_node_or_null("HUD/ActionTrayBg") as ColorRect
+@onready var action_tray_accent: ColorRect = get_node_or_null("HUD/ActionTrayAccent") as ColorRect
+@onready var action_tray_label: Label = get_node_or_null("HUD/ActionTrayLabel") as Label
 @onready var restart_button: Button = $HUD/RestartButton
 @onready var continue_button: Button = $HUD/ContinueButton
 @onready var pause_button: Button = $HUD/PauseButton
 @onready var joystick: Control = $HUD/TouchJoystick
 @onready var dash_button: Button = $HUD/DashButton
 @onready var mobile_hint_bg: ColorRect = $HUD/MobileHintBg
+@onready var mobile_hint_accent: ColorRect = get_node_or_null("HUD/MobileHintAccent") as ColorRect
+@onready var mobile_hint_title: Label = get_node_or_null("HUD/MobileHintTitle") as Label
 @onready var mobile_hint: Label = $HUD/MobileHint
 
 func _ready() -> void:
@@ -192,8 +200,11 @@ func _ready() -> void:
 		slash_fx_scene = load("res://scenes/slash_fx.tscn")
 	if reward_pulse_scene == null:
 		reward_pulse_scene = load("res://scenes/reward_pulse.tscn")
+	if milestone_flare_scene == null:
+		milestone_flare_scene = load("res://scenes/milestone_flare.tscn")
 
 	_apply_ui_style()
+	_refresh_hud_layout()
 
 	spawn_timer.wait_time = spawn_interval
 	spawn_timer.timeout.connect(_on_spawn_timer_timeout)
@@ -286,6 +297,8 @@ func _notification(what: int) -> void:
 		_reset_touch_input_state()
 		if OS.has_feature("web"):
 			_browser_hint_acknowledged = false
+	elif what == NOTIFICATION_WM_SIZE_CHANGED:
+		_refresh_hud_layout()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -295,6 +308,38 @@ func _unhandled_input(event: InputEvent) -> void:
 	if (game_over or demo_clear or pause_requested) and event.is_action_pressed("restart_run"):
 		_reload_scene()
 
+func _refresh_hud_layout() -> void:
+	var viewport_size := get_viewport_rect().size
+	var compact_width := viewport_size.x < 1320.0
+	var compact_height := viewport_size.y < 760.0
+	var compact_layout := compact_width or compact_height
+	if hud_card_bg != null:
+		hud_card_bg.offset_right = 382.0 if compact_layout else 438.0
+		hud_card_bg.offset_bottom = 354.0 if compact_layout else 336.0
+	if hud_card_border != null:
+		hud_card_border.offset_right = 382.0 if compact_layout else 438.0
+	if status_card_bg != null:
+		status_card_bg.offset_left = -288.0 if compact_layout else -328.0
+		status_card_bg.offset_bottom = 104.0 if compact_layout else 96.0
+	if status_card_accent != null:
+		status_card_accent.offset_left = status_card_bg.offset_left if status_card_bg != null else (-288.0 if compact_layout else -328.0)
+	if status_badge != null:
+		status_badge.offset_left = -274.0 if compact_layout else -314.0
+		status_badge.offset_right = -28.0
+	if status_label != null:
+		status_label.offset_left = -274.0 if compact_layout else -314.0
+		status_label.offset_right = -28.0
+	if action_tray_bg != null:
+		action_tray_bg.visible = compact_layout or pause_requested or game_over or demo_clear
+	if action_tray_accent != null:
+		action_tray_accent.visible = action_tray_bg != null and action_tray_bg.visible
+	if action_tray_label != null:
+		action_tray_label.visible = action_tray_bg != null and action_tray_bg.visible
+		if compact_layout:
+			action_tray_label.text = "戏台操作 · 底部续战与重开"
+		else:
+			action_tray_label.text = "戏台操作 · 暂停 / 续战 / 再闯"
+
 func _setup_web_ui() -> void:
 	var show_touch_ui := OS.has_feature("web") or OS.has_feature("mobile")
 	if joystick != null:
@@ -303,6 +348,10 @@ func _setup_web_ui() -> void:
 		dash_button.visible = show_touch_ui
 	if mobile_hint_bg != null:
 		mobile_hint_bg.visible = show_touch_ui
+	if mobile_hint_accent != null:
+		mobile_hint_accent.visible = show_touch_ui
+	if mobile_hint_title != null:
+		mobile_hint_title.visible = show_touch_ui
 	if mobile_hint != null:
 		mobile_hint.visible = show_touch_ui
 	if focus_overlay != null:
@@ -311,6 +360,7 @@ func _setup_web_ui() -> void:
 		restart_button.visible = false
 	if continue_button != null:
 		continue_button.visible = false
+	_refresh_hud_layout()
 
 func _update_focus_overlay() -> void:
 	if focus_overlay == null or focus_title == null or focus_detail == null:
@@ -373,6 +423,7 @@ func _update_focus_overlay() -> void:
 		restart_button.visible = pause_requested or game_over or demo_clear
 	if pause_button != null:
 		pause_button.visible = not game_over and not demo_clear
+	_refresh_hud_layout()
 
 func _update_difficulty() -> void:
 	var next_stage := int(floor(elapsed_time / difficulty_step_seconds))
@@ -608,6 +659,7 @@ func _on_enemy_damaged(enemy: Node, hit_position: Vector2, remaining_health: int
 		_spawn_popup(hit_position + Vector2(0, -30), "破势", HUD_ROSE if was_elite else HUD_WARNING)
 	if was_elite:
 		_flash_screen(color_value, 0.08, 0.12)
+		_spawn_milestone_flare(hit_position, color_value, 0.82, 0.82, 4)
 	if remaining_health > 0 and max_health_value >= 4:
 		_spawn_popup(hit_position + Vector2(0, -18), "%d/%d" % [remaining_health, max_health_value], HUD_PAPER)
 
@@ -632,13 +684,17 @@ func _on_enemy_died(enemy: Node, death_position: Vector2, xp_reward: int) -> voi
 		slash_scale = 1.32
 		flash_alpha = 0.16
 		_add_camera_shake(8.0, 0.22)
+		_spawn_milestone_flare(death_position, popup_color, 1.12, 0.96, 5)
 	_spawn_popup(death_position, popup_text, popup_color)
 	_spawn_burst(death_position, popup_color, burst_scale, 1.0)
 	_spawn_slash(death_position, randf_range(-0.65, 0.65), popup_color, slash_scale, 1.0)
 	_spawn_reward_pulse(death_position, popup_color, 0.72 + burst_scale * 0.28, 0.82, 6 + mini(4, _kill_streak / 3))
 	_show_combo_meter()
 	if _kill_streak >= 4 and _kill_streak % 4 == 0:
-		_spawn_reward_pulse(player.global_position, HUD_WARNING if _kill_streak < 12 else HUD_MINT, 1.02 + float(_kill_streak) * 0.02, 0.92, 8 + mini(6, _kill_streak / 2))
+		var streak_color := HUD_WARNING if _kill_streak < 12 else HUD_MINT
+		_spawn_reward_pulse(player.global_position, streak_color, 1.02 + float(_kill_streak) * 0.02, 0.92, 8 + mini(6, _kill_streak / 2))
+		if _kill_streak >= 8:
+			_spawn_milestone_flare(player.global_position + Vector2(0, -10), streak_color, 0.92 + float(_kill_streak) * 0.015, 0.86, 5 + mini(2, _kill_streak / 8))
 	_flash_screen(popup_color, flash_alpha, 0.15)
 	if _kill_streak == 6 or _kill_streak == 12 or _kill_streak == 20:
 		_show_center_notice("连斩 %d · 妖群失势" % _kill_streak, HUD_WARNING if _kill_streak < 20 else HUD_MINT)
@@ -686,6 +742,7 @@ func _on_player_xp_changed(current_xp: int, xp_to_next: int, level: int) -> void
 		_spawn_burst(player.global_position, HUD_MINT, 1.45, 1.25)
 		_spawn_slash(player.global_position, -PI * 0.5, HUD_MINT, 1.55, 1.24)
 		_spawn_reward_pulse(player.global_position, HUD_MINT, 1.32, 1.12, 10)
+		_spawn_milestone_flare(player.global_position + Vector2(0, -16), HUD_MINT, 1.08 + float(level) * 0.04, 1.0, 5 + mini(3, level / 3))
 		_flash_screen(HUD_MINT, 0.14, 0.18)
 		_add_camera_shake(6.0, 0.18)
 	_last_level = level
@@ -745,6 +802,7 @@ func _on_player_died() -> void:
 	_show_center_notice("此局止步 · 再闯一局", HUD_DANGER)
 	_spawn_burst(player.global_position, HUD_DANGER, 1.9, 1.35)
 	_spawn_reward_pulse(player.global_position, HUD_DANGER, 1.55, 1.28, 12)
+	_spawn_milestone_flare(player.global_position + Vector2(0, -16), HUD_DANGER, 1.28, 1.06, 6)
 	_spawn_slash(player.global_position, PI * 0.5, HUD_DANGER, 1.75, 1.22)
 	_flash_screen(HUD_DANGER, 0.22, 0.22)
 	_add_camera_shake(12.0, 0.28)
@@ -764,6 +822,9 @@ func _on_demo_clear() -> void:
 	_show_center_notice("通关喝彩 · 大圣护场", HUD_MINT)
 	_spawn_burst(player.global_position, HUD_MINT, 2.1, 1.5)
 	_spawn_reward_pulse(player.global_position, HUD_MINT, 1.72, 1.35, 14)
+	_spawn_milestone_flare(player.global_position + Vector2(0, -18), HUD_MINT, 1.62, 1.18, 7)
+	_spawn_milestone_flare(player.global_position + Vector2(-48, -8), HUD_GOLD, 1.12, 1.02, 5)
+	_spawn_milestone_flare(player.global_position + Vector2(48, -8), HUD_GOLD, 1.12, 1.02, 5)
 	_spawn_slash(player.global_position, -PI * 0.5, HUD_MINT, 1.9, 1.38)
 	_flash_screen(HUD_MINT, 0.18, 0.22)
 	_add_camera_shake(10.0, 0.35)
@@ -921,6 +982,18 @@ func _spawn_reward_pulse(world_position: Vector2, color_value: Color, scale_mul:
 	if pulse.has_method("setup"):
 		pulse.setup(color_value, Color(1.0, 0.98, 0.92, 0.96), scale_mul, duration_mul)
 	feedback.add_child(pulse)
+
+func _spawn_milestone_flare(world_position: Vector2, color_value: Color, scale_mul: float = 1.0, duration_mul: float = 1.0, fan_total: int = 5) -> void:
+	if milestone_flare_scene == null:
+		return
+	var flare := milestone_flare_scene.instantiate()
+	if flare == null:
+		return
+	if flare is Node2D:
+		(flare as Node2D).position = world_position
+	if flare.has_method("setup"):
+		flare.setup(color_value, Color(1.0, 0.98, 0.92, 0.96), scale_mul, duration_mul, fan_total)
+	feedback.add_child(flare)
 
 func _show_combo_meter() -> void:
 	if combo_meter == null:
@@ -1128,14 +1201,24 @@ func _update_tip_text() -> void:
 		tip = "妖潮转急：看见头目先拉开半步，再借自动法术慢慢磨。军功会持续抬高输出。"
 	hud_tip.text = tip
 	if mobile_hint != null:
-		var mobile_text := "左下摇杆走位\n右下筋斗闪穿怪\n暂停/重开都在右侧"
+		if mobile_hint_title != null:
+			mobile_hint_title.text = "掌中戏台 · 身法提示"
+		var mobile_text := "左下摇杆走位\n右下筋斗闪穿怪\n底部戏台键可暂停/重开"
 		if pause_requested:
+			if mobile_hint_title != null:
+				mobile_hint_title.text = "掌中戏台 · 暂歇战报"
 			mobile_text = "戏台暂歇中\n点继续试炼回场\n战报会原样保留"
 		elif player.health <= 2:
+			if mobile_hint_title != null:
+				mobile_hint_title.text = "掌中戏台 · 告急提醒"
 			mobile_text = "命火告急先走位\n筋斗闪穿包围\n吃修为球补节奏"
 		elif wave_index >= 5:
+			if mobile_hint_title != null:
+				mobile_hint_title.text = "掌中戏台 · 压阵提醒"
 			mobile_text = "火云压阵别贪站撸\n留筋斗闪过重装\n清边路再回头收尾"
 		elif not _wave_objective_completed:
+			if mobile_hint_title != null:
+				mobile_hint_title.text = "掌中戏台 · 本劫军令"
 			mobile_text = "本劫军令：%s\n%s" % [OBJECTIVE_LABELS.get(_wave_objective_type, "稳住阵脚"), _wave_objective_reward_text if _wave_objective_reward_text != "" else OBJECTIVE_DETAILS.get(_wave_objective_type, "先稳住这一劫")]
 		mobile_hint.text = mobile_text
 
@@ -1229,12 +1312,14 @@ func _complete_wave_objective() -> void:
 		_wave_objective_reward_text += " + 速决赏"
 		_show_center_notice("速决赏功 · 额外修为 + 急速续杯", HUD_GOLD)
 		_spawn_popup(player.global_position + Vector2(0, -90), "速决赏", HUD_GOLD)
+		_spawn_milestone_flare(player.global_position + Vector2(0, -20), HUD_GOLD, 1.0, 0.90, 5)
 	_show_center_notice("军令达成 · %s" % _wave_objective_reward_text, HUD_MINT)
 	_spawn_popup(player.global_position + Vector2(0, -46), "军令达成", HUD_MINT)
 	_spawn_popup(player.global_position + Vector2(0, -68), "+1 军功", HUD_GOLD)
 	_spawn_burst(player.global_position, HUD_MINT, 1.28, 1.12)
 	_spawn_slash(player.global_position, -PI * 0.5, HUD_MINT, 1.26, 1.0)
 	_spawn_reward_pulse(player.global_position, HUD_GOLD, 1.18, 1.0, 9)
+	_spawn_milestone_flare(player.global_position + Vector2(0, -18), HUD_MINT, 1.18, 0.98, 6)
 	_flash_screen(HUD_MINT, 0.10, 0.14)
 	_on_player_xp_changed(player.xp, player.xp_to_next, player.level)
 
@@ -1246,6 +1331,7 @@ func _gain_merit_stack() -> void:
 		player.stats_changed.emit(player.health, player.max_health, player.level)
 		_show_center_notice("军功满三层 · 命火上限 +1", HUD_GOLD)
 		_spawn_popup(player.global_position + Vector2(0, -90), "命火上限 +1", HUD_GOLD)
+		_spawn_milestone_flare(player.global_position + Vector2(0, -18), HUD_GOLD, 1.08, 0.92, 5)
 
 func _queue_wave_spawn_patterns() -> void:
 	_queued_spawn_entries.clear()
@@ -1382,6 +1468,8 @@ func _toggle_pause() -> void:
 
 func _resume_run() -> void:
 	_show_center_notice("继续试炼 · 戏台再开", HUD_SKY)
+	_spawn_milestone_flare(player.global_position + Vector2(0, -12), HUD_SKY, 0.86, 0.72, 4)
+	_flash_screen(HUD_SKY, 0.08, 0.10)
 	_set_pause_state(false)
 
 func _set_pause_state(should_pause: bool) -> void:
@@ -1393,6 +1481,8 @@ func _set_pause_state(should_pause: bool) -> void:
 		pause_button.text = "继续试炼" if should_pause else "暂停"
 	if should_pause:
 		_show_center_notice("戏台暂歇 · 可看战报", HUD_SKY)
+		_spawn_milestone_flare(player.global_position + Vector2(0, -14), HUD_SKY, 0.94, 0.78, 4)
+		_flash_screen(HUD_SKY, 0.06, 0.12)
 	_update_focus_overlay()
 
 func _update_pause_button() -> void:
@@ -1400,6 +1490,17 @@ func _update_pause_button() -> void:
 		return
 	pause_button.text = "继续试炼" if pause_requested else "暂停"
 	pause_button.disabled = game_over or demo_clear
+	if action_tray_label != null:
+		if game_over:
+			action_tray_label.text = "戏台战报 · 右侧主按键可立刻再闯"
+		elif demo_clear:
+			action_tray_label.text = "戏台喝彩 · 可继续冲更高斩妖"
+		elif pause_requested:
+			action_tray_label.text = "戏台暂歇 · 左续战 右重开"
+		elif get_viewport_rect().size.x < 1320.0 or get_viewport_rect().size.y < 760.0:
+			action_tray_label.text = "戏台操作 · 底部续战与重开"
+		else:
+			action_tray_label.text = "戏台操作 · 暂停 / 续战 / 再闯"
 
 func _get_settlement_title(cleared: bool) -> String:
 	if cleared:
@@ -1583,6 +1684,8 @@ func _apply_ui_style() -> void:
 		medal_label: HUD_WARNING,
 		focus_detail: HUD_PAPER,
 		summary_label: HUD_PAPER,
+		action_tray_label: HUD_PAPER,
+		mobile_hint_title: HUD_GOLD,
 		mobile_hint: HUD_PAPER,
 		combo_meter: HUD_WARNING,
 		settlement_stamp: HUD_ROSE
@@ -1618,6 +1721,10 @@ func _apply_ui_style() -> void:
 		settlement_stamp.add_theme_font_size_override("font_size", 18)
 	focus_detail.add_theme_font_size_override("font_size", 17)
 	summary_label.add_theme_font_size_override("font_size", 16)
+	if action_tray_label != null:
+		action_tray_label.add_theme_font_size_override("font_size", 16)
+	if mobile_hint_title != null:
+		mobile_hint_title.add_theme_font_size_override("font_size", 16)
 	mobile_hint.add_theme_font_size_override("font_size", 16)
 
 	hud_xp_bar.add_theme_stylebox_override("fill", fill_style)

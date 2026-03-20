@@ -238,6 +238,22 @@
   - `game/scripts/main.gd`
   - `game/scenes/main.tscn`
   - `README.md`
+
+### 15. 关键时刻演出补强第四轮（命中 / 军令 / 升级 / 暂停 / 通关）
+- 动作：继续按 `godot-vfx-animator` 方向强化高感知节点，基于现有 `slash_fx` / `reward_pulse` / `feedback_burst` 再补一层更大的“里程碑级”演出，重点打在精英受击、精英击杀、军令达成、速决赏、升级、暂停/继续、失败、通关这些时刻。
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `game/scripts/milestone_flare.gd`
+  - `game/scenes/milestone_flare.tscn`
+- 具体改动：
+  - 新增 `MilestoneFlare` 大型扇形描金 flare 效果，用于奖励 / 结算 / 节点达成等更高权重时刻。
+  - 精英受击时除了原有 burst / slash / flash，再补一层轻量 flare，让头目被压制时的读感更强。
+  - 精英击杀、8+ 连斩节点、升级、军令达成、速决赏、军功满三层、暂停、继续试炼、失败、通关，都会触发一层新的大演出，且通关额外补了左右双侧 flare，截图和录屏更像“结算喝彩”。
+  - 这轮没有回头优先处理 P0 摇杆，仍然聚焦 P1 演出与反馈强度。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 3`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 45`
+- 验证结果：两次 headless 运行均应为退出码 `0`；新增脚本 / 场景可正常装配，主场景加载与暂停 / 结算 / 演出调用链未引入语法错误或场景缺失。
   - `docs/status.md`
   - `docs/release-acceptance.md`
   - `docs/deployment-plan.md`
@@ -462,3 +478,22 @@
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 45`
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 95`
 - 验证结果：三次 headless 运行均退出码 `0`，主场景能稳定跨越多个波次推进；说明本轮军令导向刷怪、速决赏功与攻速一致性补丁未引入装配或运行时错误。
+
+### 22. PM 接管首轮：版本盘点 / 并行线分层 / 风险清单补齐
+- 动作：按 `game-pm` 职责对当前项目做首轮生产 / 交付接管，重点盘点近几轮提交、当前并行线、任务完成度、交付口径和执行面风险，并补一份 PM 视角总表。
+- 涉及文件：
+  - `docs/pm-production-status.md`
+  - `docs/status.md`
+  - `docs/worklog.md`
+- 具体改动：
+  - 新增 `docs/pm-production-status.md`，把当前版本状态、近几轮提交解读、完成 / 半完成 / 未完成矩阵、关键风险、下一步并行线建议集中收口。
+  - 在 `docs/status.md` 中补充 PM 视角：明确当前项目已具备可验收基线，但版本冻结 / 口径收口还没彻底完成，当前 P0 应先做版本收版而不是继续扩功能。
+  - 明确指出当前最大风险不是玩法不够，而是“当前已验证状态”和 Git `HEAD` 仍可能不是同一个干净版本号；后续 QA / main / 交付取版时必须先处理这个问题。
+- 验证：
+  - `git status`
+  - `git log --oneline -8`
+  - `./tests/smoke/release_guard.sh`
+- 验证结果：
+  - 已确认当前分支为 `main`，并完成近几轮提交盘点；
+  - `release_guard.sh` 再次跑通，退出码 `0`，说明当前工作区状态下导出 / 本地服务 / gzip 校验链路可用；
+  - 同时确认工作区并非 clean tree，因此已在 PM 文档中把“版本口径未完全收死”列为当前首要风险。
