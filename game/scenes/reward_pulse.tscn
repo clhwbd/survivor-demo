@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/reward_pulse.gd" id="1_pulse"]
+
+[node name="RewardPulse" type="Node2D"]
+script = ExtResource("1_pulse")

@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="2_player"]
@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" path="res://scenes/enemy_tank.tscn" id="7_tank"]
 [ext_resource type="PackedScene" path="res://scenes/feedback_burst.tscn" id="8_burst"]
 [ext_resource type="PackedScene" path="res://scenes/slash_fx.tscn" id="9_slash"]
+[ext_resource type="PackedScene" path="res://scenes/reward_pulse.tscn" id="10_pulse"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -18,6 +19,7 @@ tank_enemy_scene = ExtResource("7_tank")
 projectile_scene = ExtResource("4_projectile")
 feedback_burst_scene = ExtResource("8_burst")
 slash_fx_scene = ExtResource("9_slash")
+reward_pulse_scene = ExtResource("10_pulse")
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
 position = Vector2(640, 360)
@@ -48,6 +50,15 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 color = Color(1, 0.88, 0.58, 0)
+
+[node name="LowHealthVignette" type="ColorRect" parent="HUD"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.92, 0.18, 0.16, 0)
 
 [node name="HudCardBg" type="ColorRect" parent="HUD"]
 offset_left = 12.0
@@ -129,6 +140,20 @@ offset_top = 20.0
 offset_right = 280.0
 offset_bottom = 96.0
 mouse_filter = 2
+
+[node name="ComboMeter" type="Label" parent="HUD"]
+visible = false
+anchors_preset = 10
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -176.0
+offset_top = 104.0
+offset_right = 176.0
+offset_bottom = 150.0
+grow_horizontal = 2
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "连斩 6 · 起势"
 
 [node name="StatusCardBg" type="ColorRect" parent="HUD"]
 anchors_preset = 1
@@ -301,6 +326,11 @@ text = "战绩牌：花果银章 · 山门守成"
 autowrap_mode = 3
 horizontal_alignment = 1
 text = "网页端首次进入或浏览器失焦后，需要先点一下游戏画面。"
+
+[node name="SettlementStamp" type="Label" parent="HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer"]
+visible = false
+horizontal_alignment = 1
+text = "战绩总评 · 山门守成"
 
 [node name="SummaryLabel" type="Label" parent="HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer"]
 visible = false

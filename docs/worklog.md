@@ -320,3 +320,41 @@
 - 验证：
   - `./tests/smoke/release_guard.sh`
 - 验证结果：脚本再次完整跑通，退出码 `0`；除原有导出 / 本地服务 / gzip 校验外，新增通过 smoke README 与 Nginx 模板关键口径检查。
+
+### 17. 短局可玩性精修第四轮：军令目标 / 喘息导演 / 编组压迫
+- 动作：继续只做玩法程序侧精修，不碰网页摇杆；这一轮重点是把 3 分钟短局拆成更有节奏的“换波喘息 → 接军令 → 吃奖励压回去”的循环。
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `docs/worklog.md`
+- 具体改动：
+  - 新增“军令目标”系统：每波会给出不同小目标（稳住阵脚 / 清妖试锋 / 伏诛头目），HUD 会实时显示进度，达成后立即发放临时奖励。
+  - 新增成长奖励组合：根据军令类型发放回命、急速、额外伤害、额外连发、额外穿透，让短局成长不只靠升级，也靠波内表现滚雪球。
+  - 新增“喘息导演”逻辑：开波和玩家受伤后，会短暂下调刷新量并压低快怪 / 重装占比，减少连续贴脸硬滚死的不公平感。
+  - 新增更明确的敌群编组：从第三波开始插入双侧包夹；第四波开始额外插入护送队，让中后期敌人不只是随机堆数，而是更像有意图的组合压迫。
+  - 新增敌群构成约束：同屏快怪 / 重装过多时会自动下调对应权重，避免单一类型在短时间内过度堆叠。
+  - 武器 HUD 现在会联动显示军令奖励状态（如急速），方便玩家读到当前爆发窗口。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 3`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 45`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 95`
+- 验证结果：三次 headless 运行均退出码 `0`，覆盖了主场景加载、跨多个波次推进与军令/喘息逻辑在中时长运行下的稳定性。
+
+### 18. Web / 触控输入兜底：修复摇杆失焦卡死，并补 headless 回归脚本
+- 动作：专门处理网页 / 触控输入链路里最容易把试玩直接卡死的问题，补齐摇杆在失焦、暂停、结算、隐藏时的强制复位逻辑，并新增一份可 headless 跑的触控冒烟脚本。
+- 涉及文件：
+  - `game/scripts/touch_joystick.gd`
+  - `game/scripts/main.gd`
+  - `game/tests/touch_joystick_smoke.gd`
+  - `docs/worklog.md`
+- 具体改动：
+  - `TouchJoystick` 新增 `cancel_input()`，并在窗口失焦、应用失焦、节点隐藏、退出树时自动归零，避免 Web 端丢失手指抬起事件后角色持续自走。
+  - 主场景新增 `_reset_touch_input_state()`，在浏览器失焦、暂停、失败、通关、重开时同步清掉摇杆状态和玩家 `external_input_vector`，把“摇杆已经没了，但角色还在跑”的链路一起断掉。
+  - 新增 `game/tests/touch_joystick_smoke.gd`，headless 下直接模拟触控按下，并验证“失焦归零 / 隐藏归零”两条关键回归场景。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/touch_joystick_smoke.gd`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 5`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --export-release Web /tmp/.../index.html`
+- 验证结果：
+  - 触控冒烟脚本输出 `touch_joystick_smoke: ok`，退出码 `0`
+  - 主场景 headless 加载退出码 `0`
+  - Web 导出成功，生成 `index.html / index.js / index.wasm / index.pck`，退出码 `0`

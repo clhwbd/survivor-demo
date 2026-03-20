@@ -21,6 +21,7 @@ extends Node2D
 @export var damage_popup_scene: PackedScene
 @export var feedback_burst_scene: PackedScene
 @export var slash_fx_scene: PackedScene
+@export var reward_pulse_scene: PackedScene
 
 const WAVE_TITLES := [
 	"花果山热身",
@@ -50,6 +51,19 @@ const HUD_MINT := Color(0.62, 0.94, 0.75, 1.0)
 const HUD_SKY := Color(0.60, 0.86, 1.0, 1.0)
 const HUD_WARNING := Color(1.0, 0.76, 0.46, 1.0)
 const HUD_DANGER := Color(1.0, 0.48, 0.48, 1.0)
+const HUD_ROSE := Color(1.0, 0.62, 0.70, 1.0)
+
+const OBJECTIVE_LABELS := {
+	"survive": "稳住阵脚",
+	"kills": "清妖试锋",
+	"elite": "伏诛头目"
+}
+
+const OBJECTIVE_DETAILS := {
+	"survive": "扛住这一劫的开场压迫，别急着硬换。",
+	"kills": "稳步清边路，把妖潮人数压下去。",
+	"elite": "盯住压阵头目，拆掉它就能拿回节奏。"
+}
 
 var elapsed_time: float = 0.0
 var kill_count: int = 0
@@ -75,6 +89,26 @@ var _focus_panel_base_position: Vector2 = Vector2.ZERO
 var _kill_streak: int = 0
 var _best_kill_streak: int = 0
 var _kill_streak_timer: float = 0.0
+var _low_health_pulse_time: float = 0.0
+var _combo_meter_base_position: Vector2 = Vector2.ZERO
+var _combo_meter_tween: Tween
+var _respite_time_remaining: float = 0.0
+var _respite_spawn_multiplier: float = 1.0
+var _respite_fast_penalty: float = 0.0
+var _respite_tank_penalty: float = 0.0
+var _bonus_attack_speed_time: float = 0.0
+var _bonus_damage_time: float = 0.0
+var _bonus_multishot_time: float = 0.0
+var _bonus_pierce_time: float = 0.0
+var _wave_objective_type: String = "survive"
+var _wave_objective_target: int = 0
+var _wave_objective_progress: int = 0
+var _wave_objective_completed: bool = false
+var _wave_objective_reward_text: String = ""
+var _last_objective_kill_count: int = 0
+var _last_objective_elite_kill_count: int = 0
+var _elite_kill_count: int = 0
+var _queued_spawn_positions: Array[Vector2] = []
 
 @onready var player: CharacterBody2D = $Player
 @onready var player_camera: Camera2D = $Player/Camera2D
@@ -97,6 +131,7 @@ var _kill_streak_timer: float = 0.0
 @onready var hud_tip: Label = $HUD/MarginContainer/VBoxContainer/TipLabel
 @onready var hud_xp_bar: ProgressBar = $HUD/MarginContainer/VBoxContainer/XPBar
 @onready var screen_flash: ColorRect = get_node_or_null("HUD/ScreenFlash") as ColorRect
+@onready var low_health_vignette: ColorRect = get_node_or_null("HUD/LowHealthVignette") as ColorRect
 @onready var status_card_bg: ColorRect = $HUD/StatusCardBg
 @onready var status_card_accent: ColorRect = $HUD/StatusCardAccent
 @onready var status_badge: Label = get_node_or_null("HUD/StatusBadge") as Label
@@ -105,6 +140,7 @@ var _kill_streak_timer: float = 0.0
 @onready var banner_accent: ColorRect = $HUD/TopCenter/BannerAccent
 @onready var banner_label: Label = $HUD/TopCenter/BannerLabel
 @onready var banner_sub_label: Label = get_node_or_null("HUD/TopCenter/BannerSubLabel") as Label
+@onready var combo_meter: Label = get_node_or_null("HUD/ComboMeter") as Label
 @onready var center_notice: Control = get_node_or_null("HUD/CenterNotice") as Control
 @onready var center_notice_backing: ColorRect = get_node_or_null("HUD/CenterNotice/Backing") as ColorRect
 @onready var center_notice_accent: ColorRect = get_node_or_null("HUD/CenterNotice/Accent") as ColorRect
@@ -116,6 +152,7 @@ var _kill_streak_timer: float = 0.0
 @onready var focus_title: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/TitleLabel
 @onready var medal_label: Label = get_node_or_null("HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/MedalLabel") as Label
 @onready var focus_detail: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/DetailLabel
+@onready var settlement_stamp: Label = get_node_or_null("HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/SettlementStamp") as Label
 @onready var summary_label: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/SummaryLabel
 @onready var restart_button: Button = $HUD/RestartButton
 @onready var continue_button: Button = $HUD/ContinueButton
@@ -145,6 +182,8 @@ func _ready() -> void:
 		feedback_burst_scene = load("res://scenes/feedback_burst.tscn")
 	if slash_fx_scene == null:
 		slash_fx_scene = load("res://scenes/slash_fx.tscn")
+	if reward_pulse_scene == null:
+		reward_pulse_scene = load("res://scenes/reward_pulse.tscn")
 
 	_apply_ui_style()
 
@@ -187,6 +226,8 @@ func _ready() -> void:
 		_center_notice_base_position = center_notice.position
 	if focus_panel != null:
 		_focus_panel_base_position = focus_panel.position
+	if combo_meter != null:
+		_combo_meter_base_position = combo_meter.position
 	if screen_flash != null:
 		screen_flash.color = Color(1.0, 0.88, 0.58, 0.0)
 		screen_flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -210,6 +251,8 @@ func _process(delta: float) -> void:
 		_update_difficulty()
 		_update_wave_progress()
 		_update_kill_streak(delta)
+		_update_temporary_bonuses(delta)
+		_update_wave_objective_progress()
 		if elapsed_time >= demo_goal_seconds:
 			_on_demo_clear()
 	_update_enemy_count()
@@ -219,6 +262,8 @@ func _process(delta: float) -> void:
 	_update_pause_button()
 	_update_camera_feedback(delta)
 	_update_ui_motion(delta)
+	_update_combo_meter(delta)
+	_update_low_health_vignette(delta)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
@@ -230,6 +275,7 @@ func _input(event: InputEvent) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+		_reset_touch_input_state()
 		if OS.has_feature("web"):
 			_browser_hint_acknowledged = false
 
@@ -300,6 +346,9 @@ func _update_focus_overlay() -> void:
 	if medal_label != null:
 		medal_label.visible = pause_requested or game_over or demo_clear
 		medal_label.text = _get_medal_line()
+	if settlement_stamp != null:
+		settlement_stamp.visible = pause_requested or game_over or demo_clear
+		settlement_stamp.text = _get_settlement_stamp_text()
 	if summary_label != null:
 		summary_label.visible = pause_requested or game_over or demo_clear
 		if not summary_label.visible:
@@ -335,6 +384,9 @@ func _apply_wave_state(is_initial: bool) -> void:
 	spawn_count_per_wave = mini(8, 1 + int((wave_index - 1) / 1.5))
 	max_alive_enemies = mini(88, 14 + wave_index * 8 + difficulty_stage * 4)
 	spawn_timer.wait_time = maxf(0.28, spawn_interval - wave_index * 0.08 - difficulty_stage * 0.05)
+	_trigger_respite(1.55 if is_initial else 2.05, 0.58 if wave_index <= 2 else 0.46, 0.12 if wave_index <= 3 else 0.18, 0.16 if wave_index <= 4 else 0.24)
+	_setup_wave_objective()
+	_queue_wave_spawn_patterns()
 	if not is_initial:
 		player.heal(1)
 		_show_banner("第%d劫 · %s" % [wave_index, _get_wave_title(wave_index)], "劫波播报")
@@ -369,17 +421,26 @@ func _on_spawn_timer_timeout() -> void:
 	if available_slots <= 0:
 		return
 
-	var spawn_total := mini(spawn_count_per_wave + int(wave_index / 3), available_slots)
-	for _i in range(spawn_total):
+	var respite_factor := _respite_spawn_multiplier if _respite_time_remaining > 0.0 else 1.0
+	var spawn_total := mini(int(ceil((spawn_count_per_wave + int(wave_index / 3)) * respite_factor)), available_slots)
+	spawn_total = maxi(1, spawn_total)
+	while spawn_total > 0 and available_slots > 0 and _queued_spawn_positions.size() > 0:
+		var queued_position: Vector2 = _queued_spawn_positions.pop_front()
+		_spawn_enemy_at_position(queued_position, false)
+		spawn_total -= 1
+		available_slots -= 1
+	for _i in range(mini(spawn_total, available_slots)):
 		_spawn_enemy()
 
 func _spawn_enemy(force_elite: bool = false) -> void:
+	_spawn_enemy_at_position(_get_spawn_position(), force_elite)
+
+func _spawn_enemy_at_position(spawn_position: Vector2, force_elite: bool = false) -> void:
+	var weights := _get_enemy_spawn_weights()
 	var spawn_roll := randf()
 	var scene_to_spawn: PackedScene = enemy_scene
-	var fast_weight: float = minf(0.52, 0.14 + wave_index * 0.05 + difficulty_stage * 0.02)
-	var tank_weight: float = 0.0
-	if wave_index >= 3:
-		tank_weight = minf(0.26, 0.06 + (wave_index - 2) * 0.04)
+	var tank_weight: float = weights.y
+	var fast_weight: float = weights.x
 	if tank_enemy_scene != null and spawn_roll < tank_weight:
 		scene_to_spawn = tank_enemy_scene
 	elif fast_enemy_scene != null and spawn_roll < tank_weight + fast_weight:
@@ -389,12 +450,14 @@ func _spawn_enemy(force_elite: bool = false) -> void:
 	if enemy == null:
 		return
 
-	enemy.global_position = _get_spawn_position()
+	enemy.global_position = spawn_position
 	enemy.set("move_speed", float(enemy.get("move_speed")) + difficulty_stage * 5.0 + max(0, wave_index - 1) * 4.0 + max(0, player.level - 1) * 3.0)
 	enemy.set("max_health", int(enemy.get("max_health")) + int((difficulty_stage + wave_index - 1) / 3))
 	enemy.set("contact_damage", int(enemy.get("contact_damage")) + int((difficulty_stage + wave_index - 1) / 5))
 	enemy.set("xp_reward", int(enemy.get("xp_reward")) + int((wave_index - 1) / 2))
 	enemy.set("target", player)
+	if enemy.has_method("set_spawn_grace"):
+		enemy.set_spawn_grace(0.55 if wave_index <= 2 else 0.42)
 	if force_elite and enemy.has_method("make_elite"):
 		enemy.make_elite(1.28 + minf(0.14, float(wave_index - 2) * 0.02))
 		_elites_spawned_total += 1
@@ -405,6 +468,30 @@ func _spawn_enemy(force_elite: bool = false) -> void:
 		enemy.damaged.connect(_on_enemy_damaged)
 	enemies.add_child(enemy)
 
+func _get_enemy_spawn_weights() -> Vector2:
+	var fast_weight: float = minf(0.52, 0.14 + wave_index * 0.05 + difficulty_stage * 0.02)
+	var tank_weight: float = 0.0
+	if wave_index >= 3:
+		tank_weight = minf(0.26, 0.06 + (wave_index - 2) * 0.04)
+	if _respite_time_remaining > 0.0:
+		fast_weight *= maxf(0.45, 1.0 - _respite_fast_penalty)
+		tank_weight *= maxf(0.30, 1.0 - _respite_tank_penalty)
+	var alive_tanks := 0
+	var alive_fast := 0
+	for child in enemies.get_children():
+		if child == null or not is_instance_valid(child):
+			continue
+		var scene_file := String(child.scene_file_path)
+		if scene_file.ends_with("enemy_tank.tscn"):
+			alive_tanks += 1
+		elif scene_file.ends_with("enemy_runner.tscn"):
+			alive_fast += 1
+	if alive_tanks >= 2 and wave_index < 6:
+		tank_weight *= 0.35
+	if alive_fast >= int(maxi(3, wave_index + 1)):
+		fast_weight *= 0.65
+	return Vector2(clampf(fast_weight, 0.0, 0.65), clampf(tank_weight, 0.0, 0.32))
+
 func _on_attack_timer_timeout() -> void:
 	if projectile_scene == null or not is_instance_valid(player) or game_over or demo_clear:
 		return
@@ -414,9 +501,11 @@ func _on_attack_timer_timeout() -> void:
 	if target == null:
 		return
 
-	var shot_count := 1 + int((player.level - 1) / 4)
-	shot_count = mini(shot_count, 4)
-	var pierce_count := int((player.level - 1) / 5)
+	var bonus_attack_speed := 0.18 if _bonus_attack_speed_time > 0.0 else 0.0
+	attack_timer.wait_time = maxf(0.12, attack_interval - (player.level - 1) * 0.02 - bonus_attack_speed)
+	var shot_count := 1 + int((player.level - 1) / 4) + (1 if _bonus_multishot_time > 0.0 else 0)
+	shot_count = mini(shot_count, 5)
+	var pierce_count := int((player.level - 1) / 5) + (1 if _bonus_pierce_time > 0.0 else 0)
 	var base_direction := (target.global_position - player.global_position).normalized()
 	var spread_step := deg_to_rad(10.0)
 	var start_angle := -spread_step * float(shot_count - 1) * 0.5
@@ -431,7 +520,8 @@ func _on_attack_timer_timeout() -> void:
 		projectile.global_position = player.global_position
 		projectile.set("direction", direction)
 		projectile.set("speed", projectile_speed + player.level * 18.0 + wave_index * 6.0)
-		projectile.set("damage", 1 + int((player.level - 1) / 3) + int((wave_index - 1) / 4))
+		var projectile_damage := 1 + int((player.level - 1) / 3) + int((wave_index - 1) / 4) + (1 if _bonus_damage_time > 0.0 else 0)
+		projectile.set("damage", projectile_damage)
 		projectile.set("pierce", pierce_count)
 		projectiles.add_child(projectile)
 
@@ -459,6 +549,8 @@ func _on_enemy_damaged(enemy: Node, hit_position: Vector2, remaining_health: int
 		hit_direction = Vector2.RIGHT
 	_spawn_burst(hit_position, color_value, radius_scale, 0.78)
 	_spawn_slash(hit_position, hit_direction.angle(), color_value, 0.72 + (0.22 if was_elite else 0.0), 0.82)
+	if remaining_health == 1:
+		_spawn_popup(hit_position + Vector2(0, -30), "破势", HUD_ROSE if was_elite else HUD_WARNING)
 	if was_elite:
 		_flash_screen(color_value, 0.08, 0.12)
 	if remaining_health > 0 and max_health_value >= 4:
@@ -474,7 +566,11 @@ func _on_enemy_died(enemy: Node, death_position: Vector2, xp_reward: int) -> voi
 	var burst_scale := 1.1
 	var slash_scale := 1.0
 	var flash_alpha := 0.10
-	if enemy != null and bool(enemy.get("is_elite")):
+	var enemy_is_elite := enemy != null and bool(enemy.get("is_elite"))
+	if enemy_is_elite:
+		_elite_kill_count += 1
+	_update_wave_objective_from_kill(enemy)
+	if enemy_is_elite:
 		popup_color = HUD_WARNING
 		popup_text = "头目修为 +%d" % xp_reward
 		burst_scale = 1.55
@@ -484,6 +580,8 @@ func _on_enemy_died(enemy: Node, death_position: Vector2, xp_reward: int) -> voi
 	_spawn_popup(death_position, popup_text, popup_color)
 	_spawn_burst(death_position, popup_color, burst_scale, 1.0)
 	_spawn_slash(death_position, randf_range(-0.65, 0.65), popup_color, slash_scale, 1.0)
+	_spawn_reward_pulse(death_position, popup_color, 0.72 + burst_scale * 0.28, 0.82, 6 + mini(4, _kill_streak / 3))
+	_show_combo_meter()
 	_flash_screen(popup_color, flash_alpha, 0.15)
 	if _kill_streak == 6 or _kill_streak == 12 or _kill_streak == 20:
 		_show_center_notice("连斩 %d · 妖群失势" % _kill_streak, HUD_WARNING if _kill_streak < 20 else HUD_MINT)
@@ -513,22 +611,24 @@ func _on_enemy_died(enemy: Node, death_position: Vector2, xp_reward: int) -> voi
 	pickups.call_deferred("add_child", xp_orb)
 
 func _on_player_xp_changed(current_xp: int, xp_to_next: int, level: int) -> void:
-	attack_timer.wait_time = maxf(0.14, attack_interval - (level - 1) * 0.02)
+	attack_timer.wait_time = maxf(0.12, attack_interval - (level - 1) * 0.02 - (0.18 if _bonus_attack_speed_time > 0.0 else 0.0))
 	hud_level.text = "行者 %d重  ·  %s" % [level, _get_stage_title(difficulty_stage + 1)]
 	hud_xp_bar.max_value = max(1, xp_to_next)
 	hud_xp_bar.value = current_xp
 	hud_xp_bar.show_percentage = false
 	hud_xp_bar.tooltip_text = "修为 %d / %d" % [current_xp, xp_to_next]
-	var shots := 1 + int((level - 1) / 4)
-	shots = mini(shots, 4)
-	var pierce := int((level - 1) / 5)
-	var damage := 1 + int((level - 1) / 3) + int((wave_index - 1) / 4)
-	hud_weapon.text = "法术：%d 伤 · %d 连发 · %d 穿透" % [damage, shots, pierce]
+	var bonus_attack_speed := " · 急速" if _bonus_attack_speed_time > 0.0 else ""
+	var shots := 1 + int((level - 1) / 4) + (1 if _bonus_multishot_time > 0.0 else 0)
+	shots = mini(shots, 5)
+	var pierce := int((level - 1) / 5) + (1 if _bonus_pierce_time > 0.0 else 0)
+	var damage := 1 + int((level - 1) / 3) + int((wave_index - 1) / 4) + (1 if _bonus_damage_time > 0.0 else 0)
+	hud_weapon.text = "法术：%d 伤 · %d 连发 · %d 穿透%s" % [damage, shots, pierce, bonus_attack_speed]
 	if level > _last_level:
 		_show_banner("修为精进 · 行者 %d重" % level, "修为播报")
 		_show_center_notice("修为精进 · 行者 %d 重" % level, HUD_MINT)
 		_spawn_burst(player.global_position, HUD_MINT, 1.45, 1.25)
 		_spawn_slash(player.global_position, -PI * 0.5, HUD_MINT, 1.55, 1.24)
+		_spawn_reward_pulse(player.global_position, HUD_MINT, 1.32, 1.12, 10)
 		_flash_screen(HUD_MINT, 0.14, 0.18)
 		_add_camera_shake(6.0, 0.18)
 	_last_level = level
@@ -540,11 +640,13 @@ func _on_player_stats_changed(health: int, max_health: int, _level: int) -> void
 	else:
 		hud_health.add_theme_color_override("font_color", HUD_PAPER)
 	if _last_health >= 0 and health < _last_health and not game_over:
+		_trigger_respite(1.6, 0.52, 0.24, 0.30)
 		_spawn_popup(player.global_position + Vector2(0, -22), "-%d 命" % (_last_health - health), HUD_DANGER)
 		_spawn_burst(player.global_position, HUD_DANGER, 1.05, 0.95)
 		_spawn_slash(player.global_position, PI * 0.5, HUD_DANGER, 1.12, 0.92)
 		_flash_screen(HUD_DANGER, 0.16, 0.14)
 		_show_center_notice("命火受创 · 先拉开身位", HUD_DANGER)
+		_spawn_reward_pulse(player.global_position, HUD_DANGER, 0.96, 0.82, 7)
 		_add_camera_shake(10.0, 0.16)
 	_last_health = health
 	if health <= 0 and not game_over:
@@ -577,6 +679,7 @@ func _on_player_died() -> void:
 	if game_over:
 		return
 	game_over = true
+	_reset_touch_input_state()
 	spawn_timer.stop()
 	attack_timer.stop()
 	hud_tip.text = "功行散尽 · 按 R 或点右下再闯一局"
@@ -584,6 +687,7 @@ func _on_player_died() -> void:
 	_show_banner("此局止步 · 斩妖 %d" % kill_count, "战报播报")
 	_show_center_notice("此局止步 · 再闯一局", HUD_DANGER)
 	_spawn_burst(player.global_position, HUD_DANGER, 1.9, 1.35)
+	_spawn_reward_pulse(player.global_position, HUD_DANGER, 1.55, 1.28, 12)
 	_spawn_slash(player.global_position, PI * 0.5, HUD_DANGER, 1.75, 1.22)
 	_flash_screen(HUD_DANGER, 0.22, 0.22)
 	_add_camera_shake(12.0, 0.28)
@@ -594,6 +698,7 @@ func _on_demo_clear() -> void:
 	if demo_clear:
 		return
 	demo_clear = true
+	_reset_touch_input_state()
 	spawn_timer.stop()
 	attack_timer.stop()
 	hud_tip.text = "试炼通关 · 按 R 或点右下再走一遭"
@@ -601,6 +706,7 @@ func _on_demo_clear() -> void:
 	_show_banner("大圣护场 · 存活 %02d:%02d" % [int(elapsed_time) / 60, int(elapsed_time) % 60], "喝彩播报")
 	_show_center_notice("通关喝彩 · 大圣护场", HUD_MINT)
 	_spawn_burst(player.global_position, HUD_MINT, 2.1, 1.5)
+	_spawn_reward_pulse(player.global_position, HUD_MINT, 1.72, 1.35, 14)
 	_spawn_slash(player.global_position, -PI * 0.5, HUD_MINT, 1.9, 1.38)
 	_flash_screen(HUD_MINT, 0.18, 0.22)
 	_add_camera_shake(10.0, 0.35)
@@ -618,7 +724,14 @@ func _update_meta_hud() -> void:
 	hud_timer.text = "时辰 %02d:%02d / %02d:%02d" % [minutes, seconds, int(demo_goal_seconds) / 60, int(demo_goal_seconds) % 60]
 	hud_kills.text = "斩妖 %d  ·  头目 %d" % [kill_count, _elites_spawned_total]
 	hud_wave.text = "第%d劫：%s  ·  下波 %02ds" % [wave_index, _get_wave_title(wave_index), next_wave_in]
-	hud_objective.text = "花果山小目标：撑到 %02d:%02d。每 25 连斩续 1 命，双数劫波多半会有头目压阵。" % [int(demo_goal_seconds) / 60, int(demo_goal_seconds) % 60]
+	var target_label: String = String(OBJECTIVE_LABELS.get(_wave_objective_type, "稳住阵脚"))
+	var objective_progress := "%d/%d" % [_wave_objective_progress, max(1, _wave_objective_target)]
+	if _wave_objective_type == "survive":
+		objective_progress = "%ds/%ds" % [_wave_objective_progress, max(1, _wave_objective_target)]
+	var reward_tail := ""
+	if _wave_objective_completed and _wave_objective_reward_text != "":
+		reward_tail = " · 已得 %s" % _wave_objective_reward_text
+	hud_objective.text = "本劫军令：%s %s%s" % [target_label, objective_progress, reward_tail]
 
 func _update_status_card() -> void:
 	if status_label == null:
@@ -628,6 +741,8 @@ func _update_status_card() -> void:
 	var badge_text := "香火签"
 	var status_title := "金箍势稳"
 	var status_detail := "福泽香火未满，离下一口回命还差 %d 斩妖。" % kills_to_heal
+	if not _wave_objective_completed:
+		status_detail = "当前军令：%s" % OBJECTIVE_DETAILS.get(_wave_objective_type, "先稳住这一劫的节奏。")
 	if _kill_streak >= 4 and _kill_streak_timer > 0.0:
 		badge_text = "连斩签"
 		status_title = "连斩起势"
@@ -670,6 +785,13 @@ func _update_status_card() -> void:
 		status_color = HUD_WARNING
 		accent_color = HUD_WARNING
 		background_color = Color(0.20, 0.12, 0.05, 0.82)
+	elif _bonus_attack_speed_time > 0.0 or _bonus_damage_time > 0.0 or _bonus_multishot_time > 0.0 or _bonus_pierce_time > 0.0:
+		badge_text = "军令签"
+		status_title = "赏功加身"
+		status_detail = "%s，趁赏功时段把妖潮再往回压。" % _wave_objective_reward_text
+		status_color = HUD_MINT
+		accent_color = HUD_MINT
+		background_color = Color(0.10, 0.16, 0.12, 0.82)
 	elif kills_to_heal <= 5:
 		badge_text = "福泽签"
 		status_title = "福泽将满"
@@ -729,6 +851,47 @@ func _spawn_slash(world_position: Vector2, rotation_value: float, color_value: C
 	if slash.has_method("setup"):
 		slash.setup(color_value, Color(1.0, 0.98, 0.92, 0.96), scale_mul, duration_mul)
 	feedback.add_child(slash)
+
+func _spawn_reward_pulse(world_position: Vector2, color_value: Color, scale_mul: float = 1.0, duration_mul: float = 1.0, ray_count: int = 8) -> void:
+	if reward_pulse_scene == null:
+		return
+	var pulse := reward_pulse_scene.instantiate()
+	if pulse == null:
+		return
+	if pulse is Node2D:
+		(pulse as Node2D).position = world_position
+	pulse.set("ray_count", ray_count)
+	if pulse.has_method("setup"):
+		pulse.setup(color_value, Color(1.0, 0.98, 0.92, 0.96), scale_mul, duration_mul)
+	feedback.add_child(pulse)
+
+func _show_combo_meter() -> void:
+	if combo_meter == null:
+		return
+	if _kill_streak < 4 and not (_kill_streak_timer > 0.0 and _best_kill_streak >= 4):
+		return
+	var rank_text := _get_combo_rank_text(_kill_streak)
+	combo_meter.text = "连斩 %d · %s" % [maxi(4, _kill_streak), rank_text]
+	combo_meter.visible = true
+	combo_meter.modulate = Color(1, 1, 1, 1)
+	combo_meter.scale = Vector2(0.86, 0.86)
+	combo_meter.position = _combo_meter_base_position + Vector2(0.0, 8.0)
+	if _combo_meter_tween != null:
+		_combo_meter_tween.kill()
+	_combo_meter_tween = create_tween()
+	_combo_meter_tween.set_parallel(true)
+	_combo_meter_tween.tween_property(combo_meter, "position", _combo_meter_base_position, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_combo_meter_tween.tween_property(combo_meter, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_combo_meter_tween.chain().tween_interval(0.48)
+	_combo_meter_tween.set_parallel(true)
+	_combo_meter_tween.tween_property(combo_meter, "modulate", Color(1, 1, 1, 0), 0.20)
+	_combo_meter_tween.tween_property(combo_meter, "position", _combo_meter_base_position + Vector2(0.0, -6.0), 0.20)
+	_combo_meter_tween.finished.connect(func():
+		if combo_meter != null:
+			combo_meter.visible = false
+			combo_meter.position = _combo_meter_base_position
+			combo_meter.scale = Vector2.ONE
+	)
 
 func _flash_screen(color_value: Color, alpha: float = 0.12, duration: float = 0.16) -> void:
 	if screen_flash == null:
@@ -884,6 +1047,8 @@ func _update_tip_text() -> void:
 		tip = "命火将熄：先闪身穿妖群，收修为球冲等级，别跟贴脸怪硬换。"
 	elif wave_index >= 5:
 		tip = "火云压阵：先拆边路、躲重装，再回头收尾，筋斗闪尽量留给穿围。"
+	elif not _wave_objective_completed:
+		tip = "本劫军令：%s，%s" % [OBJECTIVE_LABELS.get(_wave_objective_type, "稳住阵脚"), OBJECTIVE_DETAILS.get(_wave_objective_type, "先稳住这一劫的节奏。")]
 	elif wave_index >= 3:
 		tip = "妖潮转急：看见头目先拉开半步，再借自动法术慢慢磨。"
 	hud_tip.text = tip
@@ -895,7 +1060,109 @@ func _update_tip_text() -> void:
 			mobile_text = "命火告急先走位\n筋斗闪穿包围\n吃修为球补节奏"
 		elif wave_index >= 5:
 			mobile_text = "火云压阵别贪站撸\n留筋斗闪过重装\n清边路再回头收尾"
+		elif not _wave_objective_completed:
+			mobile_text = "本劫军令：%s\n%s" % [OBJECTIVE_LABELS.get(_wave_objective_type, "稳住阵脚"), _wave_objective_reward_text if _wave_objective_reward_text != "" else OBJECTIVE_DETAILS.get(_wave_objective_type, "先稳住这一劫")]
 		mobile_hint.text = mobile_text
+
+func _update_temporary_bonuses(delta: float) -> void:
+	var had_bonus := _bonus_attack_speed_time > 0.0 or _bonus_damage_time > 0.0 or _bonus_multishot_time > 0.0 or _bonus_pierce_time > 0.0
+	_respite_time_remaining = maxf(0.0, _respite_time_remaining - delta)
+	if _respite_time_remaining == 0.0:
+		_respite_spawn_multiplier = 1.0
+		_respite_fast_penalty = 0.0
+		_respite_tank_penalty = 0.0
+	_bonus_attack_speed_time = maxf(0.0, _bonus_attack_speed_time - delta)
+	_bonus_damage_time = maxf(0.0, _bonus_damage_time - delta)
+	_bonus_multishot_time = maxf(0.0, _bonus_multishot_time - delta)
+	_bonus_pierce_time = maxf(0.0, _bonus_pierce_time - delta)
+	var has_bonus := _bonus_attack_speed_time > 0.0 or _bonus_damage_time > 0.0 or _bonus_multishot_time > 0.0 or _bonus_pierce_time > 0.0
+	if had_bonus != has_bonus:
+		_on_player_xp_changed(player.xp, player.xp_to_next, player.level)
+
+func _trigger_respite(duration: float, spawn_multiplier: float, fast_penalty: float, tank_penalty: float) -> void:
+	_respite_time_remaining = maxf(_respite_time_remaining, duration)
+	_respite_spawn_multiplier = minf(_respite_spawn_multiplier, spawn_multiplier)
+	_respite_fast_penalty = maxf(_respite_fast_penalty, fast_penalty)
+	_respite_tank_penalty = maxf(_respite_tank_penalty, tank_penalty)
+
+func _setup_wave_objective() -> void:
+	_wave_objective_completed = false
+	_wave_objective_reward_text = ""
+	_last_objective_kill_count = kill_count
+	_last_objective_elite_kill_count = _elite_kill_count
+	if wave_index <= 2:
+		_wave_objective_type = "survive"
+		_wave_objective_target = 10 + wave_index * 3
+	elif wave_index % 2 == 0:
+		_wave_objective_type = "kills"
+		_wave_objective_target = 7 + wave_index * 2
+	else:
+		_wave_objective_type = "elite"
+		_wave_objective_target = 1
+	_wave_objective_progress = 0
+
+func _update_wave_objective_progress() -> void:
+	if _wave_objective_completed:
+		return
+	if _wave_objective_type == "survive":
+		var wave_start_time := float(maxi(0, wave_index - 1)) * wave_length_seconds
+		_wave_objective_progress = mini(_wave_objective_target, int(elapsed_time - wave_start_time))
+		if _wave_objective_progress >= _wave_objective_target:
+			_complete_wave_objective()
+	_update_tip_text()
+
+func _update_wave_objective_from_kill(enemy: Node) -> void:
+	if _wave_objective_completed:
+		return
+	if _wave_objective_type == "kills":
+		_wave_objective_progress = kill_count - _last_objective_kill_count
+		if _wave_objective_progress >= _wave_objective_target:
+			_complete_wave_objective()
+	elif _wave_objective_type == "elite" and enemy != null and bool(enemy.get("is_elite")):
+		_wave_objective_progress = _elite_kill_count - _last_objective_elite_kill_count
+		if _wave_objective_progress >= _wave_objective_target:
+			_complete_wave_objective()
+
+func _complete_wave_objective() -> void:
+	if _wave_objective_completed:
+		return
+	_wave_objective_completed = true
+	_wave_objective_progress = _wave_objective_target
+	match _wave_objective_type:
+		"survive":
+			player.heal(1)
+			_bonus_attack_speed_time = maxf(_bonus_attack_speed_time, 7.0)
+			_wave_objective_reward_text = "回命 + 急速 7 秒"
+		"kills":
+			_bonus_damage_time = maxf(_bonus_damage_time, 9.0)
+			_bonus_multishot_time = maxf(_bonus_multishot_time, 9.0)
+			_wave_objective_reward_text = "额外伤害 + 连发 9 秒"
+		"elite":
+			player.heal(1)
+			_bonus_pierce_time = maxf(_bonus_pierce_time, 10.0)
+			_bonus_attack_speed_time = maxf(_bonus_attack_speed_time, 6.0)
+			_wave_objective_reward_text = "回命 + 穿透 + 急速"
+	_show_center_notice("军令达成 · %s" % _wave_objective_reward_text, HUD_MINT)
+	_spawn_popup(player.global_position + Vector2(0, -46), "军令达成", HUD_MINT)
+	_spawn_burst(player.global_position, HUD_MINT, 1.28, 1.12)
+	_spawn_slash(player.global_position, -PI * 0.5, HUD_MINT, 1.26, 1.0)
+	_flash_screen(HUD_MINT, 0.10, 0.14)
+	_on_player_xp_changed(player.xp, player.xp_to_next, player.level)
+
+func _queue_wave_spawn_patterns() -> void:
+	_queued_spawn_positions.clear()
+	if wave_index < 3:
+		return
+	var flank_distance := minf(spawn_radius_max, maxf(spawn_radius_min + 30.0, 470.0))
+	var left_flank := player.global_position + Vector2(-flank_distance, randf_range(-120.0, 120.0))
+	var right_flank := player.global_position + Vector2(flank_distance, randf_range(-120.0, 120.0))
+	if wave_index % 2 == 0:
+		_queued_spawn_positions.append(left_flank)
+		_queued_spawn_positions.append(right_flank)
+	if wave_index >= 4:
+		var escort_center := player.global_position + Vector2.RIGHT.rotated(randf_range(-0.45, 0.45) + PI) * minf(spawn_radius_max, 510.0)
+		_queued_spawn_positions.append(escort_center + Vector2(-32.0, 18.0))
+		_queued_spawn_positions.append(escort_center + Vector2(32.0, -18.0))
 
 func _get_spawn_position() -> Vector2:
 	var player_position := player.global_position
@@ -914,6 +1181,12 @@ func _get_spawn_position() -> Vector2:
 	var fallback_angle := randf_range(0.0, TAU)
 	return player_position + Vector2.RIGHT.rotated(fallback_angle) * spawn_max
 
+func _reset_touch_input_state() -> void:
+	if joystick != null and joystick.has_method("cancel_input"):
+		joystick.cancel_input()
+	if player != null and player.has_method("set_external_input_vector"):
+		player.set_external_input_vector(Vector2.ZERO)
+
 func _on_joystick_vector_changed(direction: Vector2) -> void:
 	if player != null and player.has_method("set_external_input_vector"):
 		player.set_external_input_vector(direction)
@@ -923,6 +1196,25 @@ func _on_joystick_vector_changed(direction: Vector2) -> void:
 func _add_camera_shake(strength: float, duration: float) -> void:
 	_camera_shake_strength = maxf(_camera_shake_strength, strength)
 	_camera_shake_time = maxf(_camera_shake_time, duration)
+
+func _update_combo_meter(delta: float) -> void:
+	if combo_meter == null:
+		return
+	if combo_meter.visible and _combo_meter_tween == null:
+		combo_meter.modulate.a = maxf(0.0, combo_meter.modulate.a - delta * 1.8)
+		if combo_meter.modulate.a <= 0.01:
+			combo_meter.visible = false
+
+func _update_low_health_vignette(delta: float) -> void:
+	if low_health_vignette == null:
+		return
+	_low_health_pulse_time += delta
+	var target_alpha := 0.0
+	if game_over:
+		target_alpha = 0.22
+	elif not pause_requested and not demo_clear and player != null and player.health <= 2:
+		target_alpha = 0.06 + (sin(_low_health_pulse_time * 5.4) * 0.5 + 0.5) * 0.10
+	low_health_vignette.color = Color(HUD_DANGER.r, HUD_DANGER.g * 0.58, HUD_DANGER.b * 0.52, lerpf(low_health_vignette.color.a, target_alpha, delta * 6.0))
 
 func _update_camera_feedback(delta: float) -> void:
 	if player_camera == null:
@@ -946,6 +1238,8 @@ func _resume_run() -> void:
 
 func _set_pause_state(should_pause: bool) -> void:
 	pause_requested = should_pause
+	if should_pause:
+		_reset_touch_input_state()
 	get_tree().paused = should_pause
 	if pause_button != null:
 		pause_button.text = "继续试炼" if should_pause else "暂停"
@@ -973,6 +1267,26 @@ func _get_settlement_title(cleared: bool) -> String:
 	if wave_index >= 3:
 		return "流沙试锋"
 	return "花果山试手"
+
+func _get_combo_rank_text(streak_value: int) -> String:
+	if streak_value >= 20:
+		return "破阵"
+	if streak_value >= 12:
+		return "压场"
+	if streak_value >= 8:
+		return "起煞"
+	return "起势"
+
+func _get_settlement_stamp_text() -> String:
+	if demo_clear and kill_count >= 180:
+		return "战绩总评 · 大圣巡山"
+	if demo_clear:
+		return "战绩总评 · 戏台喝彩"
+	if game_over and wave_index >= 5:
+		return "战绩总评 · 火云鏖战"
+	if pause_requested:
+		return "战绩总评 · 暂歇整装"
+	return "战绩总评 · 山门守成"
 
 func _get_medal_line() -> String:
 	var medal := "铜符"
@@ -1011,6 +1325,7 @@ func _build_run_summary(title_text: String) -> String:
 	]
 
 func _reload_scene() -> void:
+	_reset_touch_input_state()
 	get_tree().paused = false
 	get_tree().reload_current_scene()
 
@@ -1119,7 +1434,9 @@ func _apply_ui_style() -> void:
 		medal_label: HUD_WARNING,
 		focus_detail: HUD_PAPER,
 		summary_label: HUD_PAPER,
-		mobile_hint: HUD_PAPER
+		mobile_hint: HUD_PAPER,
+		combo_meter: HUD_WARNING,
+		settlement_stamp: HUD_ROSE
 	}
 
 	for label in label_color_map.keys():
@@ -1140,12 +1457,16 @@ func _apply_ui_style() -> void:
 	banner_label.add_theme_font_size_override("font_size", 26)
 	if banner_sub_label != null:
 		banner_sub_label.add_theme_font_size_override("font_size", 14)
+	if combo_meter != null:
+		combo_meter.add_theme_font_size_override("font_size", 28)
 	if center_notice_label != null:
 		center_notice_label.add_theme_font_size_override("font_size", 24)
 	focus_badge.add_theme_font_size_override("font_size", 15)
 	focus_title.add_theme_font_size_override("font_size", 24)
 	if medal_label != null:
 		medal_label.add_theme_font_size_override("font_size", 18)
+	if settlement_stamp != null:
+		settlement_stamp.add_theme_font_size_override("font_size", 18)
 	focus_detail.add_theme_font_size_override("font_size", 17)
 	summary_label.add_theme_font_size_override("font_size", 16)
 	mobile_hint.add_theme_font_size_override("font_size", 16)
