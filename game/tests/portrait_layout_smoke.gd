@@ -63,6 +63,8 @@ func _validate_portrait_layout(target_size: Vector2i) -> void:
 	var pause_button_node := scene.get_node_or_null("HUD/PauseButton") as Control
 	var focus_panel_node := scene.get_node_or_null("HUD/FocusOverlay/PanelContainer") as Control
 	var center_notice_node := scene.get_node_or_null("HUD/CenterNotice") as Control
+	var weapon_label_node := scene.get_node_or_null("HUD/MarginContainer/VBoxContainer/WeaponLabel") as Control
+	var tip_label_node := scene.get_node_or_null("HUD/MarginContainer/VBoxContainer/TipLabel") as Control
 	if hud_card_bg_node != null:
 		_assert_rect_inside(viewport_rect, hud_card_bg_node.get_global_rect(), "HudCardBg", target_size)
 	if status_card_bg_node != null:
@@ -97,6 +99,14 @@ func _validate_portrait_layout(target_size: Vector2i) -> void:
 			_assert(not dash_button.get_global_rect().intersects(hrect), "%s: mobile hint should not overlap dash button" % _fmt_size(target_size))
 	if action_tray_bg_node != null:
 		_assert(not action_tray_bg_node.visible, "%s: action tray should stay hidden during active portrait combat" % _fmt_size(target_size))
+	if weapon_label_node != null:
+		_assert(not weapon_label_node.visible, "%s: weapon label should collapse in active portrait combat" % _fmt_size(target_size))
+	if tip_label_node != null:
+		_assert(not tip_label_node.visible, "%s: tip label should collapse in active portrait combat" % _fmt_size(target_size))
+	if center_notice_node != null and top_center_node != null:
+		scene.call("_show_center_notice", "修为精进 · 行者 2 重", Color(0.62, 0.94, 0.75, 1.0))
+		await process_frame
+		_assert(center_notice_node.get_global_rect().position.y >= top_center_node.get_global_rect().end.y - 1.0, "%s: center notice should stay below top banner block" % _fmt_size(target_size))
 
 	# Pause / settlement state should still fit on mobile.
 	scene.call("_set_pause_state", true)

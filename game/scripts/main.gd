@@ -324,6 +324,23 @@ func _unhandled_input(event: InputEvent) -> void:
 	if (game_over or demo_clear or pause_requested) and event.is_action_pressed("restart_run"):
 		_reload_scene()
 
+func _is_portrait_layout() -> bool:
+	var viewport_size := get_viewport_rect().size
+	return viewport_size.y > viewport_size.x
+
+func _set_portrait_combat_hud_compact(portrait_layout: bool, overlay_actions: bool) -> void:
+	var compact_battle_hud := portrait_layout and not overlay_actions
+	if hud_weapon != null:
+		hud_weapon.visible = not compact_battle_hud
+	if hud_tip != null:
+		hud_tip.visible = not compact_battle_hud
+	if hud_meta_divider != null:
+		hud_meta_divider.visible = true
+	if hud_objective_divider != null:
+		hud_objective_divider.visible = not compact_battle_hud
+	if banner_sub_label != null and banner_sub_label.visible:
+		banner_sub_label.visible = not compact_battle_hud
+
 func _refresh_hud_layout() -> void:
 	var viewport_size := get_viewport_rect().size
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
@@ -341,9 +358,10 @@ func _refresh_hud_layout() -> void:
 	var overlay_center_y := minf(viewport_size.y * (0.40 if portrait_layout else 0.50), viewport_size.y - overlay_panel_height * 0.5 - bottom_margin - 26.0)
 	var center_notice_width := minf(viewport_size.x - side_margin * 2.0, 488.0 if not compact_layout else 452.0)
 	var center_notice_height := 68.0 if portrait_layout else 60.0
+	_set_portrait_combat_hud_compact(portrait_layout, overlay_actions)
 
 	if portrait_layout:
-		var hud_card_bottom := minf(viewport_size.y * 0.30, 266.0)
+		var hud_card_bottom := minf(viewport_size.y * 0.245, 214.0)
 		if hud_card_bg != null:
 			hud_card_bg.offset_left = side_margin
 			hud_card_bg.offset_top = top_margin
@@ -360,8 +378,8 @@ func _refresh_hud_layout() -> void:
 			hud_margin_container.offset_right = viewport_size.x - side_margin - 8.0
 			hud_margin_container.offset_bottom = hud_card_bottom - 10.0
 
-		var status_top := hud_card_bottom + 10.0
-		var status_bottom := status_top + 68.0
+		var status_top := hud_card_bottom + 8.0
+		var status_bottom := status_top + 60.0
 		if status_card_bg != null:
 			status_card_bg.anchor_left = 0.0
 			status_card_bg.anchor_right = 1.0
@@ -393,8 +411,8 @@ func _refresh_hud_layout() -> void:
 			status_label.offset_bottom = status_bottom - 8.0
 			status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
-		var top_center_top := status_bottom + 8.0
-		var top_center_bottom := top_center_top + 64.0
+		var top_center_top := status_bottom + 6.0
+		var top_center_bottom := top_center_top + 52.0
 		if top_center != null:
 			top_center.anchor_left = 0.0
 			top_center.anchor_right = 1.0
@@ -406,31 +424,31 @@ func _refresh_hud_layout() -> void:
 			banner_backing.offset_left = 0.0
 			banner_backing.offset_top = 6.0
 			banner_backing.offset_right = viewport_size.x - side_margin * 2.0
-			banner_backing.offset_bottom = 54.0
+			banner_backing.offset_bottom = 44.0
 		if banner_accent != null:
-			banner_accent.offset_left = 18.0
+			banner_accent.offset_left = 20.0
 			banner_accent.offset_top = 8.0
-			banner_accent.offset_right = viewport_size.x - side_margin * 2.0 - 18.0
+			banner_accent.offset_right = viewport_size.x - side_margin * 2.0 - 20.0
 			banner_accent.offset_bottom = 12.0
 		if banner_label != null:
 			banner_label.offset_left = 0.0
 			banner_label.offset_top = 0.0
 			banner_label.offset_right = viewport_size.x - side_margin * 2.0
-			banner_label.offset_bottom = 34.0
+			banner_label.offset_bottom = 40.0
 		if banner_sub_label != null:
 			banner_sub_label.offset_left = 0.0
-			banner_sub_label.offset_top = 30.0
+			banner_sub_label.offset_top = 24.0
 			banner_sub_label.offset_right = viewport_size.x - side_margin * 2.0
-			banner_sub_label.offset_bottom = 60.0
+			banner_sub_label.offset_bottom = 50.0
 		if combo_meter != null:
 			combo_meter.anchor_left = 0.0
 			combo_meter.anchor_right = 1.0
 			combo_meter.offset_left = side_margin + 14.0
 			combo_meter.offset_right = -side_margin - 14.0
-			combo_meter.offset_top = top_center_bottom + 10.0
-			combo_meter.offset_bottom = top_center_bottom + 56.0
+			combo_meter.offset_top = top_center_bottom + 8.0
+			combo_meter.offset_bottom = top_center_bottom + 48.0
 
-		var pause_top := top_center_bottom + 10.0
+		var pause_top := top_center_bottom + 8.0
 		var pause_bottom := pause_top + 46.0
 		if pause_button != null:
 			pause_button.anchor_left = 1.0
@@ -734,7 +752,7 @@ func _refresh_hud_layout() -> void:
 		center_notice.anchor_right = 0.5
 		center_notice.anchor_bottom = 0.0
 		center_notice.offset_left = -center_notice_width * 0.5
-		center_notice.offset_top = (viewport_size.y * 0.32) if portrait_layout else (viewport_size.y * 0.34)
+		center_notice.offset_top = (viewport_size.y * 0.44) if portrait_layout else (viewport_size.y * 0.34)
 		center_notice.offset_right = center_notice_width * 0.5
 		center_notice.offset_bottom = center_notice.offset_top + center_notice_height
 		if center_notice_backing != null:
@@ -1395,9 +1413,16 @@ func _update_meta_hud() -> void:
 	var minutes := int(total_seconds / 60)
 	var seconds := total_seconds % 60
 	var next_wave_in := maxi(0, int(ceil(float(wave_index) * wave_length_seconds - elapsed_time)))
-	hud_timer.text = "时辰 %02d:%02d / %02d:%02d" % [minutes, seconds, int(demo_goal_seconds) / 60, int(demo_goal_seconds) % 60]
-	hud_kills.text = "斩妖 %d  ·  头目 %d" % [kill_count, _elites_spawned_total]
-	hud_wave.text = "第%d劫：%s  ·  下波 %02ds" % [wave_index, _get_wave_title(wave_index), next_wave_in]
+	var portrait_layout := _is_portrait_layout()
+	if portrait_layout:
+		hud_timer.text = "时辰 %02d:%02d" % [minutes, seconds]
+		hud_kills.text = "斩 %d · 头目 %d" % [kill_count, _elites_spawned_total]
+		hud_enemies.text = "场上 %d/%d" % [enemies.get_child_count(), max_alive_enemies]
+		hud_wave.text = "第%d劫 · %s · %02ds" % [wave_index, _get_wave_title(wave_index), next_wave_in]
+	else:
+		hud_timer.text = "时辰 %02d:%02d / %02d:%02d" % [minutes, seconds, int(demo_goal_seconds) / 60, int(demo_goal_seconds) % 60]
+		hud_kills.text = "斩妖 %d  ·  头目 %d" % [kill_count, _elites_spawned_total]
+		hud_wave.text = "第%d劫：%s  ·  下波 %02ds" % [wave_index, _get_wave_title(wave_index), next_wave_in]
 	var target_label: String = String(OBJECTIVE_LABELS.get(_wave_objective_type, "稳住阵脚"))
 	var objective_progress := "%d/%d" % [_wave_objective_progress, max(1, _wave_objective_target)]
 	if _wave_objective_type == "survive":
@@ -1405,22 +1430,34 @@ func _update_meta_hud() -> void:
 	var reward_tail := ""
 	if _wave_objective_completed and _wave_objective_reward_text != "":
 		reward_tail = " · 已得 %s" % _wave_objective_reward_text
-	hud_objective.text = "本劫军令：%s %s%s" % [target_label, objective_progress, reward_tail]
+	if portrait_layout:
+		if _wave_objective_completed and _wave_objective_reward_text != "":
+			reward_tail = " · 奖 %s" % _wave_objective_reward_text
+		hud_objective.text = "军令：%s %s%s" % [target_label, objective_progress, reward_tail]
+	else:
+		hud_objective.text = "本劫军令：%s %s%s" % [target_label, objective_progress, reward_tail]
 
 func _update_status_card() -> void:
 	if status_label == null:
 		return
 	var next_heal_goal := (_heals_awarded_by_kills + 1) * 25
 	var kills_to_heal := maxi(0, next_heal_goal - kill_count)
+	var portrait_layout := _is_portrait_layout()
 	var badge_text := "香火签"
 	var status_title := "金箍势稳"
 	var status_detail := "福泽香火未满，离下一口回命还差 %d 斩妖。当前军功 %d。" % [kills_to_heal, _merit_stacks]
+	if portrait_layout:
+		status_detail = "回命还差 %d 斩 · 军功 %d" % [kills_to_heal, _merit_stacks]
 	if not _wave_objective_completed:
 		status_detail = "当前军令：%s · 已攒军功 %d" % [OBJECTIVE_DETAILS.get(_wave_objective_type, "先稳住这一劫的节奏。"), _merit_stacks]
+		if portrait_layout:
+			status_detail = "军令未完 · %s" % OBJECTIVE_LABELS.get(_wave_objective_type, "稳住阵脚")
 	if _kill_streak >= 4 and _kill_streak_timer > 0.0:
 		badge_text = "连斩签"
 		status_title = "连斩起势"
 		status_detail = "当前连斩 %d · 再接住节奏，可把妖潮压成空档。" % _kill_streak
+		if portrait_layout:
+			status_detail = "连斩 %d · 继续压场" % _kill_streak
 	var status_color := HUD_PAPER
 	var accent_color := HUD_GOLD
 	var background_color := HUD_PANEL
@@ -1428,6 +1465,8 @@ func _update_status_card() -> void:
 		badge_text = "败阵签"
 		status_title = "败阵回看"
 		status_detail = "本局招式已经记下，按 R / 按钮重开，再试一套更顺的走位。"
+		if portrait_layout:
+			status_detail = "本局已记档 · 右下可重开"
 		status_color = HUD_DANGER
 		accent_color = HUD_DANGER
 		background_color = Color(0.22, 0.08, 0.08, 0.82)
@@ -1435,6 +1474,8 @@ func _update_status_card() -> void:
 		badge_text = "喝彩签"
 		status_title = "大圣喝彩"
 		status_detail = "三分钟试炼已过，可立刻再闯一局，继续冲更高斩妖与修为。"
+		if portrait_layout:
+			status_detail = "试炼已过 · 可继续冲分"
 		status_color = HUD_MINT
 		accent_color = HUD_MINT
 		background_color = Color(0.10, 0.16, 0.12, 0.82)
@@ -1442,6 +1483,8 @@ func _update_status_card() -> void:
 		badge_text = "暂歇签"
 		status_title = "戏台暂歇"
 		status_detail = "当前波次与战报都保留着，点继续试炼即可无缝回场。"
+		if portrait_layout:
+			status_detail = "战报保留中 · 可直接续战"
 		status_color = HUD_SKY
 		accent_color = HUD_SKY
 		background_color = Color(0.08, 0.12, 0.18, 0.82)
@@ -1449,6 +1492,8 @@ func _update_status_card() -> void:
 		badge_text = "告急签"
 		status_title = "命火告急"
 		status_detail = "先筋斗闪拉位，再收修为球续命；这局别跟妖群硬换。"
+		if portrait_layout:
+			status_detail = "先闪再拉位 · 别硬换"
 		status_color = HUD_DANGER
 		accent_color = HUD_DANGER
 		background_color = Color(0.22, 0.08, 0.08, 0.82)
@@ -1456,6 +1501,8 @@ func _update_status_card() -> void:
 		badge_text = "压阵签"
 		status_title = "火云压阵"
 		status_detail = "终局妖潮已起：先避重装贴脸，留一段筋斗闪穿出包围。"
+		if portrait_layout:
+			status_detail = "先拆边路 · 留闪出围"
 		status_color = HUD_WARNING
 		accent_color = HUD_WARNING
 		background_color = Color(0.20, 0.12, 0.05, 0.82)
@@ -1463,6 +1510,8 @@ func _update_status_card() -> void:
 		badge_text = "军令签"
 		status_title = "赏功加身"
 		status_detail = "%s，趁赏功时段把妖潮再往回压。当前军功 %d。" % [_wave_objective_reward_text, _merit_stacks]
+		if portrait_layout:
+			status_detail = "赏功生效 · 趁势压回去"
 		status_color = HUD_MINT
 		accent_color = HUD_MINT
 		background_color = Color(0.10, 0.16, 0.12, 0.82)
@@ -1470,10 +1519,12 @@ func _update_status_card() -> void:
 		badge_text = "福泽签"
 		status_title = "福泽将满"
 		status_detail = "再斩 %d 妖，就有一口回命香火续上。" % kills_to_heal
+		if portrait_layout:
+			status_detail = "再斩 %d 妖回命" % kills_to_heal
 		status_color = HUD_MINT
 		accent_color = HUD_MINT
 		background_color = Color(0.10, 0.16, 0.12, 0.82)
-	status_label.text = "%s\n%s" % [status_title, status_detail]
+	status_label.text = ("%s · %s" if portrait_layout and not (pause_requested or game_over or demo_clear) else "%s\n%s") % [status_title, status_detail]
 	status_label.add_theme_color_override("font_color", status_color)
 	if status_badge != null:
 		status_badge.text = badge_text
@@ -1660,13 +1711,14 @@ func _hud_card_glow(glow_color: Color, alpha: float = 0.55, duration: float = 0.
 func _show_banner(text_value: String, subtitle_text: String = "妖潮播报") -> void:
 	if banner_label == null:
 		return
+	var portrait_compact := _is_portrait_layout() and not (pause_requested or game_over or demo_clear)
 	banner_label.text = text_value
 	banner_label.modulate = Color(1, 1, 1, 1)
 	banner_label.visible = true
 	if banner_sub_label != null:
 		banner_sub_label.text = subtitle_text
 		banner_sub_label.modulate = Color(1, 1, 1, 1)
-		banner_sub_label.visible = true
+		banner_sub_label.visible = not portrait_compact
 	if banner_backing != null:
 		banner_backing.modulate = Color(1, 1, 1, 1)
 		banner_backing.visible = true
@@ -1674,14 +1726,14 @@ func _show_banner(text_value: String, subtitle_text: String = "妖潮播报") ->
 		banner_accent.modulate = Color(1, 1, 1, 1)
 		banner_accent.visible = true
 	var tween := create_tween()
-	tween.tween_interval(1.15)
-	tween.parallel().tween_property(banner_label, "modulate", Color(1, 1, 1, 0), 0.45)
+	tween.tween_interval(0.86 if portrait_compact else 1.15)
+	tween.parallel().tween_property(banner_label, "modulate", Color(1, 1, 1, 0), 0.36 if portrait_compact else 0.45)
 	if banner_sub_label != null:
-		tween.parallel().tween_property(banner_sub_label, "modulate", Color(1, 1, 1, 0), 0.45)
+		tween.parallel().tween_property(banner_sub_label, "modulate", Color(1, 1, 1, 0), 0.24 if portrait_compact else 0.45)
 	if banner_backing != null:
-		tween.parallel().tween_property(banner_backing, "modulate", Color(1, 1, 1, 0), 0.45)
+		tween.parallel().tween_property(banner_backing, "modulate", Color(1, 1, 1, 0), 0.30 if portrait_compact else 0.45)
 	if banner_accent != null:
-		tween.parallel().tween_property(banner_accent, "modulate", Color(1, 1, 1, 0), 0.45)
+		tween.parallel().tween_property(banner_accent, "modulate", Color(1, 1, 1, 0), 0.30 if portrait_compact else 0.45)
 	tween.finished.connect(func():
 		banner_label.visible = false
 		if banner_sub_label != null:
@@ -1695,6 +1747,9 @@ func _show_banner(text_value: String, subtitle_text: String = "妖潮播报") ->
 func _show_center_notice(text_value: String, accent_color: Color = HUD_GOLD) -> void:
 	if center_notice == null or center_notice_label == null:
 		return
+	var portrait_compact := _is_portrait_layout() and not (pause_requested or game_over or demo_clear)
+	var hold_time := 0.42 if portrait_compact else 0.72
+	var fade_time := 0.18 if portrait_compact else 0.24
 	center_notice.visible = true
 	center_notice.position = _center_notice_base_position + Vector2(0.0, 8.0)
 	center_notice.scale = Vector2(0.96, 0.96)
@@ -1710,18 +1765,18 @@ func _show_center_notice(text_value: String, accent_color: Color = HUD_GOLD) -> 
 		_center_notice_tween.kill()
 	_center_notice_tween = create_tween()
 	_center_notice_tween.set_parallel(true)
-	_center_notice_tween.tween_property(center_notice_backing, "modulate", Color(1, 1, 1, 1), 0.12)
-	_center_notice_tween.tween_property(center_notice_accent, "modulate", Color(1, 1, 1, 1), 0.12)
-	_center_notice_tween.tween_property(center_notice, "position", _center_notice_base_position, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_center_notice_tween.tween_property(center_notice, "rotation", 0.0, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_center_notice_tween.tween_property(center_notice, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_center_notice_tween.tween_property(center_notice_label, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_center_notice_tween.chain().tween_interval(0.72)
+	_center_notice_tween.tween_property(center_notice_backing, "modulate", Color(1, 1, 1, 1), 0.10 if portrait_compact else 0.12)
+	_center_notice_tween.tween_property(center_notice_accent, "modulate", Color(1, 1, 1, 1), 0.10 if portrait_compact else 0.12)
+	_center_notice_tween.tween_property(center_notice, "position", _center_notice_base_position, 0.14 if portrait_compact else 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_center_notice_tween.tween_property(center_notice, "rotation", 0.0, 0.14 if portrait_compact else 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_center_notice_tween.tween_property(center_notice, "scale", Vector2.ONE, 0.16 if portrait_compact else 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_center_notice_tween.tween_property(center_notice_label, "scale", Vector2.ONE, 0.14 if portrait_compact else 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_center_notice_tween.chain().tween_interval(hold_time)
 	_center_notice_tween.set_parallel(true)
-	_center_notice_tween.tween_property(center_notice_backing, "modulate", Color(1, 1, 1, 0), 0.24)
-	_center_notice_tween.tween_property(center_notice_accent, "modulate", Color(1, 1, 1, 0), 0.24)
-	_center_notice_tween.tween_property(center_notice_label, "modulate", Color(1, 1, 1, 0), 0.24)
-	_center_notice_tween.tween_property(center_notice, "position", _center_notice_base_position + Vector2(0.0, -6.0), 0.24)
+	_center_notice_tween.tween_property(center_notice_backing, "modulate", Color(1, 1, 1, 0), fade_time)
+	_center_notice_tween.tween_property(center_notice_accent, "modulate", Color(1, 1, 1, 0), fade_time)
+	_center_notice_tween.tween_property(center_notice_label, "modulate", Color(1, 1, 1, 0), fade_time)
+	_center_notice_tween.tween_property(center_notice, "position", _center_notice_base_position + Vector2(0.0, -6.0), fade_time)
 	_center_notice_tween.finished.connect(func():
 		center_notice.visible = false
 		center_notice.position = _center_notice_base_position
@@ -2226,19 +2281,28 @@ func _apply_mobile_font_scaling() -> void:
 	var large_font_size := int(26.0 * scale)
 	var xl_font_size := int(28.0 * scale)
 	var button_font_size := int(22.0 * scale)
+	var portrait_emphasis := 2 if is_portrait else 0
 
 	if hud_level != null:
-		hud_level.add_theme_font_size_override("font_size", maxi(base_font_size, 17))
+		hud_level.add_theme_font_size_override("font_size", maxi(base_font_size + portrait_emphasis, 17))
+	if hud_health != null:
+		hud_health.add_theme_font_size_override("font_size", maxi(medium_font_size + portrait_emphasis, 16))
+	if hud_enemies != null:
+		hud_enemies.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+	if hud_timer != null:
+		hud_timer.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+	if hud_kills != null:
+		hud_kills.add_theme_font_size_override("font_size", maxi(small_font_size + (1 if is_portrait else 0), 13))
 	if hud_wave != null:
-		hud_wave.add_theme_font_size_override("font_size", maxi(medium_font_size, 15))
+		hud_wave.add_theme_font_size_override("font_size", maxi(medium_font_size + (1 if is_portrait else 0), 15))
 	if hud_objective != null:
-		hud_objective.add_theme_font_size_override("font_size", maxi(small_font_size, 14))
+		hud_objective.add_theme_font_size_override("font_size", maxi(small_font_size + portrait_emphasis, 14))
 	if hud_tip != null:
 		hud_tip.add_theme_font_size_override("font_size", maxi(small_font_size, 14))
 	if status_badge != null:
-		status_badge.add_theme_font_size_override("font_size", maxi(small_font_size - 2, 11))
+		status_badge.add_theme_font_size_override("font_size", maxi(small_font_size - 1 + (1 if is_portrait else 0), 11))
 	if status_label != null:
-		status_label.add_theme_font_size_override("font_size", maxi(small_font_size, 14))
+		status_label.add_theme_font_size_override("font_size", maxi(small_font_size + (1 if is_portrait else 0), 14))
 	if banner_label != null:
 		banner_label.add_theme_font_size_override("font_size", maxi(large_font_size, 20))
 	if banner_sub_label != null:

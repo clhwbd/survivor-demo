@@ -17,6 +17,38 @@
 
 ## 2026-03-21
 
+### 03:36 手机可玩性二段优化：竖屏战斗 HUD 再压缩、临时提示缩时、关键数值提权
+
+- 动作：承接上一轮手机端 UI / 触控收口，继续直接改竖屏战斗 HUD 与播报逻辑，目标是让手机竖屏下既不乱也不空；重点收掉重复信息、缩短临时提示霸屏时间，并把命火 / 军令 / 波次这些真正需要盯的内容再提权。
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `game/tests/portrait_layout_smoke.gd`
+  - `builds/web-release/index.html`
+  - `builds/web-release/index.pck`
+  - `builds/web/index.html`
+  - `builds/web/index.html.gz`
+  - `builds/web/index.pck`
+  - `builds/web/index.pck.gz`
+  - `docs/worklog.md`
+- 具体改动：
+  - 继续压缩竖屏战斗常驻 HUD：战斗态下隐藏 `WeaponLabel` 与 `TipLabel` 两块重复信息，只保留等级 / 命火 / 场上压力 / 时辰 / 斩妖 / 军令 / 修为等核心项，把左上信息账本高度进一步压低，给实际战斗视野让位。
+  - 重写竖屏文案密度：`妖群 / 斩妖 / 波次 / 军令` 在竖屏下切为更短句式（如“场上 8/16”“军令：清妖 5/11”），减少小屏多行换行和视觉噪声。
+  - 精简右上状态签：竖屏战斗时把状态卡正文改成更短的单行行动结论，比如“先闪再拉位”“连斩 8 · 继续压场”“再斩 3 妖回命”，避免与左上军令/提示重复讲大段话。
+  - 缩短临时播报占屏：顶部横幅在竖屏战斗中默认只保留主标题并缩短停留；中心提示也改成更短 hold/fade，并整体下移，避免升级/波次/连斩提示一直压着上半屏。
+  - 强化关键数值权重：竖屏下提高 `命火 / 军令 / 波次` 等关键文本字号，反过来压低 `场上 / 时辰 / 斩妖` 这些辅助信息的权重，让小屏阅读顺序更稳定。
+  - 扩展竖屏 smoke：新增断言，要求活跃竖屏战斗中 `WeaponLabel`/`TipLabel` 已折叠，且 `CenterNotice` 不会重新顶回顶部播报区域，防止后续再次回归成“提示叠提示”。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/portrait_layout_smoke.gd`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/touch_joystick_smoke.gd`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 5`
+  - `./tests/smoke/release_guard.sh`
+- 验证结果：
+  - `portrait_layout_smoke: ok`，并新增覆盖“竖屏战斗态 HUD 折叠”和“中心提示不压回顶部播报区”。
+  - `touch_joystick_smoke: ok`。
+  - 主场景 headless 加载退出码 `0`。
+  - `release_guard.sh` 完整通过，确认 Web 导出、压缩构建与现有验收链路未被这轮 HUD/提示改动破坏。
+- 提交：本轮提交信息 `fix: refine portrait combat HUD readability`
+
 ### 03:21 地图表现模块二段增强：区域气质、地表层次、锚点节奏继续推进
 
 - 动作：承接地图表现模块首版，不再只停留在“视野里终于有参照物”，继续把程序化地图往**更有区域气质与层次感**推进；本轮重点仍然是轻量、稳定、可复用，不靠重贴图和高密度摆件去堆。
