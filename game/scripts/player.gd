@@ -1,6 +1,7 @@
 extends CharacterBody2D
 
 signal xp_changed(current_xp: int, xp_to_next: int, level: int)
+signal xp_collected(amount: int, world_position: Vector2)
 signal stats_changed(health: int, max_health: int, level: int)
 signal died
 signal dash_state_changed(is_ready: bool, cooldown_remaining: float, is_dashing: bool)
@@ -165,6 +166,7 @@ func collect_xp(amount: int) -> void:
 
 	xp_changed.emit(xp, xp_to_next, level)
 	stats_changed.emit(health, max_health, level)
+	xp_collected.emit(amount, global_position)
 
 func _flash(color_value: Color, duration: float) -> void:
 	if body_polygon == null:

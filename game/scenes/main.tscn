@@ -125,6 +125,9 @@ autowrap_mode = 3
 text = "行者走位：WASD 挪身 · Space 筋斗闪 · 法术会自动寻妖"
 autowrap_mode = 3
 
+[node name="XPLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
+text = "修为 0 / 5"
+
 [node name="XPBar" type="ProgressBar" parent="HUD/MarginContainer/VBoxContainer"]
 custom_minimum_size = Vector2(280, 24)
 value = 0.0
@@ -468,6 +471,21 @@ offset_bottom = -108.0
 grow_horizontal = 0
 grow_vertical = 0
 text = "筋斗闪"
+
+[node name="CooldownBar" type="ColorRect" parent="HUD/DashButton"]
+visible = false
+anchors_preset = 10
+anchor_left = 0.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = -10.0
+offset_right = 0.0
+offset_bottom = 0.0
+grow_horizontal = 2
+grow_vertical = 0
+color = Color(0.26, 0.80, 0.46, 0.72)
 
 [node name="MobileHintBg" type="ColorRect" parent="HUD"]
 visible = false

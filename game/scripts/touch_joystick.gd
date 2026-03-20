@@ -13,6 +13,16 @@ var _active_pointer := -1
 var _current_vector := Vector2.ZERO
 var _knob_offset := Vector2.ZERO
 
+# Touch ripple state
+var _ripple_active := false
+var _ripple_center := Vector2.ZERO
+var _ripple_radius := 0.0
+const RIPPLE_MAX_RADIUS := 72.0
+const RIPPLE_DURATION := 0.40
+
+# Touch start flash
+var _flash_alpha := 0.0
+
 func _ready() -> void:
 	custom_minimum_size = Vector2(base_radius * 2.8, base_radius * 2.8)
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -24,6 +34,15 @@ func _notification(what: int) -> void:
 	elif what == NOTIFICATION_VISIBILITY_CHANGED and not is_visible_in_tree():
 		cancel_input()
 
+func _process(delta: float) -> void:
+	if _ripple_active:
+		_ripple_radius += delta * (RIPPLE_MAX_RADIUS / RIPPLE_DURATION)
+		_flash_alpha = maxf(0.0, _flash_alpha - delta * 6.0)
+		if _ripple_radius >= RIPPLE_MAX_RADIUS:
+			_ripple_active = false
+			_ripple_radius = 0.0
+		queue_redraw()
+
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		_handle_touch(event)
@@ -33,6 +52,7 @@ func _gui_input(event: InputEvent) -> void:
 		if event.pressed:
 			if get_global_rect().has_point(event.global_position):
 				_active_pointer = -2
+				_trigger_ripple(event.global_position)
 				_update_from_global(event.global_position)
 				accept_event()
 		else:
@@ -47,6 +67,7 @@ func _handle_touch(event: InputEventScreenTouch) -> void:
 	if event.pressed:
 		if get_global_rect().has_point(event.position):
 			_active_pointer = event.index
+			_trigger_ripple(event.position)
 			_update_from_global(event.position)
 			accept_event()
 	elif event.index == _active_pointer:
@@ -59,9 +80,17 @@ func _handle_drag(pointer_index: int, screen_position: Vector2) -> void:
 	_update_from_global(screen_position)
 	accept_event()
 
+func _trigger_ripple(screen_position: Vector2) -> void:
+	var local: Vector2 = screen_position - global_position
+	_ripple_center = local
+	_ripple_radius = 0.0
+	_ripple_active = true
+	_flash_alpha = 0.5
+	queue_redraw()
+
 func _update_from_global(screen_position: Vector2) -> void:
-	var center: Vector2 = global_position + size * 0.5
-	var delta: Vector2 = screen_position - center
+	var center: Vector2 = size * 0.5
+	var delta: Vector2 = screen_position - global_position - center
 	var distance: float = minf(delta.length(), engage_radius)
 	var normalized: Vector2 = Vector2.ZERO
 	if distance > 0.0:
@@ -96,10 +125,30 @@ func _draw() -> void:
 	var knob_highlight := Color(0.99, 0.92, 0.80, 0.28)
 	var active_ring := Color(0.62, 0.94, 0.76, 0.32) if _current_vector.length() > 0.0 else ring_color
 
+	# Background shadow
 	draw_circle(center, engage_radius, Color(0, 0, 0, 0.08))
+
+	# Touch ripple (behind everything)
+	if _ripple_active:
+		var ripple_t := _ripple_radius / RIPPLE_MAX_RADIUS
+		var ripple_col := Color(0.62, 0.94, 0.76, (1.0 - ripple_t) * 0.55)
+		draw_circle(_ripple_center, _ripple_radius, ripple_col)
+
+	# Touch start flash overlay on base
+	if _flash_alpha > 0.0:
+		var flash_col := Color(0.62, 0.94, 0.76, _flash_alpha * 0.18)
+		draw_circle(center, base_radius + 10.0, flash_col)
+
+	# Main base
 	draw_circle(center, base_radius + 10.0, base_color)
 	draw_circle(center, base_radius - 6.0, base_inner)
+
+	# Active ring
 	draw_arc(center, engage_radius, 0.0, TAU, 56, active_ring, 4.0)
+
+	# Knob shadow
 	draw_circle(center + _knob_offset, knob_radius + 6.0, Color(0, 0, 0, 0.16))
+
+	# Knob
 	draw_circle(center + _knob_offset, knob_radius, knob_color)
 	draw_circle(center + _knob_offset + Vector2(-6, -7), knob_radius * 0.42, knob_highlight)

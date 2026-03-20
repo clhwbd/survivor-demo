@@ -23,6 +23,7 @@ extends Node2D
 @export var slash_fx_scene: PackedScene
 @export var reward_pulse_scene: PackedScene
 @export var milestone_flare_scene: PackedScene
+@export var collect_pulse_scene: PackedScene
 
 const WAVE_TITLES := [
 	"花果山热身",
@@ -138,6 +139,7 @@ var _queued_spawn_entries: Array[Dictionary] = []
 @onready var hud_wave: Label = $HUD/MarginContainer/VBoxContainer/WaveLabel
 @onready var hud_objective: Label = $HUD/MarginContainer/VBoxContainer/ObjectiveLabel
 @onready var hud_tip: Label = $HUD/MarginContainer/VBoxContainer/TipLabel
+@onready var hud_xp_label: Label = $HUD/MarginContainer/VBoxContainer/XPLabel
 @onready var hud_xp_bar: ProgressBar = $HUD/MarginContainer/VBoxContainer/XPBar
 @onready var screen_flash: ColorRect = get_node_or_null("HUD/ScreenFlash") as ColorRect
 @onready var low_health_vignette: ColorRect = get_node_or_null("HUD/LowHealthVignette") as ColorRect
@@ -173,6 +175,7 @@ var _queued_spawn_entries: Array[Dictionary] = []
 @onready var pause_button: Button = $HUD/PauseButton
 @onready var joystick: Control = $HUD/TouchJoystick
 @onready var dash_button: Button = $HUD/DashButton
+@onready var dash_cooldown_bar: ColorRect = get_node_or_null("HUD/DashButton/CooldownBar")
 @onready var mobile_hint_bg: ColorRect = $HUD/MobileHintBg
 @onready var mobile_hint_accent: ColorRect = get_node_or_null("HUD/MobileHintAccent") as ColorRect
 @onready var mobile_hint_title: Label = get_node_or_null("HUD/MobileHintTitle") as Label
@@ -202,6 +205,8 @@ func _ready() -> void:
 		reward_pulse_scene = load("res://scenes/reward_pulse.tscn")
 	if milestone_flare_scene == null:
 		milestone_flare_scene = load("res://scenes/milestone_flare.tscn")
+	if collect_pulse_scene == null:
+		collect_pulse_scene = load("res://scenes/collect_pulse.tscn")
 
 	_apply_ui_style()
 	_refresh_hud_layout()
@@ -215,6 +220,7 @@ func _ready() -> void:
 	attack_timer.start()
 
 	player.xp_changed.connect(_on_player_xp_changed)
+	player.xp_collected.connect(_on_xp_collected)
 	player.stats_changed.connect(_on_player_stats_changed)
 	if player.has_signal("died"):
 		player.died.connect(_on_player_died)
@@ -457,6 +463,9 @@ func _apply_wave_state(is_initial: bool) -> void:
 		_show_center_notice("第%d劫开场 · %s" % [wave_index, _get_wave_title(wave_index)], HUD_GOLD)
 		_spawn_popup(player.global_position + Vector2(0, -32), "+1 命", HUD_MINT)
 		_spawn_burst(player.global_position, HUD_MINT, 1.2, 1.15)
+		_spawn_reward_pulse(player.global_position, HUD_GOLD, 1.08, 1.18, 6 + mini(3, wave_index / 2))
+		_spawn_milestone_flare(player.global_position + Vector2(0, -14), HUD_GOLD, 0.88 + float(wave_index) * 0.04, 0.82, 4 + mini(2, wave_index / 3))
+		_flash_screen(HUD_GOLD, 0.10, 0.14)
 		_add_camera_shake(7.0, 0.26)
 		_spawn_elite_pack_for_wave()
 	_update_tip_text()
@@ -709,6 +718,62 @@ func _on_enemy_died(enemy: Node, death_position: Vector2, xp_reward: int) -> voi
 		_spawn_burst(player.global_position, HUD_SKY, 1.15, 1.05)
 		_spawn_slash(player.global_position, -PI * 0.5, HUD_SKY, 1.18, 1.05)
 		_flash_screen(HUD_SKY, 0.12, 0.16)
+	# Kill milestones: explicit achievement moments at key thresholds
+	var milestone_threshold := 0
+	var milestone_label := ""
+	var milestone_color := HUD_GOLD
+	var milestone_xp_bonus := 0
+	var milestone_extra := ""
+	match kill_count:
+		25:
+			milestone_threshold = 25
+			milestone_label = "初露锋芒"
+			milestone_color = HUD_MINT
+			milestone_xp_bonus = 3
+			milestone_extra = "斩妖 25"
+		50:
+			milestone_threshold = 50
+			milestone_label = "斩妖除魔"
+			milestone_color = HUD_MINT
+			milestone_xp_bonus = 5
+			milestone_extra = "斩妖 50"
+		75:
+			milestone_threshold = 75
+			milestone_label = "威震四方"
+			milestone_color = HUD_GOLD
+			milestone_xp_bonus = 7
+			milestone_extra = "斩妖 75"
+		100:
+			milestone_threshold = 100
+			milestone_label = "威名远扬"
+			milestone_color = HUD_GOLD
+			milestone_xp_bonus = 10
+			milestone_extra = "斩妖破百"
+		150:
+			milestone_threshold = 150
+			milestone_label = "绝代风华"
+			milestone_color = HUD_MINT
+			milestone_xp_bonus = 15
+			milestone_extra = "斩妖 150"
+	if milestone_threshold > 0:
+		_show_center_notice("%s · %s" % [milestone_label, milestone_extra], milestone_color)
+		_spawn_popup(player.global_position + Vector2(0, -90), milestone_label, milestone_color)
+		_spawn_burst(player.global_position, milestone_color, 1.42, 1.15)
+		_spawn_slash(player.global_position, -PI * 0.5, milestone_color, 1.48, 1.18)
+		_spawn_reward_pulse(player.global_position, milestone_color, 1.28, 1.05, 12)
+		_spawn_milestone_flare(player.global_position + Vector2(0, -14), milestone_color, 1.15, 0.92, 7)
+		_flash_screen(milestone_color, 0.13, 0.18)
+		_add_camera_shake(9.0, 0.22)
+		if player != null and player.has_method("collect_xp"):
+			player.collect_xp(milestone_xp_bonus)
+		# Extra temporary buffs for high milestones
+		if milestone_threshold >= 50:
+			_bonus_attack_speed_time = maxf(_bonus_attack_speed_time, 6.0)
+		if milestone_threshold >= 75:
+			_bonus_damage_time = maxf(_bonus_damage_time, 6.0)
+		if milestone_threshold >= 100:
+			player.heal(1)
+			_bonus_multishot_time = maxf(_bonus_multishot_time, 8.0)
 	if xp_orb_scene == null:
 		return
 
@@ -721,6 +786,7 @@ func _on_enemy_died(enemy: Node, death_position: Vector2, xp_reward: int) -> voi
 	xp_orb.set("target", player)
 	xp_orb.set("magnet_distance", 110.0 + player.level * 6.0 + (18.0 if enemy != null and bool(enemy.get("is_elite")) else 0.0))
 	xp_orb.set("move_speed", 180.0 + player.level * 7.0)
+	xp_orb.set("rush_speed", 420.0 + player.level * 12.0 + (60.0 if enemy != null and bool(enemy.get("is_elite")) else 0.0))
 	pickups.call_deferred("add_child", xp_orb)
 
 func _on_player_xp_changed(current_xp: int, xp_to_next: int, level: int) -> void:
@@ -730,6 +796,8 @@ func _on_player_xp_changed(current_xp: int, xp_to_next: int, level: int) -> void
 	hud_xp_bar.value = current_xp
 	hud_xp_bar.show_percentage = false
 	hud_xp_bar.tooltip_text = "修为 %d / %d" % [current_xp, xp_to_next]
+	if hud_xp_label != null:
+		hud_xp_label.text = "修为 %d / %d" % [current_xp, xp_to_next]
 	var bonus_attack_speed := " · 急速" if _bonus_attack_speed_time > 0.0 else ""
 	var shots := 1 + int((level - 1) / 4) + (1 if _bonus_multishot_time > 0.0 else 0)
 	shots = mini(shots, 5)
@@ -745,6 +813,7 @@ func _on_player_xp_changed(current_xp: int, xp_to_next: int, level: int) -> void
 		_spawn_milestone_flare(player.global_position + Vector2(0, -16), HUD_MINT, 1.08 + float(level) * 0.04, 1.0, 5 + mini(3, level / 3))
 		_flash_screen(HUD_MINT, 0.14, 0.18)
 		_add_camera_shake(6.0, 0.18)
+		_hud_card_glow(HUD_GOLD, 0.55, 0.45)
 	_last_level = level
 
 func _on_player_stats_changed(health: int, max_health: int, _level: int) -> void:
@@ -773,12 +842,35 @@ func _on_player_dash_state_changed(is_ready: bool, cooldown_remaining: float, is
 	if is_dashing:
 		dash_button.text = "筋斗闪!"
 		dash_button.disabled = false
+		_hide_dash_cooldown_bar()
 	elif is_ready:
 		dash_button.text = "筋斗闪"
 		dash_button.disabled = false
+		_hide_dash_cooldown_bar()
 	else:
 		dash_button.text = "%.1fs" % cooldown_remaining
 		dash_button.disabled = true
+		_show_dash_cooldown_bar(cooldown_remaining)
+
+func _show_dash_cooldown_bar(remaining: float) -> void:
+	if dash_cooldown_bar == null or player == null:
+		return
+	var total := player.dash_cooldown
+	if total <= 0.0:
+		return
+	var fill_ratio := clampf(remaining / total, 0.0, 1.0)
+	# Bar height goes from 0 to 10px (offset_top from -10 to 0)
+	var bar_height := maxf(1.0, fill_ratio * 10.0)
+	dash_cooldown_bar.visible = true
+	dash_cooldown_bar.offset_top = -bar_height
+	dash_cooldown_bar.size.y = bar_height
+
+func _hide_dash_cooldown_bar() -> void:
+	if dash_cooldown_bar == null:
+		return
+	dash_cooldown_bar.visible = false
+	dash_cooldown_bar.offset_top = -10.0
+	dash_cooldown_bar.size.y = 10.0
 
 func _on_dash_button_pressed() -> void:
 	if player != null and player.has_method("request_dash"):
@@ -946,6 +1038,28 @@ func _spawn_popup(world_position: Vector2, text_value: String, color_value: Colo
 		popup.setup(text_value, color_value)
 	feedback.add_child(popup)
 
+func _spawn_collect_pulse(world_position: Vector2, color_value: Color, scale_mul: float = 1.0, duration_mul: float = 1.0) -> void:
+	if collect_pulse_scene == null:
+		return
+	var pulse := collect_pulse_scene.instantiate()
+	if pulse == null:
+		return
+	if pulse is Node2D:
+		(pulse as Node2D).position = world_position
+	if pulse.has_method("setup"):
+		pulse.setup(color_value, Color(1.0, 0.98, 0.92, 0.95), scale_mul, duration_mul)
+	feedback.add_child(pulse)
+
+func _on_xp_collected(amount: int, world_position: Vector2) -> void:
+	var scale_mul := 1.0
+	if amount >= 5:
+		scale_mul = 1.45
+	elif amount >= 3:
+		scale_mul = 1.18
+	else:
+		scale_mul = 0.92
+	_spawn_collect_pulse(world_position, HUD_GOLD, scale_mul, 1.0)
+
 func _spawn_burst(world_position: Vector2, color_value: Color, scale_mul: float = 1.0, duration_mul: float = 1.0) -> void:
 	if feedback_burst_scene == null:
 		return
@@ -1055,6 +1169,16 @@ func _flash_screen(color_value: Color, alpha: float = 0.12, duration: float = 0.
 	_screen_flash_tween.finished.connect(func():
 		screen_flash.visible = false
 	)
+
+func _hud_card_glow(glow_color: Color, alpha: float = 0.55, duration: float = 0.45) -> void:
+	if hud_card_bg == null:
+		return
+	var tween := create_tween()
+	hud_card_bg.modulate = Color(glow_color.r, glow_color.g, glow_color.b, alpha)
+	hud_card_border.modulate = Color(glow_color.r, glow_color.g, glow_color.b, alpha * 1.2)
+	tween.tween_interval(maxf(0.08, duration * 0.45))
+	tween.parallel().tween_property(hud_card_bg, "modulate", Color(1, 1, 1, 1), maxf(0.1, duration * 0.55))
+	tween.parallel().tween_property(hud_card_border, "modulate", Color(1, 1, 1, 1), maxf(0.1, duration * 0.55))
 
 func _show_banner(text_value: String, subtitle_text: String = "妖潮播报") -> void:
 	if banner_label == null:
@@ -1331,7 +1455,12 @@ func _gain_merit_stack() -> void:
 		player.stats_changed.emit(player.health, player.max_health, player.level)
 		_show_center_notice("军功满三层 · 命火上限 +1", HUD_GOLD)
 		_spawn_popup(player.global_position + Vector2(0, -90), "命火上限 +1", HUD_GOLD)
-		_spawn_milestone_flare(player.global_position + Vector2(0, -18), HUD_GOLD, 1.08, 0.92, 5)
+		_spawn_burst(player.global_position, HUD_GOLD, 1.25, 1.08)
+		_spawn_slash(player.global_position, -PI * 0.5, HUD_GOLD, 1.22, 1.12)
+		_spawn_reward_pulse(player.global_position, HUD_GOLD, 1.15, 0.98, 8)
+		_spawn_milestone_flare(player.global_position + Vector2(0, -18), HUD_GOLD, 1.18, 0.88, 6)
+		_flash_screen(HUD_GOLD, 0.11, 0.16)
+		_add_camera_shake(7.0, 0.18)
 
 func _queue_wave_spawn_patterns() -> void:
 	_queued_spawn_entries.clear()
@@ -1557,21 +1686,27 @@ func _get_medal_line() -> String:
 
 func _build_run_summary(title_text: String) -> String:
 	var total_seconds := int(elapsed_time)
-	return "西游评语：%s\n时辰：%02d:%02d / %02d:%02d\n斩妖：%d    头目：%d\n行者：%d重    命火：%d/%d\n连斩：最长 %d\n劫波：第%d劫 · %s" % [
+	var kills_per_min := 0.0
+	if total_seconds > 0:
+		kills_per_min = floor(float(kill_count) / float(total_seconds) * 60.0)
+	var objectives_completed := 0
+	if wave_index >= 1:
+		objectives_completed = wave_index - 1
+	return "西游评语：%s\n时辰：%02d:%02d / %02d:%02d\n斩妖：%d    头目：%d\n军功：%d层    修为：行者%d重\n命火：%d/%d    极速：%.1f斩/分\n连斩：最长 %d    军令：完成 %d劫" % [
 		title_text,
 		int(total_seconds / 60),
 		total_seconds % 60,
 		int(demo_goal_seconds) / 60,
 		int(demo_goal_seconds) % 60,
 		kill_count,
-		_elites_spawned_total,
+		_elite_kill_count,
+		_merit_stacks,
 		player.level,
 		player.health,
 		player.max_health,
-		_merit_stacks,
+		kills_per_min,
 		_best_kill_streak,
-		wave_index,
-		_get_wave_title(wave_index)
+		objectives_completed
 	]
 
 func _reload_scene() -> void:
@@ -1734,6 +1869,12 @@ func _apply_ui_style() -> void:
 		hud_meta_divider.color = Color(HUD_GOLD.r, HUD_GOLD.g, HUD_GOLD.b, 0.42)
 	if hud_objective_divider != null:
 		hud_objective_divider.color = Color(HUD_ACCENT.r, HUD_ACCENT.g, HUD_ACCENT.b, 0.38)
+	if hud_xp_label != null:
+		hud_xp_label.add_theme_color_override("font_color", HUD_GOLD)
+		hud_xp_label.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.65))
+		hud_xp_label.add_theme_constant_override("shadow_offset_x", 1)
+		hud_xp_label.add_theme_constant_override("shadow_offset_y", 1)
+		hud_xp_label.add_theme_font_size_override("font_size", 17)
 	if action_tray_bg != null:
 		action_tray_bg.color = Color(0.10, 0.07, 0.05, 0.72)
 	if action_tray_accent != null:

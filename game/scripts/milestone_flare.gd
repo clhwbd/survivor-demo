@@ -16,6 +16,11 @@ var progress: float = 0.0
 var flare_scale: float = 1.0
 var angle_offset: float = 0.0
 
+# Trailing ring state — echoes behind the main ring for depth
+var _trail_progress: float = 0.0
+# Local vibration for impact feel
+var _jitter_seed: float = 0.0
+
 func setup(primary: Color, accent: Color = Color(1.0, 0.97, 0.88, 0.95), scale_mul: float = 1.0, duration_mul: float = 1.0, fan_total: int = 5) -> void:
 	primary_color = primary
 	accent_color = accent
@@ -23,6 +28,7 @@ func setup(primary: Color, accent: Color = Color(1.0, 0.97, 0.88, 0.95), scale_m
 	life_time *= maxf(0.45, duration_mul)
 	fan_count = maxi(3, fan_total)
 	angle_offset = randf_range(-0.18, 0.18)
+	_jitter_seed = randf() * 100.0
 
 func _ready() -> void:
 	z_index = 43
@@ -35,11 +41,21 @@ func _process(delta: float) -> void:
 		return
 	progress = minf(1.0, progress + delta / life_time)
 	rotation = lerpf(rotation, angle_offset + progress * 0.22, delta * 8.0)
+	# Trail ring starts appearing at ~35% progress
+	_trail_progress = maxf(0.0, progress - 0.33)
 	queue_redraw()
 	if progress >= 1.0:
 		queue_free()
 
+func _jitter_offset() -> Vector2:
+	# Subtle local vibration in the first 40% of lifetime
+	if progress > 0.42:
+		return Vector2.ZERO
+	var j := sin(_jitter_seed + progress * 38.0) * 2.2 * (1.0 - progress / 0.42)
+	return Vector2(j, j * 0.6)
+
 func _draw() -> void:
+	var jitter := _jitter_offset()
 	var eased := 1.0 - pow(1.0 - progress, 3.0)
 	var fade := 1.0 - eased
 	var radius := (base_radius + radius_growth * eased) * flare_scale
@@ -47,15 +63,15 @@ func _draw() -> void:
 
 	var ring_color := primary_color
 	ring_color.a *= fade * 0.92
-	draw_arc(Vector2.ZERO, radius, 0.0, TAU, 40, ring_color, maxf(2.0, ring_width * (1.0 - progress * 0.30)), true)
+	draw_arc(jitter, radius, 0.0, TAU, 40, ring_color, maxf(2.0, ring_width * (1.0 - progress * 0.30)), true)
 
 	var inner_ring := accent_color
 	inner_ring.a *= fade * 0.72
-	draw_arc(Vector2.ZERO, inner_radius, 0.0, TAU, 32, inner_ring, maxf(1.0, ring_width * 0.45), true)
+	draw_arc(jitter, inner_radius, 0.0, TAU, 32, inner_ring, maxf(1.0, ring_width * 0.45), true)
 
 	var core_color := accent_color
 	core_color.a *= fade * 0.30
-	draw_circle(Vector2.ZERO, maxf(4.0, radius * 0.14 * (1.0 - progress * 0.18)), core_color)
+	draw_circle(jitter, maxf(4.0, radius * 0.14 * (1.0 - progress * 0.18)), core_color)
 
 	for i in range(fan_count):
 		var fan_ratio := 0.0 if fan_count <= 1 else float(i) / float(fan_count - 1)
@@ -65,13 +81,36 @@ func _draw() -> void:
 		var right := Vector2.RIGHT.rotated(center_angle + fan_width) * (radius * 0.30)
 		var fan_color := accent_color.lerp(primary_color, 0.34)
 		fan_color.a *= fade * 0.24 * (1.0 - absf(fan_ratio - 0.5) * 0.35)
-		draw_colored_polygon(PackedVector2Array([Vector2.ZERO, left, tip, right]), fan_color)
+		draw_colored_polygon(PackedVector2Array([jitter, jitter + left, jitter + tip, jitter + right]), fan_color)
 
 	for i in range(maxi(6, spark_count)):
 		var angle := TAU * float(i) / float(maxi(6, spark_count)) + angle_offset + eased * 0.35
 		var dir := Vector2.RIGHT.rotated(angle)
-		var inner := dir * (inner_radius + 4.0)
-		var outer := dir * (radius + 10.0 + 18.0 * sin(float(i) * 0.8 + progress * 4.2))
+		var inner := jitter + dir * (inner_radius + 4.0)
+		var outer := jitter + dir * (radius + 10.0 + 18.0 * sin(float(i) * 0.8 + progress * 4.2))
 		var spark_color := primary_color.lerp(accent_color, 0.52)
 		spark_color.a *= fade * 0.58
 		draw_line(inner, outer, spark_color, maxf(1.0, ring_width * 0.22))
+
+	# ── Trailing secondary ring: echoes behind for depth ─────────────────────
+	if _trail_progress > 0.0:
+		var trail_eased := 1.0 - pow(1.0 - _trail_progress, 3.0)
+		var trail_fade := (1.0 - trail_eased) * 0.38
+		var trail_radius := (base_radius + radius_growth * trail_eased) * flare_scale * 0.72
+		var trail_inner := maxf(6.0, trail_radius * 0.30)
+		var trail_color := primary_color.lerp(accent_color, 0.28)
+		trail_color.a *= trail_fade
+		draw_arc(jitter, trail_radius, 0.0, TAU, 28, trail_color, maxf(1.0, ring_width * 0.26), true)
+		var trail_inner_color := accent_color
+		trail_inner_color.a *= trail_fade * 0.62
+		draw_arc(jitter, trail_inner, 0.0, TAU, 20, trail_inner_color, maxf(0.5, ring_width * 0.20), true)
+		var trail_core := accent_color
+		trail_core.a *= trail_fade * 0.35
+		draw_circle(jitter, maxf(3.0, trail_radius * 0.12), trail_core)
+
+	# ── Pulsing inner glow at peak ───────────────────────────────────────────
+	if progress < 0.35:
+		var glow_alpha := fade * 0.18 * (1.0 + sin(progress * 22.0))
+		var glow_color := primary_color
+		glow_color.a = glow_alpha
+		draw_circle(jitter, maxf(6.0, radius * 0.28), glow_color)
