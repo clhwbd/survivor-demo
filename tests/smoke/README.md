@@ -11,7 +11,10 @@
 用途：从 `SourceHanSansCN-Medium.ttf` 自动生成仅保留当前 UI 所需字形的 `survivor-ui-subset.ttf`，把中文显示保留下来，同时尽量压低 `builds/web-release/index.pck`。
 
 ### `patch_web_index.py`
-用途：在 Godot 每次重导出后，给 `builds/web-release/index.html` 自动补上加载进度、慢加载提示与完整版本托管指引，不再默认切轻量模式。
+用途：在 Godot 每次重导出后，给 `builds/web-release/index.html` 自动补上加载进度、慢加载提示、wasm/pck 阶段提示与完整版本托管指引，不再默认切轻量模式。
+
+### `web_payload_matrix.py`
+用途：导出 baseline / feature tag / 模板切换 / dynamic linking / 极简空项目对照矩阵，把“wasm 为什么大、哪些能拆、哪些不能拆”做成可复跑报告。
 
 ### `sync_compressed_build.sh`
 用途：把 `builds/web-release/` 当前验收基线同步到 `builds/web/`，并重建压缩交付版所需的 `.gz` 资源，避免两套交付目录静默漂移。

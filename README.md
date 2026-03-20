@@ -32,9 +32,11 @@ Godot 4.x 2D 割草 Roguelike 样板项目。
 - `docs/ui-art-agent-split.md`：后续 UI / 美术 agent 拆分建议
 - `docs/status.md`：项目当前状态收口
 - `docs/worklog.md`：工程操作与交付日志
+- `docs/web-payload-split-study.md`：本轮 Web 分包 / 降载专项研究结论
 - `tests/smoke/release_guard.sh`：把导出 / 两套 Web 目录同步 / 本地服务 / gzip 返回 / 文档口径串起来的一键发布冒烟检查
 - `tests/smoke/build_ui_font_subset.py`：从思源黑体源文件生成仅保留当前 UI 所需字形的子集字体，压缩 `index.pck`
-- `tests/smoke/patch_web_index.py`：给导出的 `index.html` 补加载进度、慢加载提示与完整版本托管指引，不再默认切轻量模式
+- `tests/smoke/web_payload_matrix.py`：导出 baseline / feature tag / 模板切换 / dynamic linking / 极简空项目对照矩阵，做实 wasm 与 pck 的可拆边界
+- `tests/smoke/patch_web_index.py`：给导出的 `index.html` 补加载进度、慢加载提示、wasm/pck 阶段提示与完整版本托管指引，不再默认切轻量模式
 - `tests/smoke/sync_compressed_build.sh`：把 `builds/web-release/` 同步到 `builds/web/` 并重建 `.gz` 资源，避免交付目录漂移
 - `tests/smoke/sync_pages_build.sh`：把 `builds/web/` 的预压缩运行时资源同步成 `builds/pages-deploy/` 的 Pages 可发布目录
 - `tests/smoke/pages_release_guard.sh`：验证 `builds/pages-deploy/` 的文件对齐、gzip 资源和 `_headers` 口径

@@ -1,0 +1,226 @@
+{
+  "godot_version": "4.6.1.stable.official.14d19694e",
+  "templates": [
+    {
+      "template": "web_debug.zip",
+      "godot.wasm": 36021473,
+      "godot.side.wasm": null,
+      "godot.js": 314746
+    },
+    {
+      "template": "web_dlink_debug.zip",
+      "godot.wasm": 1601076,
+      "godot.side.wasm": 40669826,
+      "godot.js": 2958990
+    },
+    {
+      "template": "web_dlink_nothreads_debug.zip",
+      "godot.wasm": 1508102,
+      "godot.side.wasm": 40478625,
+      "godot.js": 2859594
+    },
+    {
+      "template": "web_dlink_nothreads_release.zip",
+      "godot.wasm": 1509558,
+      "godot.side.wasm": 41113842,
+      "godot.js": 5552570
+    },
+    {
+      "template": "web_dlink_release.zip",
+      "godot.wasm": 1605674,
+      "godot.side.wasm": 40325010,
+      "godot.js": 5724461
+    },
+    {
+      "template": "web_nothreads_debug.zip",
+      "godot.wasm": 35739700,
+      "godot.side.wasm": null,
+      "godot.js": 279925
+    },
+    {
+      "template": "web_nothreads_release.zip",
+      "godot.wasm": 37685705,
+      "godot.side.wasm": null,
+      "godot.js": 315759
+    },
+    {
+      "template": "web_release.zip",
+      "godot.wasm": 37003942,
+      "godot.side.wasm": null,
+      "godot.js": 358439
+    }
+  ],
+  "variants": [
+    {
+      "key": "baseline",
+      "title": "当前仓库 Web 预设",
+      "notes": "对应默认 Web 导出；当前产物大小就是这条线。",
+      "files": {
+        "index.html": 5298,
+        "index.js": 315759,
+        "index.wasm": 37685705,
+        "index.side.wasm": null,
+        "index.pck": 455416
+      },
+      "gzip": {
+        "index.js": 78364,
+        "index.wasm": 9377158,
+        "index.pck": 185634
+      },
+      "runtime_transfer_bytes": 9641156,
+      "threads_enabled": false,
+      "godot_config": {
+        "args": [],
+        "canvasResizePolicy": 2,
+        "emscriptenPoolSize": 8,
+        "ensureCrossOriginIsolationHeaders": true,
+        "executable": "index",
+        "experimentalVK": false,
+        "fileSizes": {
+          "index.pck": 455416,
+          "index.wasm": 37685705
+        },
+        "focusCanvas": true,
+        "gdextensionLibs": [],
+        "godotPoolSize": 4
+      }
+    },
+    {
+      "key": "feature_tags_only",
+      "title": "仅增加 custom_features / feature tag",
+      "notes": "验证 feature tag 只影响项目条件分支，不会裁掉引擎 wasm。",
+      "files": {
+        "index.html": 5298,
+        "index.js": 315759,
+        "index.wasm": 37685705,
+        "index.side.wasm": null,
+        "index.pck": 455480
+      },
+      "gzip": {
+        "index.js": 78364,
+        "index.wasm": 9377158,
+        "index.pck": 185662
+      },
+      "runtime_transfer_bytes": 9641184,
+      "threads_enabled": false,
+      "godot_config": {
+        "args": [],
+        "canvasResizePolicy": 2,
+        "emscriptenPoolSize": 8,
+        "ensureCrossOriginIsolationHeaders": true,
+        "executable": "index",
+        "experimentalVK": false,
+        "fileSizes": {
+          "index.pck": 455480,
+          "index.wasm": 37685705
+        },
+        "focusCanvas": true,
+        "gdextensionLibs": [],
+        "godotPoolSize": 4
+      }
+    },
+    {
+      "key": "forced_web_release_template",
+      "title": "强制切到 web_release.zip",
+      "notes": "验证换模板能否小幅下降 wasm，但仍不是项目分包。",
+      "files": {
+        "index.html": 5298,
+        "index.js": 358439,
+        "index.wasm": 37003942,
+        "index.side.wasm": null,
+        "index.pck": 455416
+      },
+      "gzip": {
+        "index.js": 85698,
+        "index.wasm": 9365330,
+        "index.pck": 185634
+      },
+      "runtime_transfer_bytes": 9636662,
+      "threads_enabled": false,
+      "godot_config": {
+        "args": [],
+        "canvasResizePolicy": 2,
+        "emscriptenPoolSize": 8,
+        "ensureCrossOriginIsolationHeaders": true,
+        "executable": "index",
+        "experimentalVK": false,
+        "fileSizes": {
+          "index.pck": 455416,
+          "index.wasm": 37003942
+        },
+        "focusCanvas": true,
+        "gdextensionLibs": [],
+        "godotPoolSize": 4
+      }
+    },
+    {
+      "key": "dynamic_link_nothreads",
+      "title": "dynamic linking nothreads",
+      "notes": "验证 Godot 4.6.1 的 dlink 是否真的能把 wasm 做成可用的分包。",
+      "files": {
+        "index.html": 5297,
+        "index.js": 5552570,
+        "index.wasm": 1509558,
+        "index.side.wasm": 41113842,
+        "index.pck": 455416
+      },
+      "gzip": {
+        "index.js": 529009,
+        "index.wasm": 581510,
+        "index.side.wasm": 9948500,
+        "index.pck": 185634
+      },
+      "runtime_transfer_bytes": 11244653,
+      "threads_enabled": false,
+      "godot_config": {
+        "args": [],
+        "canvasResizePolicy": 2,
+        "emscriptenPoolSize": 8,
+        "ensureCrossOriginIsolationHeaders": true,
+        "executable": "index",
+        "experimentalVK": false,
+        "fileSizes": {
+          "index.pck": 455416,
+          "index.wasm": 1509558
+        },
+        "focusCanvas": true,
+        "gdextensionLibs": [],
+        "godotPoolSize": 4
+      }
+    },
+    {
+      "key": "minimal_project",
+      "title": "极简空项目对照",
+      "notes": "用于证明 wasm 主要来自 Web 模板，而不是 survivor-demo 项目资源。",
+      "files": {
+        "index.html": 5291,
+        "index.js": 315759,
+        "index.wasm": 37685705,
+        "index.side.wasm": null,
+        "index.pck": 1548
+      },
+      "gzip": {
+        "index.js": 78364,
+        "index.wasm": 9377158,
+        "index.pck": 747
+      },
+      "runtime_transfer_bytes": 9456269,
+      "threads_enabled": false,
+      "godot_config": {
+        "args": [],
+        "canvasResizePolicy": 2,
+        "emscriptenPoolSize": 8,
+        "ensureCrossOriginIsolationHeaders": true,
+        "executable": "index",
+        "experimentalVK": false,
+        "fileSizes": {
+          "index.pck": 1548,
+          "index.wasm": 37685705
+        },
+        "focusCanvas": true,
+        "gdextensionLibs": [],
+        "godotPoolSize": 4
+      }
+    }
+  ]
+}

@@ -758,3 +758,36 @@
 - 当前结论：
   - **已完成一版更适合手机验收的轻量 build。**
   - 但从正式对外分享角度，**GitHub Pages 仍不适合作为本轮轻量验收主链路**；当前最短可发布路径应改为：`./tests/smoke/pages_release_guard.sh` 通过后，直接发布 `builds/pages-deploy/` 到 Cloudflare Pages。
+
+### 30. Web 分包 / 降载专项研究：做实 wasm 边界 + 落地导出矩阵脚本
+- 动作：按“不要只写方案，要把 Godot 4.6.1 Web wasm 到底能不能拆做实”的要求，补一轮可复跑导出矩阵、研究文档与壳层加载提示增强；不改玩法逻辑，不破坏已修好的中文字体与竖屏适配。
+- 涉及文件：
+  - `tests/smoke/web_payload_matrix.py`
+  - `reports/web_payload_matrix.json`
+  - `reports/web_payload_matrix.md`
+  - `tests/smoke/patch_web_index.py`
+  - `tests/smoke/README.md`
+  - `docs/web-payload-split-study.md`
+  - `README.md`
+  - `docs/worklog.md`
+- 具体改动：
+  - 新增 `web_payload_matrix.py`，自动导出 5 组对照：当前仓库 Web 预设、仅加 feature tag、强制 `web_release.zip`、`web_dlink_nothreads_release.zip`、极简空项目对照，并把结果写成 `reports/web_payload_matrix.{json,md}`。
+  - 用极简空项目对照把结论做实：即使 `index.pck` 只剩 `1,548 B`，Godot 4.6.1 默认 Web 导出的 `index.wasm` 仍是 `37,685,705 B`，说明 survivor-demo 当前 wasm 大头来自引擎模板而不是项目资源。
+  - 做实 feature tag 与 dynamic linking 两条线：feature tag 对 wasm 无效；dynamic linking 虽然把 `index.wasm` 拆成 `1.5 MB` 主 wasm + `41.1 MB side.wasm`，但总运行时更大，不适合作为当前主线分包方案。
+  - 做了一条模板级微优化验证：强制 `web_release.zip` 可把 wasm 从 `37,685,705 B` 降到 `37,003,942 B`（约 `-0.68 MB / -1.8%`），但仍属于模板级小收益，不是项目分包主解。
+  - 增强 `patch_web_index.py`：导出后的网页壳层现在会更明确地显示“引擎 wasm / 游戏资源 pck / 初始化场景”阶段与体积构成，减少用户误以为页面卡死的情况。
+  - 新增 `docs/web-payload-split-study.md`，把“为什么大、哪些能拆、哪些不能拆、哪些有效/无效、主线最短接入建议”集中收口。
+- 验证：
+  - `python3 tests/smoke/web_payload_matrix.py`
+  - `./tests/smoke/release_guard.sh`
+- 验证结果：
+  - 导出矩阵脚本成功生成 `reports/web_payload_matrix.json` 与 `reports/web_payload_matrix.md`。
+  - 关键结果：
+    - 当前基线：`index.wasm = 37,685,705 B`、`index.pck = 455,416 B`
+    - 极简空项目：`index.wasm = 37,685,705 B`、`index.pck = 1,548 B`
+    - `web_release.zip`：`index.wasm = 37,003,942 B`
+    - dynamic linking：`index.wasm = 1,509,558 B`、`index.side.wasm = 41,113,842 B`、gzip 运行时总量反而升到 `11,244,653 B`
+  - `release_guard.sh` 通过，说明本轮壳层补丁未破坏当前 Web 导出 / 压缩交付链路。
+- 当前结论：
+  - **Godot 4.6.1 官方 Web 模板下，survivor-demo 当前 wasm 本体不能靠项目分包显著下降。**
+  - **当前最有效的落地方向仍是：压缩传输 + 正确托管/CDN + 更清楚的加载壳层；资源分包更适合留给后续内容膨胀阶段。**

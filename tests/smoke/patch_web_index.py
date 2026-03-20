@@ -16,6 +16,8 @@ const engine = new Engine(GODOT_CONFIG);
 	const statusProgress = document.getElementById('status-progress');
 	const statusNotice = document.getElementById('status-notice');
 	const runtimeSize = GODOT_CONFIG.fileSizes || {};
+	const wasmBytes = Number(runtimeSize['index.wasm'] || 0);
+	const pckBytes = Number(runtimeSize['index.pck'] || 0);
 	const totalBytes = Object.values(runtimeSize).reduce((sum, value) => sum + Number(value || 0), 0);
 
 	let initializing = true;
@@ -61,14 +63,26 @@ const engine = new Engine(GODOT_CONFIG);
 		});
 	}
 
+	function resolveStage(current) {
+		if (wasmBytes > 0 && current < Math.max(wasmBytes * 0.98, wasmBytes - 512 * 1024)) {
+			return `阶段：引擎 wasm（约 ${formatBytes(wasmBytes)}）`;
+		}
+		if (pckBytes > 0 && current < Math.max((wasmBytes + pckBytes) * 0.98, wasmBytes + pckBytes - 128 * 1024)) {
+			return `阶段：游戏资源 pck（约 ${formatBytes(pckBytes)}）`;
+		}
+		return '阶段：初始化场景与首屏 UI';
+	}
+
 	function renderProgressNotice(current, total) {
 		const resolvedTotal = total > 0 ? total : totalBytes;
 		const percent = resolvedTotal > 0 && current > 0 ? Math.min(100, Math.round((current / resolvedTotal) * 100)) : null;
 		const progressLine = percent === null
 			? `正在装载 Web 运行时（约 ${formatBytes(totalBytes)}）`
 			: `正在装载 Web 运行时：${percent}% · ${formatBytes(current)} / ${formatBytes(resolvedTotal)}`;
+		const sizeLine = `当前构成：wasm ${formatBytes(wasmBytes)} · pck ${formatBytes(pckBytes)}`;
+		const stageLine = resolveStage(current);
 		const modeLine = '当前外链保持完整版本；若加载明显偏长，应优先切换更合适的托管/CDN，而不是降级功能。';
-		setStatusNotice(`${bootVariantLabel}\n${progressLine}\n${modeLine}`);
+		setStatusNotice(`${bootVariantLabel}\n${progressLine}\n${stageLine}\n${sizeLine}\n${modeLine}`);
 	}
 
 	function displayFailureNotice(err) {
@@ -126,7 +140,7 @@ const engine = new Engine(GODOT_CONFIG);
 			if (!initializing) {
 				return;
 			}
-			setStatusNotice(`${bootVariantLabel}\n加载时间明显偏长，通常是 wasm 首包过大或托管未压缩。\n如当前外链仍跑在 GitHub Pages，请优先改发 Cloudflare Pages 完整版目录。`);
+			setStatusNotice(`${bootVariantLabel}\n加载时间明显偏长，当前更可能卡在 wasm 首包或未命中 gzip/CDN。\n已知当前完整版约为：wasm ${formatBytes(wasmBytes)} · pck ${formatBytes(pckBytes)}。\n如当前外链仍跑在 GitHub Pages，请优先改发 Cloudflare Pages 完整版目录。`);
 		}, 12000);
 		engine.startGame({
 			'onProgress': function (current, total) {
