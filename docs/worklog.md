@@ -499,3 +499,20 @@
   - 已确认当前分支为 `main`，并完成近几轮提交盘点；
   - `release_guard.sh` 再次跑通，退出码 `0`，说明当前工作区状态下导出 / 本地服务 / gzip 校验链路可用；
   - 同时确认工作区并非 clean tree，因此已在 PM 文档中把“版本口径未完全收死”列为当前首要风险。
+
+### 23. UI/UX 收口第六轮：状态签分层 / 底部操作带 / 窄屏重排
+- 动作：继续按 godot-ui-ux-designer 方向收 HUD、结果页和移动端操作区，不碰 P0 摇杆；这轮重点是让“该看哪里、该点哪里”更清楚。
+- 涉及文件：
+  - `game/scenes/main.tscn`
+  - `game/scripts/main.gd`
+  - `docs/ui-style-guide.md`
+  - `docs/worklog.md`
+- 具体改动：
+  - 右上状态卡补 `StatusBadge`，把徽签与正文拆层，统一到“戏台签条 + 解释内容”的信息结构。
+  - 底部新增 `ActionTray` 视觉带，把暂停 / 继续 / 再闯收进同一操作区，并在结算与窄屏下显性化，强化按钮主次与位置预期。
+  - 移动端提示区新增标题签与描金分隔，让“身法提示 / 本劫军令 / 告急提醒 / 压阵提醒 / 暂歇战报”这些状态拥有统一入口。
+  - 新增 `_refresh_hud_layout()`，在窗口尺寸变化时轻量调整左上主 HUD、右上状态卡与底部操作带，优先保住信息层次。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 3`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 20`
+- 验证结果：两次 headless 运行均退出码 `0`，主场景可正常加载；新增 HUD 节点、按钮重排与窄屏布局逻辑未引入装配错误。

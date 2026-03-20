@@ -1734,6 +1734,14 @@ func _apply_ui_style() -> void:
 		hud_meta_divider.color = Color(HUD_GOLD.r, HUD_GOLD.g, HUD_GOLD.b, 0.42)
 	if hud_objective_divider != null:
 		hud_objective_divider.color = Color(HUD_ACCENT.r, HUD_ACCENT.g, HUD_ACCENT.b, 0.38)
+	if action_tray_bg != null:
+		action_tray_bg.color = Color(0.10, 0.07, 0.05, 0.72)
+	if action_tray_accent != null:
+		action_tray_accent.color = Color(HUD_GOLD.r, HUD_GOLD.g, HUD_GOLD.b, 0.92)
+	if mobile_hint_bg != null:
+		mobile_hint_bg.color = Color(0.10, 0.07, 0.05, 0.74)
+	if mobile_hint_accent != null:
+		mobile_hint_accent.color = Color(HUD_GOLD.r, HUD_GOLD.g, HUD_GOLD.b, 0.92)
 
 	if focus_panel != null:
 		focus_panel.add_theme_stylebox_override("panel", panel_style)

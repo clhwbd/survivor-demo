@@ -177,14 +177,27 @@ offset_bottom = 17.0
 grow_horizontal = 0
 color = Color(0.94, 0.82, 0.55, 0.95)
 
+[node name="StatusBadge" type="Label" parent="HUD"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -314.0
+offset_top = 20.0
+offset_right = -30.0
+offset_bottom = 42.0
+grow_horizontal = 0
+horizontal_alignment = 2
+vertical_alignment = 1
+text = "香火签"
+
 [node name="StatusLabel" type="Label" parent="HUD"]
 anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -314.0
-offset_top = 24.0
+offset_top = 40.0
 offset_right = -30.0
-offset_bottom = 88.0
+offset_bottom = 90.0
 grow_horizontal = 0
 autowrap_mode = 3
 horizontal_alignment = 2
@@ -338,20 +351,51 @@ autowrap_mode = 3
 horizontal_alignment = 1
 text = "评语：初试身手\n时辰：00:00 / 03:00\n斩妖：0    头目：0\n行者：1重    命火：5/5\n劫波：第1劫 · 花果山热身"
 
-[node name="RestartButton" type="Button" parent="HUD"]
-visible = false
-anchors_preset = 12
-anchor_left = 1.0
+[node name="ActionTrayBg" type="ColorRect" parent="HUD"]
+anchors_preset = 14
+anchor_left = 0.5
 anchor_top = 1.0
-anchor_right = 1.0
+anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -210.0
-offset_top = -94.0
-offset_right = -24.0
-offset_bottom = -28.0
-grow_horizontal = 0
+offset_left = -252.0
+offset_top = -120.0
+offset_right = 252.0
+offset_bottom = -18.0
+grow_horizontal = 2
 grow_vertical = 0
-text = "再闯一局"
+mouse_filter = 2
+color = Color(0.12, 0.08, 0.06, 0.68)
+
+[node name="ActionTrayAccent" type="ColorRect" parent="HUD"]
+anchors_preset = 14
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -236.0
+offset_top = -116.0
+offset_right = 236.0
+offset_bottom = -112.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+color = Color(0.94, 0.82, 0.55, 0.9)
+
+[node name="ActionTrayLabel" type="Label" parent="HUD"]
+anchors_preset = 14
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -228.0
+offset_top = -112.0
+offset_right = 228.0
+offset_bottom = -84.0
+grow_horizontal = 2
+grow_vertical = 0
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "戏台操作 · 暂停 / 续战 / 再闯"
 
 [node name="ContinueButton" type="Button" parent="HUD"]
 visible = false
@@ -360,23 +404,41 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -124.0
-offset_top = -96.0
-offset_right = 124.0
-offset_bottom = -34.0
+offset_left = -232.0
+offset_top = -78.0
+offset_right = -20.0
+offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 0
 text = "继续试炼"
 
+[node name="RestartButton" type="Button" parent="HUD"]
+visible = false
+anchors_preset = 14
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = 20.0
+offset_top = -78.0
+offset_right = 232.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 0
+text = "再闯一局"
+
 [node name="PauseButton" type="Button" parent="HUD"]
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -438.0
-offset_top = 108.0
-offset_right = -276.0
-offset_bottom = 162.0
-grow_horizontal = 0
+anchors_preset = 14
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -106.0
+offset_top = -78.0
+offset_right = 106.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 0
 text = "暂停"
 
 [node name="TouchJoystick" type="Control" parent="HUD"]
@@ -414,13 +476,44 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -262.0
-offset_top = -310.0
+offset_left = -276.0
+offset_top = -334.0
 offset_right = -24.0
-offset_bottom = -226.0
+offset_bottom = -222.0
 grow_horizontal = 0
 grow_vertical = 0
 color = Color(0.12, 0.08, 0.06, 0.72)
+
+[node name="MobileHintAccent" type="ColorRect" parent="HUD"]
+visible = false
+anchors_preset = 12
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -260.0
+offset_top = -330.0
+offset_right = -40.0
+offset_bottom = -326.0
+grow_horizontal = 0
+grow_vertical = 0
+color = Color(0.94, 0.82, 0.55, 0.9)
+
+[node name="MobileHintTitle" type="Label" parent="HUD"]
+visible = false
+anchors_preset = 12
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -248.0
+offset_top = -324.0
+offset_right = -38.0
+offset_bottom = -296.0
+grow_horizontal = 0
+grow_vertical = 0
+horizontal_alignment = 2
+text = "掌中戏台 · 身法提示"
 
 [node name="MobileHint" type="Label" parent="HUD"]
 visible = false
@@ -430,7 +523,7 @@ anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = -248.0
-offset_top = -300.0
+offset_top = -292.0
 offset_right = -38.0
 offset_bottom = -232.0
 grow_horizontal = 0
