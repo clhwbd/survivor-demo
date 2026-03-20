@@ -306,3 +306,17 @@
   - `chmod +x tests/smoke/release_guard.sh`
   - `./tests/smoke/release_guard.sh`
 - 验证结果：脚本完整跑通，退出码 `0`；已串行通过主场景加载、Web 验收版重导出、`builds/web-release/` 核心资源 `200` 校验、`builds/web/` 的 `GET` / `HEAD` gzip 头与 `application/wasm` 校验。
+
+### 17. 发布文档/模板一致性补强：Smoke README 回写 + 模板口径守卫
+- 动作：承接 `release_guard.sh` 落地后的下一轮收口，继续补发布并行线里仍容易漂移的地方，优先消除 smoke README 仍停留在早期玩法测试口径的问题，并把 Nginx 模板关键字段纳入自动检查。
+- 涉及文件：
+  - `tests/smoke/README.md`
+  - `tests/smoke/release_guard.sh`
+  - `docs/worklog.md`
+- 具体改动：
+  - 重写 `tests/smoke/README.md`，明确当前 smoke 目录的职责已经升级为“发布 / 交付最小自动化复验”，不再停留在“项目可启动 / Player 可移动”的原型期描述。
+  - 在 smoke README 中补齐 `release_guard.sh` 的覆盖范围、运行方式、默认端口、可覆盖环境变量，以及 `builds/web-release/` / `builds/web/` 的当前执行口径。
+  - 扩展 `tests/smoke/release_guard.sh`，新增对 smoke README 与 `docs/deployment/nginx-web-release.conf` 关键字段的存在性校验，防止发布脚本、托管模板、说明文档后续再出现静默漂移。
+- 验证：
+  - `./tests/smoke/release_guard.sh`
+- 验证结果：脚本再次完整跑通，退出码 `0`；除原有导出 / 本地服务 / gzip 校验外，新增通过 smoke README 与 Nginx 模板关键口径检查。

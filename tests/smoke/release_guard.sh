@@ -10,6 +10,8 @@ RELEASE_PORT="${RELEASE_PORT:-18081}"
 COMPRESSED_PORT="${COMPRESSED_PORT:-18082}"
 CORE_FILES="index.html index.js index.wasm index.pck"
 README_FILES="$ROOT/README.md $ROOT/docs/status.md $ROOT/docs/release-acceptance.md $ROOT/docs/deployment-plan.md"
+SMOKE_README="$ROOT/tests/smoke/README.md"
+NGINX_TEMPLATE="$ROOT/docs/deployment/nginx-web-release.conf"
 RELEASE_PID=""
 COMPRESSED_PID=""
 
@@ -64,7 +66,8 @@ require_file "$GODOT_BIN"
 require_file "$GAME_DIR/project.godot"
 require_file "$WEB_COMPRESSED_DIR/serve_compressed.py"
 require_file "$ROOT/docs/release-minimum-checklist.md"
-require_file "$ROOT/docs/deployment/nginx-web-release.conf"
+require_file "$NGINX_TEMPLATE"
+require_file "$SMOKE_README"
 
 for file in $README_FILES; do
   require_file "$file"
@@ -72,6 +75,13 @@ for file in $README_FILES; do
 done
 require_text "$ROOT/docs/release-minimum-checklist.md" 'tests/smoke/release_guard.sh'
 require_text "$ROOT/docs/deployment-plan.md" 'docs/deployment/nginx-web-release.conf'
+require_text "$SMOKE_README" 'release_guard.sh'
+require_text "$SMOKE_README" 'builds/web-release/'
+require_text "$SMOKE_README" 'builds/web/'
+require_text "$NGINX_TEMPLATE" 'root /srv/survivor-demo/builds/web-release;'
+require_text "$NGINX_TEMPLATE" 'location = /index.html'
+require_text "$NGINX_TEMPLATE" 'default_type application/wasm;'
+require_text "$NGINX_TEMPLATE" 'Cache-Control "no-cache, max-age=0, must-revalidate"'
 
 log "headless load main scene"
 "$GODOT_BIN" --headless --path "$GAME_DIR" --scene res://scenes/main.tscn --quit-after 3 >/tmp/survivor-release-guard-scene.log 2>&1
