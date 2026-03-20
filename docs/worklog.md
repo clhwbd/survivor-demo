@@ -445,3 +445,20 @@
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --export-release Web /Users/mac/game-studio/projects/survivor-demo/builds/web-release/index.html`
 - 验证结果：三项均退出码 `0`；说明本轮 RewardPulse / 连斩脉冲改动未引入场景加载或 Web 导出错误。
 - 补充：本轮顺手修掉了一处 `Dictionary` 推断为 `Variant` 的 headless 校验告警，避免后续自动化回归被脚本告警中断。
+
+### 21. 短局可玩性精修第六轮：军令导向刷怪深化 / 速决赏功 / 攻速一致性
+- 动作：承接上一轮的军功与压力导演主干，继续只补玩法程序；这一轮重点不是再堆新系统，而是把“当前军令是什么”真正翻译到敌群构成和奖励节奏里，让玩家更能读懂这波该怎么打。
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `docs/worklog.md`
+- 具体改动：
+  - 给 `_get_enemy_spawn_weights()` 增加军令导向调权：生存军令会主动压低快怪 / 重装，清怪军令会更偏清线型组合，头目军令则更强调头阵与护送，让军令和妖潮构成开始形成因果关系。
+  - 重写 `_queue_wave_spawn_patterns()` 的军令分流：不再只按波次统一排模板，而是按 `survive / kills / elite` 三类目标分别组织单侧缓压、双侧清线、前场护送与头阵组合，短局的敌群意图更清楚。
+  - 新增“速决赏功”：记录每波开场时间，若在半波内完成军令，则追加小额修为与更长急速，并明确飘字提示“速决赏”，把奖励节奏做成“越早完成越赚”。
+  - 补齐军功攻速一致性：实时攻击计时器现在也会吃到军功攻速收益，不再出现升级回调和实际出手频率不完全同步的手感偏差。
+  - 连斩每逢 4 的倍数时，额外在角色中心补一层 reward pulse，强化中段滚雪球的成长反馈。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 3`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 45`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 95`
+- 验证结果：三次 headless 运行均退出码 `0`，主场景能稳定跨越多个波次推进；说明本轮军令导向刷怪、速决赏功与攻速一致性补丁未引入装配或运行时错误。

@@ -112,6 +112,7 @@ var _wave_objective_target: int = 0
 var _wave_objective_progress: int = 0
 var _wave_objective_completed: bool = false
 var _wave_objective_reward_text: String = ""
+var _wave_started_at: float = 0.0
 var _last_objective_kill_count: int = 0
 var _last_objective_elite_kill_count: int = 0
 var _elite_kill_count: int = 0
@@ -501,6 +502,16 @@ func _get_enemy_spawn_weights() -> Vector2:
 	var tank_weight: float = 0.0
 	if wave_index >= 3:
 		tank_weight = minf(0.26, 0.06 + (wave_index - 2) * 0.04)
+	match _wave_objective_type:
+		"survive":
+			fast_weight *= 0.72
+			tank_weight *= 0.58
+		"kills":
+			fast_weight *= 1.10
+			tank_weight *= 0.74
+		"elite":
+			fast_weight *= 0.78
+			tank_weight *= 1.14 if wave_index >= 3 else 1.0
 	if _respite_time_remaining > 0.0:
 		fast_weight *= maxf(0.45, 1.0 - _respite_fast_penalty)
 		tank_weight *= maxf(0.30, 1.0 - _respite_tank_penalty)
@@ -546,7 +557,7 @@ func _on_attack_timer_timeout() -> void:
 		return
 
 	var bonus_attack_speed := 0.18 if _bonus_attack_speed_time > 0.0 else 0.0
-	attack_timer.wait_time = maxf(0.12, attack_interval - (player.level - 1) * 0.02 - bonus_attack_speed)
+	attack_timer.wait_time = maxf(0.12, attack_interval - (player.level - 1) * 0.02 - bonus_attack_speed - minf(0.12, float(_merit_stacks) * 0.02))
 	var shot_count := 1 + int((player.level - 1) / 4) + (1 if _bonus_multishot_time > 0.0 else 0)
 	shot_count = mini(shot_count, 5)
 	var pierce_count := int((player.level - 1) / 5) + (1 if _bonus_pierce_time > 0.0 else 0)
@@ -1152,6 +1163,7 @@ func _trigger_respite(duration: float, spawn_multiplier: float, fast_penalty: fl
 func _setup_wave_objective() -> void:
 	_wave_objective_completed = false
 	_wave_objective_reward_text = ""
+	_wave_started_at = elapsed_time
 	_last_objective_kill_count = kill_count
 	_last_objective_elite_kill_count = _elite_kill_count
 	if wave_index <= 2:
@@ -1207,9 +1219,16 @@ func _complete_wave_objective() -> void:
 			_bonus_attack_speed_time = maxf(_bonus_attack_speed_time, 6.0)
 			_wave_objective_reward_text = "回命 + 穿透 + 急速"
 	_gain_merit_stack()
+	var objective_clear_time := elapsed_time - _wave_started_at
 	_trigger_respite(1.35, 0.48, 0.22, 0.24)
 	if player != null and player.has_method("collect_xp"):
 		player.collect_xp(2 + mini(4, wave_index - 1))
+	if objective_clear_time <= wave_length_seconds * 0.5 and player != null and player.has_method("collect_xp"):
+		player.collect_xp(2)
+		_bonus_attack_speed_time = maxf(_bonus_attack_speed_time, 8.0)
+		_wave_objective_reward_text += " + 速决赏"
+		_show_center_notice("速决赏功 · 额外修为 + 急速续杯", HUD_GOLD)
+		_spawn_popup(player.global_position + Vector2(0, -90), "速决赏", HUD_GOLD)
 	_show_center_notice("军令达成 · %s" % _wave_objective_reward_text, HUD_MINT)
 	_spawn_popup(player.global_position + Vector2(0, -46), "军令达成", HUD_MINT)
 	_spawn_popup(player.global_position + Vector2(0, -68), "+1 军功", HUD_GOLD)
@@ -1235,18 +1254,25 @@ func _queue_wave_spawn_patterns() -> void:
 	var flank_distance := minf(spawn_radius_max, maxf(spawn_radius_min + 30.0, 470.0))
 	var left_flank := player.global_position + Vector2(-flank_distance, randf_range(-120.0, 120.0))
 	var right_flank := player.global_position + Vector2(flank_distance, randf_range(-120.0, 120.0))
-	if wave_index % 2 == 0:
-		_queue_spawn_entry(left_flank, SPAWN_TYPE_FAST if wave_index >= 4 else SPAWN_TYPE_BASIC)
-		_queue_spawn_entry(right_flank, SPAWN_TYPE_BASIC)
-	elif wave_index >= 5:
-		_queue_spawn_entry(left_flank, SPAWN_TYPE_BASIC)
-		_queue_spawn_entry(right_flank, SPAWN_TYPE_FAST)
-	if wave_index >= 4:
-		var escort_center := player.global_position + Vector2.RIGHT.rotated(randf_range(-0.45, 0.45) + PI) * minf(spawn_radius_max, 510.0)
-		var leader_type := SPAWN_TYPE_TANK if wave_index >= 5 else SPAWN_TYPE_BASIC
-		_queue_spawn_entry(escort_center, leader_type)
-		_queue_spawn_entry(escort_center + Vector2(-54.0, 26.0), SPAWN_TYPE_BASIC)
-		_queue_spawn_entry(escort_center + Vector2(54.0, -26.0), SPAWN_TYPE_FAST if wave_index >= 5 else SPAWN_TYPE_BASIC)
+	var forward_center := player.global_position + Vector2.RIGHT.rotated(randf_range(-0.32, 0.32) + PI) * minf(spawn_radius_max, 500.0)
+	match _wave_objective_type:
+		"survive":
+			_queue_spawn_entry(left_flank, SPAWN_TYPE_BASIC)
+			if wave_index >= 4:
+				_queue_spawn_entry(forward_center, SPAWN_TYPE_BASIC)
+		"kills":
+			_queue_spawn_entry(left_flank, SPAWN_TYPE_FAST if wave_index >= 4 else SPAWN_TYPE_BASIC)
+			_queue_spawn_entry(right_flank, SPAWN_TYPE_BASIC)
+			if wave_index >= 4:
+				_queue_spawn_entry(forward_center + Vector2(-60.0, 22.0), SPAWN_TYPE_BASIC)
+				_queue_spawn_entry(forward_center + Vector2(60.0, -22.0), SPAWN_TYPE_BASIC)
+		"elite":
+			_queue_spawn_entry(left_flank, SPAWN_TYPE_BASIC)
+			_queue_spawn_entry(right_flank, SPAWN_TYPE_FAST if wave_index >= 5 else SPAWN_TYPE_BASIC)
+			_queue_spawn_entry(forward_center, SPAWN_TYPE_TANK if wave_index >= 5 else SPAWN_TYPE_BASIC)
+			if wave_index >= 4:
+				_queue_spawn_entry(forward_center + Vector2(-54.0, 26.0), SPAWN_TYPE_BASIC)
+				_queue_spawn_entry(forward_center + Vector2(54.0, -26.0), SPAWN_TYPE_FAST if wave_index >= 5 else SPAWN_TYPE_BASIC)
 
 func _queue_spawn_entry(spawn_position: Vector2, preferred_type: String = SPAWN_TYPE_BASIC, force_elite: bool = false) -> void:
 	_queued_spawn_entries.append({
