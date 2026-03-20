@@ -7,6 +7,7 @@ class_name RewardPulse
 @export var ring_width: float = 5.0
 @export var ray_length: float = 34.0
 @export var ray_count: int = 8
+@export var fan_span: float = 0.48
 
 var primary_color: Color = Color(1.0, 0.84, 0.36, 1.0)
 var accent_color: Color = Color(1.0, 0.97, 0.88, 0.95)
@@ -59,3 +60,13 @@ func _draw() -> void:
 		var ray_color := primary_color.lerp(accent_color, 0.42)
 		ray_color.a *= fade * (0.55 + 0.25 * sin(float(i) * 0.8 + progress * 3.2))
 		draw_line(ray_start, ray_end, ray_color, maxf(1.0, ring_width * 0.26))
+
+	var fan_count := maxi(3, int(ceil(float(ray_count) * 0.5)))
+	for i in range(fan_count):
+		var center_angle := -PI * 0.5 + fan_span * (float(i) - float(fan_count - 1) * 0.5) + eased * 0.18
+		var left := Vector2.RIGHT.rotated(center_angle - fan_span * 0.18) * (radius * 0.42)
+		var tip := Vector2.RIGHT.rotated(center_angle) * (radius + ray_length * 0.52)
+		var right := Vector2.RIGHT.rotated(center_angle + fan_span * 0.18) * (radius * 0.42)
+		var fan_color := accent_color.lerp(primary_color, 0.35)
+		fan_color.a *= fade * 0.18
+		draw_colored_polygon(PackedVector2Array([Vector2.ZERO, left, tip, right]), fan_color)
