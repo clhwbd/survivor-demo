@@ -267,6 +267,24 @@
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 45`
 - 验证结果：三次 headless 运行均退出码 `0`；包含跨波次与中时长运行复验，确认新增目标逻辑、HUD 节点装配与战斗导演代码未引入场景加载错误。
 
+### 16. Presentation-pass 严格执行补齐：斩击特效资源落地 + 验收构建回写
+- 动作：补齐主循环里已经接入但仓库缺失的斩击特效资源，确保命中 / 击杀 / 连斩 / 升级 / 受击等演出真正有可实例化的场景与脚本，而不是只停留在主逻辑调用；同时回写一轮当前验收包产物。
+- 涉及文件：
+  - `game/scenes/slash_fx.tscn`
+  - `game/scripts/slash_fx.gd`
+  - `builds/web-release/index.html`
+  - `builds/web-release/index.pck`
+  - `docs/worklog.md`
+- 具体改动：
+  - 新增 `SlashFx` 特效脚本与场景，使用弧形斩光、亮边与火花线实现短时刀光感，供命中、击杀、连斩、升级、受击等节点复用。
+  - 补齐 `main.gd` / `main.tscn` 已引用的 `res://scenes/slash_fx.tscn` 资源缺口，避免“逻辑已写、资源不存在”的半成品状态。
+  - 重新让当前工程资源与 `builds/web-release/` 产物保持一致，保证网页验收包能带上本轮新增特效资源引用。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 3`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 20`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 45`
+- 验证结果：三次 headless 均退出码 `0`，主场景可稳定加载并进入运行；说明本轮补齐的特效场景 / 脚本已被正确解析，未引入装配错误。
+
 ### 16. 发布基线补强：冒烟脚本 / Nginx 模板 / 压缩服务 HEAD 支持
 - 动作：继续承接发布收口线，把“最小发布清单”里原本偏手工的步骤补成可执行工程项，不改玩法基线、不碰 P0 摇杆。
 - 涉及文件：
