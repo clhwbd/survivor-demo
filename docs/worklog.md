@@ -51,3 +51,26 @@
 - 动作：对 `index.wasm` / `index.js` / `index.pck` 做 gzip 压缩，并提供 `serve_compressed.py`
 - 结果：关键资源体积显著下降，便于后续正式静态托管或压缩服务
 - 备注：临时隧道链路仍不稳定，外网访问瓶颈主要在隧道服务而不是游戏资源本体
+
+### 8. UI / 视觉方向确认
+- 用户确认：项目风格方向为 **西游记古风 Q 版**
+- 后续影响范围：UI、角色造型、敌人设计、按钮/面板、提示文案、演出氛围均需向该方向统一
+- 执行策略：先在交互与玩法持续推进的同时，逐步把 HUD、提示层、敌人命名/演出语言往“西游记古风 Q 版”靠拢，再整理成正式视觉规范
+
+### 9. 工程交付面收口（验收版 / 发布方案 / 文档）
+- 动作：补齐 README、`docs/status.md`、`docs/worklog.md`，新增 Web 验收版本说明、发布/托管方案文档、UI/美术 agent 拆分建议文档
+- 结果：项目从“有网页包的玩法 demo”收口为“有验收基线、有部署建议、有后续分工接口”的可交接工程包
+- 新增文档：
+  - `docs/release-acceptance.md`
+  - `docs/deployment-plan.md`
+  - `docs/ui-art-agent-split.md`
+- 备注：明确 `builds/web-release/` 作为验收基线，`builds/web/` 作为压缩交付版
+
+### 10. Web 验收构建复验
+- 动作：使用 Godot 4.6.1 CLI 实测执行 `--headless --export-release Web`，重新导出到 `builds/web-release/index.html`
+- 验证结果：导出成功，退出码 `0`
+- 本地校验：
+  - `python3 -m http.server 18081` 可正常提供 `builds/web-release/`
+  - `index.html / index.js / index.wasm / index.pck` 均返回 `200`
+  - `builds/web/serve_compressed.py` 可正确返回 gzip 版 `index.wasm`
+- 发现：`serve_compressed.py` 当前未实现 `HEAD`，因此 `curl -I` 会返回 `501`，但不影响浏览器实际加载
