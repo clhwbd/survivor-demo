@@ -15,6 +15,31 @@
 
 ---
 
+## 2026-03-21
+
+### 1. Web 加载页阶段式提示收口
+- 动作：复用 `tests/smoke/patch_web_index.py` 的 Web 壳层补丁逻辑，把原本偏模糊的加载条改成更明确的分阶段提示，并同步刷新 `builds/web-release/`、`builds/web/`、`builds/pages-deploy/` 的页面壳层产物。
+- 涉及文件：
+  - `tests/smoke/patch_web_index.py`
+  - `builds/web-release/index.html`
+  - `builds/web/index.html`
+  - `builds/pages-deploy/index.html`
+- 具体改动：
+  - 新增加载阶段文案：
+    - `阶段 1/3：正在请求引擎 wasm`
+    - `阶段 1/3：正在下载引擎 wasm`
+    - `阶段 2/3：正在请求游戏资源 pck`
+    - `阶段 2/3：正在下载游戏资源 pck`
+    - `阶段 3/3：正在初始化 Godot 运行时`
+  - 在提示层里直接展示 `wasm / pck` 体积与总进度，补“首次打开通常最慢”的说明。
+  - 新增长时间卡住提示与失败 fallback，明确告知更可能是网络、托管配置、gzip/CDN 或资源请求异常，而不是单纯黑屏。
+  - 维持现有壳层结构与移动端布局，不重造前端，不改发布脚本入口。
+- 验证：
+  - `./tests/smoke/release_guard.sh`
+  - `./tests/smoke/pages_release_guard.sh`
+- 验证结果：两条 guard 全部通过；本地环境继续因 macOS 版本低于 Cloudflare workerd 要求而跳过 `wrangler pages dev` 头预览，其余文件存在性、gzip 资源、Pages `_headers` 与 release 导出链路均复验通过。
+- 提交：本轮已完成 Git 提交（提交信息：`feat: clarify staged web loading status`）
+
 ## 2026-03-20
 
 ### 1. 保守 Web 模板裁剪准备线落地
