@@ -65,6 +65,10 @@ const OBJECTIVE_DETAILS := {
 	"elite": "盯住压阵头目，拆掉它就能拿回节奏。"
 }
 
+const SPAWN_TYPE_BASIC := "basic"
+const SPAWN_TYPE_FAST := "fast"
+const SPAWN_TYPE_TANK := "tank"
+
 var elapsed_time: float = 0.0
 var kill_count: int = 0
 var difficulty_stage: int = 0
@@ -102,6 +106,7 @@ var _bonus_attack_speed_time: float = 0.0
 var _bonus_damage_time: float = 0.0
 var _bonus_multishot_time: float = 0.0
 var _bonus_pierce_time: float = 0.0
+var _merit_stacks: int = 0
 var _wave_objective_type: String = "survive"
 var _wave_objective_target: int = 0
 var _wave_objective_progress: int = 0
@@ -110,7 +115,7 @@ var _wave_objective_reward_text: String = ""
 var _last_objective_kill_count: int = 0
 var _last_objective_elite_kill_count: int = 0
 var _elite_kill_count: int = 0
-var _queued_spawn_positions: Array[Vector2] = []
+var _queued_spawn_entries: Array[Dictionary] = []
 
 @onready var player: CharacterBody2D = $Player
 @onready var player_camera: Camera2D = $Player/Camera2D
@@ -349,8 +354,13 @@ func _update_focus_overlay() -> void:
 		medal_label.visible = pause_requested or game_over or demo_clear
 		medal_label.text = _get_medal_line()
 	if settlement_stamp != null:
-		settlement_stamp.visible = pause_requested or game_over or demo_clear
+		var stamp_visible: bool = pause_requested or game_over or demo_clear
+		settlement_stamp.visible = stamp_visible
 		settlement_stamp.text = _get_settlement_stamp_text()
+		if stamp_visible != _settlement_stamp_visible_state:
+			_settlement_stamp_visible_state = stamp_visible
+			if stamp_visible:
+				_animate_settlement_stamp()
 	if summary_label != null:
 		summary_label.visible = pause_requested or game_over or demo_clear
 		if not summary_label.visible:
@@ -407,6 +417,8 @@ func _spawn_elite_pack_for_wave() -> void:
 		elite_count += 1
 	if wave_index >= 5:
 		elite_count += 1
+	if player.health <= 2 or _get_spawn_pressure_tier() >= 2:
+		elite_count = maxi(0, elite_count - 1)
 	for _i in range(elite_count):
 		if enemies.get_child_count() >= max_alive_enemies:
 			break
@@ -426,24 +438,38 @@ func _on_spawn_timer_timeout() -> void:
 	var respite_factor := _respite_spawn_multiplier if _respite_time_remaining > 0.0 else 1.0
 	var spawn_total := mini(int(ceil((spawn_count_per_wave + int(wave_index / 3)) * respite_factor)), available_slots)
 	spawn_total = maxi(1, spawn_total)
-	while spawn_total > 0 and available_slots > 0 and _queued_spawn_positions.size() > 0:
-		var queued_position: Vector2 = _queued_spawn_positions.pop_front()
-		_spawn_enemy_at_position(queued_position, false)
+	var pressure_tier := _get_spawn_pressure_tier()
+	if pressure_tier >= 3:
+		spawn_total = maxi(1, spawn_total - 2)
+	elif pressure_tier >= 2:
+		spawn_total = maxi(1, spawn_total - 1)
+	while spawn_total > 0 and available_slots > 0 and _queued_spawn_entries.size() > 0:
+		var queued_entry := _queued_spawn_entries.pop_front()
+		if pressure_tier >= 3 and String(queued_entry.get("preferred_type", SPAWN_TYPE_BASIC)) != SPAWN_TYPE_BASIC:
+			continue
+		var queued_position: Vector2 = queued_entry.get("position", _get_spawn_position())
+		_spawn_enemy_at_position(queued_position, bool(queued_entry.get("force_elite", false)), String(queued_entry.get("preferred_type", SPAWN_TYPE_BASIC)))
 		spawn_total -= 1
 		available_slots -= 1
 	for _i in range(mini(spawn_total, available_slots)):
-		_spawn_enemy()
+		_spawn_enemy(false, SPAWN_TYPE_BASIC if pressure_tier >= 3 else "")
 
-func _spawn_enemy(force_elite: bool = false) -> void:
-	_spawn_enemy_at_position(_get_spawn_position(), force_elite)
+func _spawn_enemy(force_elite: bool = false, preferred_type: String = "") -> void:
+	_spawn_enemy_at_position(_get_spawn_position(), force_elite, preferred_type)
 
-func _spawn_enemy_at_position(spawn_position: Vector2, force_elite: bool = false) -> void:
+func _spawn_enemy_at_position(spawn_position: Vector2, force_elite: bool = false, preferred_type: String = "") -> void:
 	var weights := _get_enemy_spawn_weights()
 	var spawn_roll := randf()
 	var scene_to_spawn: PackedScene = enemy_scene
 	var tank_weight: float = weights.y
 	var fast_weight: float = weights.x
-	if tank_enemy_scene != null and spawn_roll < tank_weight:
+	if preferred_type == SPAWN_TYPE_TANK and tank_enemy_scene != null:
+		scene_to_spawn = tank_enemy_scene
+	elif preferred_type == SPAWN_TYPE_FAST and fast_enemy_scene != null:
+		scene_to_spawn = fast_enemy_scene
+	elif preferred_type == SPAWN_TYPE_BASIC:
+		scene_to_spawn = enemy_scene
+	elif tank_enemy_scene != null and spawn_roll < tank_weight:
 		scene_to_spawn = tank_enemy_scene
 	elif fast_enemy_scene != null and spawn_roll < tank_weight + fast_weight:
 		scene_to_spawn = fast_enemy_scene
@@ -480,6 +506,7 @@ func _get_enemy_spawn_weights() -> Vector2:
 		tank_weight *= maxf(0.30, 1.0 - _respite_tank_penalty)
 	var alive_tanks := 0
 	var alive_fast := 0
+	var close_pressure := 0.0
 	for child in enemies.get_children():
 		if child == null or not is_instance_valid(child):
 			continue
@@ -488,10 +515,25 @@ func _get_enemy_spawn_weights() -> Vector2:
 			alive_tanks += 1
 		elif scene_file.ends_with("enemy_runner.tscn"):
 			alive_fast += 1
+		if child is Node2D:
+			var distance := player.global_position.distance_to((child as Node2D).global_position)
+			if distance < 180.0:
+				close_pressure += 1.0
+				if scene_file.ends_with("enemy_tank.tscn"):
+					close_pressure += 0.9
+				elif scene_file.ends_with("enemy_runner.tscn"):
+					close_pressure += 0.45
 	if alive_tanks >= 2 and wave_index < 6:
 		tank_weight *= 0.35
 	if alive_fast >= int(maxi(3, wave_index + 1)):
 		fast_weight *= 0.65
+	var pressure_tier := _get_spawn_pressure_tier(close_pressure, alive_fast, alive_tanks)
+	if pressure_tier >= 3:
+		fast_weight *= 0.32
+		tank_weight *= 0.22
+	elif pressure_tier >= 2:
+		fast_weight *= 0.55
+		tank_weight *= 0.42
 	return Vector2(clampf(fast_weight, 0.0, 0.65), clampf(tank_weight, 0.0, 0.32))
 
 func _on_attack_timer_timeout() -> void:
@@ -521,8 +563,8 @@ func _on_attack_timer_timeout() -> void:
 		var direction := base_direction.rotated(angle_offset)
 		projectile.global_position = player.global_position
 		projectile.set("direction", direction)
-		projectile.set("speed", projectile_speed + player.level * 18.0 + wave_index * 6.0)
-		var projectile_damage := 1 + int((player.level - 1) / 3) + int((wave_index - 1) / 4) + (1 if _bonus_damage_time > 0.0 else 0)
+		projectile.set("speed", projectile_speed + player.level * 18.0 + wave_index * 6.0 + _merit_stacks * 10.0)
+		var projectile_damage := 1 + int((player.level - 1) / 3) + int((wave_index - 1) / 4) + int(_merit_stacks / 2) + (1 if _bonus_damage_time > 0.0 else 0)
 		projectile.set("damage", projectile_damage)
 		projectile.set("pierce", pierce_count)
 		projectiles.add_child(projectile)
@@ -613,7 +655,7 @@ func _on_enemy_died(enemy: Node, death_position: Vector2, xp_reward: int) -> voi
 	pickups.call_deferred("add_child", xp_orb)
 
 func _on_player_xp_changed(current_xp: int, xp_to_next: int, level: int) -> void:
-	attack_timer.wait_time = maxf(0.12, attack_interval - (level - 1) * 0.02 - (0.18 if _bonus_attack_speed_time > 0.0 else 0.0))
+	attack_timer.wait_time = maxf(0.12, attack_interval - (level - 1) * 0.02 - (0.18 if _bonus_attack_speed_time > 0.0 else 0.0) - minf(0.12, float(_merit_stacks) * 0.02))
 	hud_level.text = "行者 %d重  ·  %s" % [level, _get_stage_title(difficulty_stage + 1)]
 	hud_xp_bar.max_value = max(1, xp_to_next)
 	hud_xp_bar.value = current_xp
@@ -623,8 +665,8 @@ func _on_player_xp_changed(current_xp: int, xp_to_next: int, level: int) -> void
 	var shots := 1 + int((level - 1) / 4) + (1 if _bonus_multishot_time > 0.0 else 0)
 	shots = mini(shots, 5)
 	var pierce := int((level - 1) / 5) + (1 if _bonus_pierce_time > 0.0 else 0)
-	var damage := 1 + int((level - 1) / 3) + int((wave_index - 1) / 4) + (1 if _bonus_damage_time > 0.0 else 0)
-	hud_weapon.text = "法术：%d 伤 · %d 连发 · %d 穿透%s" % [damage, shots, pierce, bonus_attack_speed]
+	var damage := 1 + int((level - 1) / 3) + int((wave_index - 1) / 4) + int(_merit_stacks / 2) + (1 if _bonus_damage_time > 0.0 else 0)
+	hud_weapon.text = "法术：%d 伤 · %d 连发 · %d 穿透%s · 军功 %d" % [damage, shots, pierce, bonus_attack_speed, _merit_stacks]
 	if level > _last_level:
 		_show_banner("修为精进 · 行者 %d重" % level, "修为播报")
 		_show_center_notice("修为精进 · 行者 %d 重" % level, HUD_MINT)
@@ -742,9 +784,9 @@ func _update_status_card() -> void:
 	var kills_to_heal := maxi(0, next_heal_goal - kill_count)
 	var badge_text := "香火签"
 	var status_title := "金箍势稳"
-	var status_detail := "福泽香火未满，离下一口回命还差 %d 斩妖。" % kills_to_heal
+	var status_detail := "福泽香火未满，离下一口回命还差 %d 斩妖。当前军功 %d。" % [kills_to_heal, _merit_stacks]
 	if not _wave_objective_completed:
-		status_detail = "当前军令：%s" % OBJECTIVE_DETAILS.get(_wave_objective_type, "先稳住这一劫的节奏。")
+		status_detail = "当前军令：%s · 已攒军功 %d" % [OBJECTIVE_DETAILS.get(_wave_objective_type, "先稳住这一劫的节奏。"), _merit_stacks]
 	if _kill_streak >= 4 and _kill_streak_timer > 0.0:
 		badge_text = "连斩签"
 		status_title = "连斩起势"
@@ -790,7 +832,7 @@ func _update_status_card() -> void:
 	elif _bonus_attack_speed_time > 0.0 or _bonus_damage_time > 0.0 or _bonus_multishot_time > 0.0 or _bonus_pierce_time > 0.0:
 		badge_text = "军令签"
 		status_title = "赏功加身"
-		status_detail = "%s，趁赏功时段把妖潮再往回压。" % _wave_objective_reward_text
+		status_detail = "%s，趁赏功时段把妖潮再往回压。当前军功 %d。" % [_wave_objective_reward_text, _merit_stacks]
 		status_color = HUD_MINT
 		accent_color = HUD_MINT
 		background_color = Color(0.10, 0.16, 0.12, 0.82)
@@ -889,10 +931,28 @@ func _show_combo_meter() -> void:
 	_combo_meter_tween.tween_property(combo_meter, "modulate", Color(1, 1, 1, 0), 0.20)
 	_combo_meter_tween.tween_property(combo_meter, "position", _combo_meter_base_position + Vector2(0.0, -6.0), 0.20)
 	_combo_meter_tween.finished.connect(func():
+		_combo_meter_tween = null
 		if combo_meter != null:
 			combo_meter.visible = false
 			combo_meter.position = _combo_meter_base_position
 			combo_meter.scale = Vector2.ONE
+	)
+
+func _animate_settlement_stamp() -> void:
+	if settlement_stamp == null:
+		return
+	if _settlement_stamp_tween != null:
+		_settlement_stamp_tween.kill()
+	settlement_stamp.modulate = Color(1, 1, 1, 0)
+	settlement_stamp.scale = Vector2(0.88, 0.88)
+	settlement_stamp.rotation = deg_to_rad(-3.0)
+	_settlement_stamp_tween = create_tween()
+	_settlement_stamp_tween.set_parallel(true)
+	_settlement_stamp_tween.tween_property(settlement_stamp, "modulate", Color(1, 1, 1, 1), 0.16)
+	_settlement_stamp_tween.tween_property(settlement_stamp, "scale", Vector2.ONE, 0.20).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_settlement_stamp_tween.tween_property(settlement_stamp, "rotation", 0.0, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_settlement_stamp_tween.finished.connect(func():
+		_settlement_stamp_tween = null
 	)
 
 func _flash_screen(color_value: Color, alpha: float = 0.12, duration: float = 0.16) -> void:
@@ -1052,7 +1112,7 @@ func _update_tip_text() -> void:
 	elif not _wave_objective_completed:
 		tip = "本劫军令：%s，%s" % [OBJECTIVE_LABELS.get(_wave_objective_type, "稳住阵脚"), OBJECTIVE_DETAILS.get(_wave_objective_type, "先稳住这一劫的节奏。")]
 	elif wave_index >= 3:
-		tip = "妖潮转急：看见头目先拉开半步，再借自动法术慢慢磨。"
+		tip = "妖潮转急：看见头目先拉开半步，再借自动法术慢慢磨。军功会持续抬高输出。"
 	hud_tip.text = tip
 	if mobile_hint != null:
 		var mobile_text := "左下摇杆走位\n右下筋斗闪穿怪\n暂停/重开都在右侧"
@@ -1144,27 +1204,85 @@ func _complete_wave_objective() -> void:
 			_bonus_pierce_time = maxf(_bonus_pierce_time, 10.0)
 			_bonus_attack_speed_time = maxf(_bonus_attack_speed_time, 6.0)
 			_wave_objective_reward_text = "回命 + 穿透 + 急速"
+	_gain_merit_stack()
+	_trigger_respite(1.35, 0.48, 0.22, 0.24)
+	if player != null and player.has_method("collect_xp"):
+		player.collect_xp(2 + mini(4, wave_index - 1))
 	_show_center_notice("军令达成 · %s" % _wave_objective_reward_text, HUD_MINT)
 	_spawn_popup(player.global_position + Vector2(0, -46), "军令达成", HUD_MINT)
+	_spawn_popup(player.global_position + Vector2(0, -68), "+1 军功", HUD_GOLD)
 	_spawn_burst(player.global_position, HUD_MINT, 1.28, 1.12)
 	_spawn_slash(player.global_position, -PI * 0.5, HUD_MINT, 1.26, 1.0)
+	_spawn_reward_pulse(player.global_position, HUD_GOLD, 1.18, 1.0, 9)
 	_flash_screen(HUD_MINT, 0.10, 0.14)
 	_on_player_xp_changed(player.xp, player.xp_to_next, player.level)
 
+func _gain_merit_stack() -> void:
+	_merit_stacks += 1
+	if _merit_stacks % 3 == 0 and player != null:
+		player.max_health += 1
+		player.heal(1)
+		player.stats_changed.emit(player.health, player.max_health, player.level)
+		_show_center_notice("军功满三层 · 命火上限 +1", HUD_GOLD)
+		_spawn_popup(player.global_position + Vector2(0, -90), "命火上限 +1", HUD_GOLD)
+
 func _queue_wave_spawn_patterns() -> void:
-	_queued_spawn_positions.clear()
+	_queued_spawn_entries.clear()
 	if wave_index < 3:
 		return
 	var flank_distance := minf(spawn_radius_max, maxf(spawn_radius_min + 30.0, 470.0))
 	var left_flank := player.global_position + Vector2(-flank_distance, randf_range(-120.0, 120.0))
 	var right_flank := player.global_position + Vector2(flank_distance, randf_range(-120.0, 120.0))
 	if wave_index % 2 == 0:
-		_queued_spawn_positions.append(left_flank)
-		_queued_spawn_positions.append(right_flank)
+		_queue_spawn_entry(left_flank, SPAWN_TYPE_FAST if wave_index >= 4 else SPAWN_TYPE_BASIC)
+		_queue_spawn_entry(right_flank, SPAWN_TYPE_BASIC)
+	elif wave_index >= 5:
+		_queue_spawn_entry(left_flank, SPAWN_TYPE_BASIC)
+		_queue_spawn_entry(right_flank, SPAWN_TYPE_FAST)
 	if wave_index >= 4:
 		var escort_center := player.global_position + Vector2.RIGHT.rotated(randf_range(-0.45, 0.45) + PI) * minf(spawn_radius_max, 510.0)
-		_queued_spawn_positions.append(escort_center + Vector2(-32.0, 18.0))
-		_queued_spawn_positions.append(escort_center + Vector2(32.0, -18.0))
+		var leader_type := SPAWN_TYPE_TANK if wave_index >= 5 else SPAWN_TYPE_BASIC
+		_queue_spawn_entry(escort_center, leader_type)
+		_queue_spawn_entry(escort_center + Vector2(-54.0, 26.0), SPAWN_TYPE_BASIC)
+		_queue_spawn_entry(escort_center + Vector2(54.0, -26.0), SPAWN_TYPE_FAST if wave_index >= 5 else SPAWN_TYPE_BASIC)
+
+func _queue_spawn_entry(spawn_position: Vector2, preferred_type: String = SPAWN_TYPE_BASIC, force_elite: bool = false) -> void:
+	_queued_spawn_entries.append({
+		"position": spawn_position,
+		"preferred_type": preferred_type,
+		"force_elite": force_elite
+	})
+
+func _get_spawn_pressure_tier(close_pressure_override: float = -1.0, alive_fast_override: int = -1, alive_tank_override: int = -1) -> int:
+	var close_pressure := close_pressure_override
+	var alive_fast := alive_fast_override
+	var alive_tanks := alive_tank_override
+	if close_pressure < 0.0 or alive_fast < 0 or alive_tanks < 0:
+		close_pressure = 0.0
+		alive_fast = 0
+		alive_tanks = 0
+		for child in enemies.get_children():
+			if child == null or not is_instance_valid(child):
+				continue
+			var scene_file := String(child.scene_file_path)
+			if scene_file.ends_with("enemy_runner.tscn"):
+				alive_fast += 1
+			elif scene_file.ends_with("enemy_tank.tscn"):
+				alive_tanks += 1
+			if child is Node2D and player.global_position.distance_to((child as Node2D).global_position) < 180.0:
+				close_pressure += 1.0
+	var pressure_score := close_pressure + float(alive_fast) * 0.45 + float(alive_tanks) * 0.9
+	if player.health <= 2:
+		pressure_score += 1.8
+	if _respite_time_remaining > 0.0:
+		pressure_score -= 0.8
+	if pressure_score >= 8.0:
+		return 3
+	if pressure_score >= 5.0:
+		return 2
+	if pressure_score >= 3.0:
+		return 1
+	return 0
 
 func _get_spawn_position() -> Vector2:
 	var player_position := player.global_position
@@ -1321,6 +1439,7 @@ func _build_run_summary(title_text: String) -> String:
 		player.level,
 		player.health,
 		player.max_health,
+		_merit_stacks,
 		_best_kill_streak,
 		wave_index,
 		_get_wave_title(wave_index)
