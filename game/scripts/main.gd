@@ -92,6 +92,8 @@ var _kill_streak_timer: float = 0.0
 var _low_health_pulse_time: float = 0.0
 var _combo_meter_base_position: Vector2 = Vector2.ZERO
 var _combo_meter_tween: Tween
+var _settlement_stamp_tween: Tween
+var _settlement_stamp_visible_state: bool = false
 var _respite_time_remaining: float = 0.0
 var _respite_spawn_multiplier: float = 1.0
 var _respite_fast_penalty: float = 0.0

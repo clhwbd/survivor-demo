@@ -358,3 +358,6 @@
   - 触控冒烟脚本输出 `touch_joystick_smoke: ok`，退出码 `0`
   - 主场景 headless 加载退出码 `0`
   - Web 导出成功，生成 `index.html / index.js / index.wasm / index.pck`，退出码 `0`
+
+### UI/HUD 第三轮补充
+- 2026-03-20：继续强化顶部横幅副标题、右上状态签、结果页按钮主次与 HUD 分隔条，验收目标是更像西游 Q 版戏台战报。
