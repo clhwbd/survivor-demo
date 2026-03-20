@@ -146,6 +146,27 @@
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 600`
 - 验证结果：两次 headless 运行均退出码 `0`；其中第二次复验确认经验球报错已消除。
 
+### 13. HUD / 状态签 / 横幅副标题 + 角色敌人细节第三轮
+- 动作：继续沿“西游记古风 Q 版”方向做高优先级验收收口，这轮重点是 HUD 信息层级、状态签样式、横幅播报副标题、按钮主次，以及角色/敌人的第一眼识别细节。
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `game/scenes/main.tscn`
+  - `game/scenes/player.tscn`
+  - `game/scenes/enemy_basic.tscn`
+  - `game/scenes/enemy_runner.tscn`
+  - `game/scenes/enemy_tank.tscn`
+  - `docs/ui-style-guide.md`
+- 具体改动：
+  - 左上主 HUD 新增金/朱砂分隔条，把数值层、波次层、目标提示层拆开，信息块更像一页戏台账本。
+  - 顶部横幅新增副标题位，关键播报从单句升级成“标题 + 小签注”的戏台播报结构。
+  - 右上状态卡新增独立徽签文案（香火签 / 军令签 / 告急签 / 喝彩签等），与状态正文分离，读感和层级更清楚。
+  - 继续试炼 / 暂停按钮切到次级深墨金边样式，`再闯一局` 与移动端 `筋斗闪` 维持高强调主按钮，结果页操作主次更明确。
+  - 主角补眉眼、肩甲、下摆；基础怪补凶眉和肩甲；快怪补头焰与臂缠；重装怪补牙饰与腰甲，三类敌我更像同一套西游纸片戏角色。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 3`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 20`
+- 验证结果：两次 headless 运行均应为退出码 `0`；本轮还额外检查场景装配是否能正确加载新增 HUD 节点与角色细节 Polygon。
+
 ### 13. 交付文档二次收口 + Web 复验复核
 - 动作：再次统一 README / status / release-acceptance / deployment-plan 的交付口径，明确 `builds/web-release/` 与 `builds/web/` 的职责，并补一轮现有 Web 构建复验结果。
 - 涉及文件：
@@ -169,3 +190,47 @@
   - `curl -I http://127.0.0.1:18081/index.pck`
   - `curl -D - -H 'Accept-Encoding: gzip' http://127.0.0.1:8000/index.wasm -o /dev/null`
 - 验证结果：Godot CLI 导出退出码 `0`；验收版四个核心文件均返回 `200`；压缩版 `GET index.wasm` 返回 `Content-Encoding: gzip` / `Vary: Accept-Encoding` / `Content-Type: application/wasm`。
+
+### 14. 源码 / Web 验收包一致性修正 + 最小发布清单
+- 动作：承接上一轮验收 / 发布准备线，继续收口当前可试玩版本的交付质量，重点修源码与场景脱节、统一文档口径，并补真正上线托管前的最小清单。
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `game/scenes/main.tscn`
+  - `README.md`
+  - `docs/status.md`
+  - `docs/release-acceptance.md`
+  - `docs/deployment-plan.md`
+  - `docs/release-minimum-checklist.md`
+  - `docs/worklog.md`
+- 具体改动：
+  - 修正 `main.gd` 中阻断主场景加载 / Web 导出的语法错误。
+  - 补齐 `main.tscn` 缺失的 HUD 分隔条与状态徽签节点，让脚本与场景重新对齐。
+  - 在 README、status、release-acceptance、deployment-plan 中补充“上线前先过清单”的统一口径。
+  - 新增 `docs/release-minimum-checklist.md`，把源码一致性、本地回归、移动端最低体验、托管配置、交付留痕拆成最小可执行清单。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 3`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --export-release Web /Users/mac/game-studio/projects/survivor-demo/builds/web-release/index.html`
+  - `python3 -m http.server 18081`（目录：`builds/web-release/`）
+  - `curl -I http://127.0.0.1:18081/index.html`
+  - `curl -I http://127.0.0.1:18081/index.js`
+  - `curl -I http://127.0.0.1:18081/index.wasm`
+  - `curl -I http://127.0.0.1:18081/index.pck`
+- 验证结果：主场景 headless 加载恢复正常；重导出后 `builds/web-release/` 与当前源码重新对齐；四个核心静态资源均返回 `200`。
+
+### 15. 高优先级战斗精修第三轮：喘息窗口 / 编组压迫 / 波次小目标
+- 动作：继续在现有战斗基线上做高优先级可玩性精修，不动 P0 摇杆；这一轮重点补战斗导演、公平性缓冲、成长奖励和短局目标感。
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `game/scenes/main.tscn`
+  - `docs/worklog.md`
+- 具体改动：
+  - 新增“喘息窗口”导演逻辑：换波和玩家掉血后会短暂减轻刷新量，并压低快怪 / 重装占比，降低被连续贴脸滚死的挫败感。
+  - 新增两种敌群编组：双侧包夹与重装护送队，让中后期不只是随机堆数，而是更像有意图的妖潮组合压迫。
+  - 新增每波“小目标”系统（稳住阵脚 / 斩妖数 / 伏诛头目），完成后给回命或短时火力奖励，把 3 分钟短局拆成更明确的小段目标。
+  - 新增临时节奏奖励：小目标达成后会触发急速 / 额外伤害 / 连发 / 穿透强化，并同步回写武器 HUD，成长反馈更直接。
+  - HUD 补状态徽签、目标文案和分隔条，让“当前该做什么 / 奖励还剩多久 / 现在是回气还是压阵”更一眼可读。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 3`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 12`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 45`
+- 验证结果：三次 headless 运行均退出码 `0`；包含跨波次与中时长运行复验，确认新增目标逻辑、HUD 节点装配与战斗导演代码未引入场景加载错误。

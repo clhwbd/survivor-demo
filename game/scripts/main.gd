@@ -19,6 +19,7 @@ extends Node2D
 @export var projectile_scene: PackedScene
 @export var xp_orb_scene: PackedScene
 @export var damage_popup_scene: PackedScene
+@export var feedback_burst_scene: PackedScene
 
 const WAVE_TITLES := [
 	"花果山热身",
@@ -64,6 +65,8 @@ var _elites_spawned_total: int = 0
 var _camera_shake_strength: float = 0.0
 var _camera_shake_time: float = 0.0
 var _camera_base_offset: Vector2 = Vector2.ZERO
+var _focus_overlay_visible_state: bool = false
+var _center_notice_tween: Tween
 
 @onready var player: CharacterBody2D = $Player
 @onready var player_camera: Camera2D = $Player/Camera2D
@@ -89,7 +92,13 @@ var _camera_base_offset: Vector2 = Vector2.ZERO
 @onready var banner_backing: ColorRect = $HUD/TopCenter/BannerBacking
 @onready var banner_accent: ColorRect = $HUD/TopCenter/BannerAccent
 @onready var banner_label: Label = $HUD/TopCenter/BannerLabel
+@onready var center_notice: Control = $HUD/CenterNotice
+@onready var center_notice_backing: ColorRect = $HUD/CenterNotice/Backing
+@onready var center_notice_accent: ColorRect = $HUD/CenterNotice/Accent
+@onready var center_notice_label: Label = $HUD/CenterNotice/Label
 @onready var focus_overlay: Control = $HUD/FocusOverlay
+@onready var focus_tint: ColorRect = $HUD/FocusOverlay/Tint
+@onready var focus_panel: PanelContainer = $HUD/FocusOverlay/PanelContainer
 @onready var focus_badge: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/BadgeLabel
 @onready var focus_title: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/TitleLabel
 @onready var focus_detail: Label = $HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer/DetailLabel
@@ -118,6 +127,8 @@ func _ready() -> void:
 		xp_orb_scene = load("res://scenes/xp_orb.tscn")
 	if damage_popup_scene == null:
 		damage_popup_scene = load("res://scenes/damage_popup.tscn")
+	if feedback_burst_scene == null:
+		feedback_burst_scene = load("res://scenes/feedback_burst.tscn")
 
 	_apply_ui_style()
 
@@ -165,6 +176,7 @@ func _ready() -> void:
 	_apply_wave_state(true)
 	_setup_web_ui()
 	_show_banner("第一劫 · %s" % _get_wave_title(1))
+	_show_center_notice("花果山开场 · 点按后起势", HUD_GOLD)
 	_update_tip_text()
 
 	print("survivor-demo polished demo ready")
@@ -264,7 +276,7 @@ func _update_focus_overlay() -> void:
 		summary_label.visible = pause_requested or game_over or demo_clear
 		if not summary_label.visible:
 			summary_label.text = ""
-	focus_overlay.visible = overlay_visible
+	_set_focus_overlay_visible(overlay_visible)
 	if continue_button != null:
 		continue_button.visible = pause_requested
 	if restart_button != null:
@@ -282,6 +294,7 @@ func _update_difficulty() -> void:
 	max_alive_enemies = mini(88, 18 + difficulty_stage * 5 + wave_index * 2)
 	if difficulty_stage > 0:
 		_show_banner("妖势渐盛 · %s" % _get_stage_title(difficulty_stage + 1))
+		_show_center_notice("妖势升级 · %s" % _get_stage_title(difficulty_stage + 1), HUD_WARNING)
 		_add_camera_shake(5.0, 0.18)
 
 func _update_wave_progress() -> void:
@@ -297,7 +310,9 @@ func _apply_wave_state(is_initial: bool) -> void:
 	if not is_initial:
 		player.heal(1)
 		_show_banner("第%d劫 · %s" % [wave_index, _get_wave_title(wave_index)])
+		_show_center_notice("第%d劫开场 · %s" % [wave_index, _get_wave_title(wave_index)], HUD_GOLD)
 		_spawn_popup(player.global_position + Vector2(0, -32), "+1 命", HUD_MINT)
+		_spawn_burst(player.global_position, HUD_MINT, 1.2, 1.15)
 		_add_camera_shake(7.0, 0.26)
 		_spawn_elite_pack_for_wave()
 	_update_tip_text()
@@ -316,6 +331,7 @@ func _spawn_elite_pack_for_wave() -> void:
 		_spawn_enemy(true)
 	if elite_count > 0:
 		_spawn_popup(player.global_position + Vector2(0, -58), "头目现身", HUD_WARNING)
+		_show_center_notice("头目压阵 · 当心贴脸", HUD_WARNING)
 
 func _on_spawn_timer_timeout() -> void:
 	if enemy_scene == null or not is_instance_valid(player) or game_over or demo_clear:
@@ -357,6 +373,8 @@ func _spawn_enemy(force_elite: bool = false) -> void:
 		_add_camera_shake(9.0, 0.25)
 	if enemy.has_signal("died"):
 		enemy.died.connect(_on_enemy_died)
+	if enemy.has_signal("damaged"):
+		enemy.damaged.connect(_on_enemy_damaged)
 	enemies.add_child(enemy)
 
 func _on_attack_timer_timeout() -> void:
@@ -374,6 +392,7 @@ func _on_attack_timer_timeout() -> void:
 	var base_direction := (target.global_position - player.global_position).normalized()
 	var spread_step := deg_to_rad(10.0)
 	var start_angle := -spread_step * float(shot_count - 1) * 0.5
+	_spawn_burst(player.global_position + base_direction * 18.0, HUD_GOLD, 0.48, 0.75)
 
 	for i in range(shot_count):
 		var projectile := projectile_scene.instantiate()
@@ -402,20 +421,32 @@ func _get_nearest_enemy_in_range(range_limit: float) -> Node2D:
 
 	return nearest
 
+func _on_enemy_damaged(_enemy: Node, hit_position: Vector2, remaining_health: int, max_health_value: int, was_elite: bool) -> void:
+	var color_value := HUD_WARNING if was_elite else HUD_GOLD
+	var radius_scale := 0.82 + (0.35 if was_elite else 0.0)
+	_spawn_burst(hit_position, color_value, radius_scale, 0.78)
+	if remaining_health > 0 and max_health_value >= 4:
+		_spawn_popup(hit_position + Vector2(0, -18), "%d/%d" % [remaining_health, max_health_value], HUD_PAPER)
+
 func _on_enemy_died(enemy: Node, death_position: Vector2, xp_reward: int) -> void:
 	kill_count += 1
 	var popup_color := HUD_MINT
 	var popup_text := "修为 +%d" % xp_reward
+	var burst_scale := 1.1
 	if enemy != null and bool(enemy.get("is_elite")):
 		popup_color = HUD_WARNING
 		popup_text = "头目修为 +%d" % xp_reward
+		burst_scale = 1.55
 		_add_camera_shake(8.0, 0.22)
 	_spawn_popup(death_position, popup_text, popup_color)
+	_spawn_burst(death_position, popup_color, burst_scale, 1.0)
 	var expected_heal_rewards := int(kill_count / 25)
 	if expected_heal_rewards > _heals_awarded_by_kills:
 		_heals_awarded_by_kills = expected_heal_rewards
 		player.heal(1)
 		_spawn_popup(player.global_position + Vector2(0, -28), "连斩福泽 +1 命", HUD_SKY)
+		_show_center_notice("连斩福泽 · 命火回涌", HUD_SKY)
+		_spawn_burst(player.global_position, HUD_SKY, 1.15, 1.05)
 	if xp_orb_scene == null:
 		return
 
@@ -444,6 +475,8 @@ func _on_player_xp_changed(current_xp: int, xp_to_next: int, level: int) -> void
 	hud_weapon.text = "法术：%d 伤 · %d 连发 · %d 穿透" % [damage, shots, pierce]
 	if level > _last_level:
 		_show_banner("修为精进 · 行者 %d重" % level)
+		_show_center_notice("修为精进 · 行者 %d 重" % level, HUD_MINT)
+		_spawn_burst(player.global_position, HUD_MINT, 1.45, 1.25)
 		_add_camera_shake(6.0, 0.18)
 	_last_level = level
 
@@ -455,6 +488,8 @@ func _on_player_stats_changed(health: int, max_health: int, _level: int) -> void
 		hud_health.add_theme_color_override("font_color", HUD_PAPER)
 	if _last_health >= 0 and health < _last_health and not game_over:
 		_spawn_popup(player.global_position + Vector2(0, -22), "-%d 命" % (_last_health - health), HUD_DANGER)
+		_spawn_burst(player.global_position, HUD_DANGER, 1.05, 0.95)
+		_show_center_notice("命火受创 · 先拉开身位", HUD_DANGER)
 		_add_camera_shake(10.0, 0.16)
 	_last_health = health
 	if health <= 0 and not game_over:
@@ -479,6 +514,7 @@ func _on_dash_button_pressed() -> void:
 		if player.request_dash():
 			_browser_hint_acknowledged = true
 			_spawn_popup(player.global_position + Vector2(0, -38), "筋斗闪", HUD_WARNING)
+			_spawn_burst(player.global_position, HUD_WARNING, 0.95, 0.82)
 			_add_camera_shake(4.0, 0.12)
 
 func _on_player_died() -> void:
@@ -490,6 +526,8 @@ func _on_player_died() -> void:
 	hud_tip.text = "功行散尽 · 按 R 或点右下再闯一局"
 	_set_pause_state(false)
 	_show_banner("此局止步 · 斩妖 %d" % kill_count)
+	_show_center_notice("此局止步 · 再闯一局", HUD_DANGER)
+	_spawn_burst(player.global_position, HUD_DANGER, 1.9, 1.35)
 	_add_camera_shake(12.0, 0.28)
 	if restart_button != null:
 		restart_button.visible = true
@@ -503,6 +541,8 @@ func _on_demo_clear() -> void:
 	hud_tip.text = "试炼通关 · 按 R 或点右下再走一遭"
 	_set_pause_state(false)
 	_show_banner("大圣护场 · 存活 %02d:%02d" % [int(elapsed_time) / 60, int(elapsed_time) % 60])
+	_show_center_notice("通关喝彩 · 大圣护场", HUD_MINT)
+	_spawn_burst(player.global_position, HUD_MINT, 2.1, 1.5)
 	_add_camera_shake(10.0, 0.35)
 	if restart_button != null:
 		restart_button.visible = true
@@ -584,6 +624,17 @@ func _spawn_popup(world_position: Vector2, text_value: String, color_value: Colo
 		popup.setup(text_value, color_value)
 	feedback.add_child(popup)
 
+func _spawn_burst(world_position: Vector2, color_value: Color, scale_mul: float = 1.0, duration_mul: float = 1.0) -> void:
+	if feedback_burst_scene == null:
+		return
+	var burst := feedback_burst_scene.instantiate()
+	if burst == null:
+		return
+	burst.position = world_position
+	if burst.has_method("setup"):
+		burst.setup(color_value, Color(1.0, 1.0, 1.0, 0.9), scale_mul, duration_mul)
+	feedback.add_child(burst)
+
 func _show_banner(text_value: String) -> void:
 	if banner_label == null:
 		return
@@ -610,6 +661,67 @@ func _show_banner(text_value: String) -> void:
 		if banner_accent != null:
 			banner_accent.visible = false
 	)
+
+func _show_center_notice(text_value: String, accent_color: Color = HUD_GOLD) -> void:
+	if center_notice == null or center_notice_label == null:
+		return
+	center_notice.visible = true
+	center_notice_label.text = text_value
+	center_notice_label.modulate = Color(1, 1, 1, 1)
+	center_notice_label.scale = Vector2(0.94, 0.94)
+	center_notice_backing.color = Color(0.12, 0.08, 0.06, 0.84)
+	center_notice_backing.modulate = Color(1, 1, 1, 0.0)
+	center_notice_accent.color = accent_color
+	center_notice_accent.modulate = Color(1, 1, 1, 0.0)
+	if _center_notice_tween != null:
+		_center_notice_tween.kill()
+	_center_notice_tween = create_tween()
+	_center_notice_tween.set_parallel(true)
+	_center_notice_tween.tween_property(center_notice_backing, "modulate", Color(1, 1, 1, 1), 0.14)
+	_center_notice_tween.tween_property(center_notice_accent, "modulate", Color(1, 1, 1, 1), 0.14)
+	_center_notice_tween.tween_property(center_notice_label, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_center_notice_tween.chain().tween_interval(0.7)
+	_center_notice_tween.set_parallel(true)
+	_center_notice_tween.tween_property(center_notice_backing, "modulate", Color(1, 1, 1, 0), 0.28)
+	_center_notice_tween.tween_property(center_notice_accent, "modulate", Color(1, 1, 1, 0), 0.28)
+	_center_notice_tween.tween_property(center_notice_label, "modulate", Color(1, 1, 1, 0), 0.28)
+	_center_notice_tween.finished.connect(func():
+		center_notice.visible = false
+	)
+
+func _set_focus_overlay_visible(should_show: bool) -> void:
+	if focus_overlay == null:
+		return
+	if _focus_overlay_visible_state == should_show:
+		focus_overlay.visible = should_show
+		return
+	_focus_overlay_visible_state = should_show
+	if should_show:
+		focus_overlay.visible = true
+		if focus_tint != null:
+			focus_tint.modulate = Color(1, 1, 1, 0)
+		if focus_panel != null:
+			focus_panel.modulate = Color(1, 1, 1, 0)
+			focus_panel.scale = Vector2(0.92, 0.92)
+		var tween_in := create_tween()
+		tween_in.set_parallel(true)
+		if focus_tint != null:
+			tween_in.tween_property(focus_tint, "modulate", Color(1, 1, 1, 1), 0.18)
+		if focus_panel != null:
+			tween_in.tween_property(focus_panel, "modulate", Color(1, 1, 1, 1), 0.18)
+			tween_in.tween_property(focus_panel, "scale", Vector2.ONE, 0.20).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	else:
+		var tween_out := create_tween()
+		tween_out.set_parallel(true)
+		if focus_tint != null:
+			tween_out.tween_property(focus_tint, "modulate", Color(1, 1, 1, 0), 0.14)
+		if focus_panel != null:
+			tween_out.tween_property(focus_panel, "modulate", Color(1, 1, 1, 0), 0.14)
+			tween_out.tween_property(focus_panel, "scale", Vector2(0.96, 0.96), 0.14)
+		tween_out.finished.connect(func():
+			if not _focus_overlay_visible_state:
+				focus_overlay.visible = false
+		)
 
 func _update_tip_text() -> void:
 	if game_over or demo_clear:
@@ -680,6 +792,7 @@ func _toggle_pause() -> void:
 	_set_pause_state(not pause_requested)
 
 func _resume_run() -> void:
+	_show_center_notice("继续试炼 · 戏台再开", HUD_SKY)
 	_set_pause_state(false)
 
 func _set_pause_state(should_pause: bool) -> void:
@@ -687,6 +800,8 @@ func _set_pause_state(should_pause: bool) -> void:
 	get_tree().paused = should_pause
 	if pause_button != null:
 		pause_button.text = "继续试炼" if should_pause else "暂停"
+	if should_pause:
+		_show_center_notice("戏台暂歇 · 可看战报", HUD_SKY)
 	_update_focus_overlay()
 
 func _update_pause_button() -> void:
@@ -811,6 +926,7 @@ func _apply_ui_style() -> void:
 		hud_tip: HUD_SKY,
 		status_label: HUD_PAPER,
 		banner_label: HUD_GOLD,
+		center_notice_label: HUD_PAPER,
 		focus_badge: HUD_WARNING,
 		focus_title: HUD_GOLD,
 		focus_detail: HUD_PAPER,
@@ -832,6 +948,7 @@ func _apply_ui_style() -> void:
 	hud_tip.add_theme_font_size_override("font_size", 16)
 	status_label.add_theme_font_size_override("font_size", 16)
 	banner_label.add_theme_font_size_override("font_size", 26)
+	center_notice_label.add_theme_font_size_override("font_size", 24)
 	focus_badge.add_theme_font_size_override("font_size", 15)
 	focus_title.add_theme_font_size_override("font_size", 24)
 	focus_detail.add_theme_font_size_override("font_size", 17)
@@ -842,7 +959,6 @@ func _apply_ui_style() -> void:
 	hud_xp_bar.add_theme_stylebox_override("background", background_style)
 	hud_xp_bar.add_theme_color_override("font_color", HUD_INK)
 
-	var focus_panel := focus_overlay.get_node("PanelContainer") as PanelContainer
 	if focus_panel != null:
 		focus_panel.add_theme_stylebox_override("panel", panel_style)
 	if restart_button != null:
