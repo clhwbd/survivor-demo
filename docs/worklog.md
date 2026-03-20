@@ -105,3 +105,21 @@
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 10`
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 1200`
 - 验证结果：两次 headless 运行均退出码 `0`；过程中发现 XP Orb 在物理查询刷新期直接 `add_child` 会报错，已改为 `call_deferred` 延迟生成并复验通过
+
+### 12. HUD / 引导 / 结果反馈第二轮收口
+- 动作：继续围绕“西游记古风 Q 版”方向做可验收收口，补右上状态卡、结果面板文案、横幅显隐一致性与弹字读感增强
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `game/scripts/damage_popup.gd`
+  - `game/scenes/main.tscn`
+  - `docs/ui-style-guide.md`
+- 具体改动：
+  - 新增右上状态卡，用一句话动态提示“回命还差几斩 / 命火告急 / 终局压阵 / 可再闯一局”
+  - 浏览器聚焦提示面板复用于失败 / 通关场景，补全局内结果说明与下一步操作引导
+  - 顶部横幅背景与描金条改为随播报一起淡入淡出，避免标签消失后底板残留
+  - 移动端提示补成情境化短句，在低血量和终局阶段自动切换为行动建议
+  - 战斗弹字增加轻微放大动画，回血 / 伤害 / 修为获取更容易被看见
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 3`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 10`
+- 验证结果：两次 headless 运行均退出码 `0`，主场景可正常加载，新增 HUD 节点与脚本逻辑未引入语法或装配错误

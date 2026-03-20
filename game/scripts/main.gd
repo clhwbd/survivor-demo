@@ -544,7 +544,12 @@ func _update_tip_text() -> void:
 		tip = "妖潮已起：重装妖先拉开，再回头清小怪，别贪一口气吃满伤害。"
 	hud_tip.text = tip
 	if mobile_hint != null:
-		mobile_hint.text = "左下摇杆走位\n右下筋斗闪穿怪\nR / 按钮可再开一局"
+		var mobile_text := "左下摇杆走位\n右下筋斗闪穿怪\nR / 按钮可再开一局"
+		if player.health <= 2:
+			mobile_text = "命火告急先走位\n筋斗闪穿包围\n吃修为球补节奏"
+		elif wave_index >= 5:
+			mobile_text = "终局别贪站撸\n留筋斗闪过重装\n清边路再回头收尾"
+		mobile_hint.text = mobile_text
 
 func _get_spawn_position() -> Vector2:
 	var player_position := player.global_position
@@ -665,6 +670,7 @@ func _apply_ui_style() -> void:
 		hud_weapon: HUD_MINT,
 		hud_objective: HUD_PAPER,
 		hud_tip: HUD_SKY,
+		status_label: HUD_PAPER,
 		banner_label: HUD_GOLD,
 		focus_title: HUD_GOLD,
 		focus_detail: HUD_PAPER,
@@ -683,6 +689,7 @@ func _apply_ui_style() -> void:
 	hud_wave.add_theme_font_size_override("font_size", 20)
 	hud_objective.add_theme_font_size_override("font_size", 17)
 	hud_tip.add_theme_font_size_override("font_size", 16)
+	status_label.add_theme_font_size_override("font_size", 16)
 	banner_label.add_theme_font_size_override("font_size", 26)
 	focus_title.add_theme_font_size_override("font_size", 24)
 	focus_detail.add_theme_font_size_override("font_size", 17)
