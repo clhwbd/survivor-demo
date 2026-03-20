@@ -332,15 +332,18 @@ func _refresh_hud_layout() -> void:
 	var compact_width := viewport_size.x < 1320.0
 	var compact_height := viewport_size.y < 760.0
 	var compact_layout := compact_width or compact_height or portrait_layout
+	var overlay_actions := pause_requested or game_over or demo_clear
 	var side_margin := 12.0
 	var top_margin := 12.0
 	var bottom_margin := 18.0
+	var overlay_panel_width := minf(viewport_size.x - side_margin * 2.0, 544.0 if not compact_layout else 504.0)
+	var overlay_panel_height := clampf(viewport_size.y * (0.36 if portrait_layout else (0.42 if compact_layout else 0.34)), 248.0, 352.0 if portrait_layout else 292.0)
+	var overlay_center_y := minf(viewport_size.y * (0.40 if portrait_layout else 0.50), viewport_size.y - overlay_panel_height * 0.5 - bottom_margin - 26.0)
+	var center_notice_width := minf(viewport_size.x - side_margin * 2.0, 488.0 if not compact_layout else 452.0)
+	var center_notice_height := 68.0 if portrait_layout else 60.0
 
 	if portrait_layout:
-		# In portrait mode, show mobile hint on the right side (not bottom-center)
-		# to avoid blocking the joystick which lives in the bottom-left.
-		# Action tray stays centered (doesn't overlap joystick).
-		var hud_card_bottom := minf(viewport_size.y * 0.31, 274.0)
+		var hud_card_bottom := minf(viewport_size.y * 0.30, 266.0)
 		if hud_card_bg != null:
 			hud_card_bg.offset_left = side_margin
 			hud_card_bg.offset_top = top_margin
@@ -358,7 +361,7 @@ func _refresh_hud_layout() -> void:
 			hud_margin_container.offset_bottom = hud_card_bottom - 10.0
 
 		var status_top := hud_card_bottom + 10.0
-		var status_bottom := status_top + 72.0
+		var status_bottom := status_top + 68.0
 		if status_card_bg != null:
 			status_card_bg.anchor_left = 0.0
 			status_card_bg.anchor_right = 1.0
@@ -379,95 +382,63 @@ func _refresh_hud_layout() -> void:
 			status_badge.offset_left = side_margin + 12.0
 			status_badge.offset_right = -side_margin - 12.0
 			status_badge.offset_top = status_top + 6.0
-			status_badge.offset_bottom = status_top + 26.0
+			status_badge.offset_bottom = status_top + 28.0
 			status_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		if status_label != null:
 			status_label.anchor_left = 0.0
 			status_label.anchor_right = 1.0
 			status_label.offset_left = side_margin + 12.0
 			status_label.offset_right = -side_margin - 12.0
-			status_label.offset_top = status_top + 22.0
+			status_label.offset_top = status_top + 24.0
 			status_label.offset_bottom = status_bottom - 8.0
 			status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 		var top_center_top := status_bottom + 8.0
+		var top_center_bottom := top_center_top + 64.0
 		if top_center != null:
 			top_center.anchor_left = 0.0
 			top_center.anchor_right = 1.0
 			top_center.offset_left = side_margin
 			top_center.offset_right = -side_margin
 			top_center.offset_top = top_center_top
-			top_center.offset_bottom = top_center_top + 70.0
+			top_center.offset_bottom = top_center_bottom
 		if banner_backing != null:
 			banner_backing.offset_left = 0.0
 			banner_backing.offset_top = 6.0
 			banner_backing.offset_right = viewport_size.x - side_margin * 2.0
 			banner_backing.offset_bottom = 54.0
 		if banner_accent != null:
-			banner_accent.offset_left = 20.0
+			banner_accent.offset_left = 18.0
 			banner_accent.offset_top = 8.0
-			banner_accent.offset_right = viewport_size.x - side_margin * 2.0 - 20.0
+			banner_accent.offset_right = viewport_size.x - side_margin * 2.0 - 18.0
 			banner_accent.offset_bottom = 12.0
 		if banner_label != null:
 			banner_label.offset_left = 0.0
 			banner_label.offset_top = 0.0
 			banner_label.offset_right = viewport_size.x - side_margin * 2.0
-			banner_label.offset_bottom = 36.0
+			banner_label.offset_bottom = 34.0
 		if banner_sub_label != null:
 			banner_sub_label.offset_left = 0.0
-			banner_sub_label.offset_top = 32.0
+			banner_sub_label.offset_top = 30.0
 			banner_sub_label.offset_right = viewport_size.x - side_margin * 2.0
-			banner_sub_label.offset_bottom = 64.0
+			banner_sub_label.offset_bottom = 60.0
 		if combo_meter != null:
 			combo_meter.anchor_left = 0.0
 			combo_meter.anchor_right = 1.0
-			combo_meter.offset_left = side_margin + 18.0
-			combo_meter.offset_right = -side_margin - 18.0
-			combo_meter.offset_top = top_center_top + 82.0
-			combo_meter.offset_bottom = top_center_top + 128.0
+			combo_meter.offset_left = side_margin + 14.0
+			combo_meter.offset_right = -side_margin - 14.0
+			combo_meter.offset_top = top_center_bottom + 10.0
+			combo_meter.offset_bottom = top_center_bottom + 56.0
 
-		# In portrait, position a compact action tray above the HUD card, not at the bottom,
-		# so it doesn't block the joystick (bottom-left) or dash button (bottom-right).
-		# anchor_bottom=0: offset_bottom is the absolute y-position of control bottom.
-		var tray_top := hud_card_bottom + 8.0
-		var tray_bottom := tray_top + 60.0
-		if action_tray_bg != null:
-			action_tray_bg.anchor_left = 0.0
-			action_tray_bg.anchor_top = 0.0
-			action_tray_bg.anchor_right = 1.0
-			action_tray_bg.anchor_bottom = 0.0
-			action_tray_bg.offset_left = side_margin
-			action_tray_bg.offset_right = -side_margin
-			action_tray_bg.offset_top = tray_top
-			action_tray_bg.offset_bottom = tray_bottom
-		if action_tray_accent != null:
-			action_tray_accent.anchor_left = 0.0
-			action_tray_accent.anchor_top = 0.0
-			action_tray_accent.anchor_right = 1.0
-			action_tray_accent.anchor_bottom = 0.0
-			action_tray_accent.offset_left = side_margin + 12.0
-			action_tray_accent.offset_right = -side_margin - 12.0
-			action_tray_accent.offset_top = tray_top + 2.0
-			action_tray_accent.offset_bottom = tray_top + 6.0
-		if action_tray_label != null:
-			action_tray_label.anchor_left = 0.0
-			action_tray_label.anchor_top = 0.0
-			action_tray_label.anchor_right = 1.0
-			action_tray_label.anchor_bottom = 0.0
-			action_tray_label.offset_left = side_margin + 18.0
-			action_tray_label.offset_right = -side_margin - 18.0
-			action_tray_label.offset_top = tray_top + 8.0
-			action_tray_label.offset_bottom = tray_top + 36.0
-
-		var pause_top := tray_bottom + 4.0
-		var pause_bottom := pause_top + 44.0
+		var pause_top := top_center_bottom + 10.0
+		var pause_bottom := pause_top + 46.0
 		if pause_button != null:
-			pause_button.anchor_left = 0.0
+			pause_button.anchor_left = 1.0
 			pause_button.anchor_top = 0.0
 			pause_button.anchor_right = 1.0
 			pause_button.anchor_bottom = 0.0
-			pause_button.offset_left = side_margin + 18.0
-			pause_button.offset_right = -side_margin - 18.0
+			pause_button.offset_left = -144.0
+			pause_button.offset_right = -side_margin
 			pause_button.offset_top = pause_top
 			pause_button.offset_bottom = pause_bottom
 		if continue_button != null:
@@ -475,72 +446,117 @@ func _refresh_hud_layout() -> void:
 			continue_button.anchor_top = 0.0
 			continue_button.anchor_right = 0.5
 			continue_button.anchor_bottom = 0.0
-			continue_button.offset_left = side_margin + 18.0
-			continue_button.offset_right = -6.0
-			continue_button.offset_top = pause_top
-			continue_button.offset_bottom = pause_bottom
 		if restart_button != null:
 			restart_button.anchor_left = 0.5
 			restart_button.anchor_top = 0.0
 			restart_button.anchor_right = 1.0
 			restart_button.anchor_bottom = 0.0
-			restart_button.offset_left = 6.0
-			restart_button.offset_right = -side_margin - 18.0
-			restart_button.offset_top = pause_top
-			restart_button.offset_bottom = pause_bottom
 
-		# Mobile controls: joystick in bottom-left (higher z via MobileControls layer),
-		# dash button in bottom-right, mobile hint also on right (above dash button).
-		# They all render on CanvasLayer=2, above HUD CanvasLayer=1.
-		var joystick_size := mini(192.0, viewport_size.x * 0.44)
+		var joystick_size := clampf(viewport_size.x * 0.48, 188.0, 220.0)
+		var joystick_visual_size := joystick_size
+		var dash_w := clampf(viewport_size.x * 0.34, 132.0, 156.0)
+		var dash_h := 72.0
 		if joystick != null:
-			joystick.custom_minimum_size = Vector2(joystick_size, joystick_size)
-			joystick.offset_left = 12.0
-			joystick.offset_right = 12.0 + joystick_size
+			var touch_joystick := joystick as TouchJoystick
+			if touch_joystick != null:
+				touch_joystick.configure_layout(clampf(joystick_size * 0.35, 70.0, 80.0), clampf(joystick_size * 0.15, 29.0, 34.0), clampf(joystick_size * 0.47, 92.0, 106.0))
+				joystick_visual_size = touch_joystick.custom_minimum_size.y
+			else:
+				joystick.custom_minimum_size = Vector2(joystick_size, joystick_size)
+			joystick.offset_left = side_margin
+			joystick.offset_right = side_margin + joystick_size
 			joystick.offset_top = -joystick_size - 14.0
 			joystick.offset_bottom = -14.0
 		if dash_button != null:
-			var dash_w := mini(140.0, viewport_size.x * 0.32)
-			var dash_h := 68.0
 			dash_button.custom_minimum_size = Vector2(dash_w, dash_h)
-			dash_button.offset_left = -dash_w - 12.0
-			dash_button.offset_right = -12.0
+			dash_button.offset_left = -dash_w - side_margin
+			dash_button.offset_right = -side_margin
 			dash_button.offset_top = -dash_h - 14.0
 			dash_button.offset_bottom = -14.0
-		# In portrait, mobile hint goes to top-right area (above status card), NOT bottom-center
-		var hint_right_margin := 12.0
-		var hint_top_anchor := hud_card_bottom + 10.0
-		var hint_height := 90.0
+
+		var hint_width := clampf(viewport_size.x * 0.42, 154.0, 210.0)
+		var hint_height := 94.0
+		var hint_top := viewport_size.y - maxf(joystick_visual_size, dash_h) - hint_height - 28.0
 		if mobile_hint_bg != null:
 			mobile_hint_bg.anchor_left = 1.0
+			mobile_hint_bg.anchor_top = 0.0
 			mobile_hint_bg.anchor_right = 1.0
-			mobile_hint_bg.offset_left = -viewport_size.x * 0.48
-			mobile_hint_bg.offset_right = -hint_right_margin
-			mobile_hint_bg.offset_top = hint_top_anchor
-			mobile_hint_bg.offset_bottom = hint_top_anchor + hint_height
+			mobile_hint_bg.anchor_bottom = 0.0
+			mobile_hint_bg.offset_left = -hint_width - side_margin
+			mobile_hint_bg.offset_right = -side_margin
+			mobile_hint_bg.offset_top = hint_top
+			mobile_hint_bg.offset_bottom = hint_top + hint_height
 		if mobile_hint_accent != null:
 			mobile_hint_accent.anchor_left = 1.0
+			mobile_hint_accent.anchor_top = 0.0
 			mobile_hint_accent.anchor_right = 1.0
-			mobile_hint_accent.offset_left = -viewport_size.x * 0.48 + 12.0
-			mobile_hint_accent.offset_right = -hint_right_margin - 12.0
-			mobile_hint_accent.offset_top = hint_top_anchor + 4.0
-			mobile_hint_accent.offset_bottom = hint_top_anchor + 8.0
+			mobile_hint_accent.anchor_bottom = 0.0
+			mobile_hint_accent.offset_left = -hint_width - side_margin + 12.0
+			mobile_hint_accent.offset_right = -side_margin - 12.0
+			mobile_hint_accent.offset_top = hint_top + 4.0
+			mobile_hint_accent.offset_bottom = hint_top + 8.0
 		if mobile_hint_title != null:
 			mobile_hint_title.anchor_left = 1.0
+			mobile_hint_title.anchor_top = 0.0
 			mobile_hint_title.anchor_right = 1.0
-			mobile_hint_title.offset_left = -viewport_size.x * 0.48 + 18.0
-			mobile_hint_title.offset_right = -hint_right_margin - 18.0
-			mobile_hint_title.offset_top = hint_top_anchor + 10.0
-			mobile_hint_title.offset_bottom = hint_top_anchor + 36.0
+			mobile_hint_title.anchor_bottom = 0.0
+			mobile_hint_title.offset_left = -hint_width - side_margin + 16.0
+			mobile_hint_title.offset_right = -side_margin - 16.0
+			mobile_hint_title.offset_top = hint_top + 10.0
+			mobile_hint_title.offset_bottom = hint_top + 36.0
 			mobile_hint_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		if mobile_hint != null:
 			mobile_hint.anchor_left = 1.0
+			mobile_hint.anchor_top = 0.0
 			mobile_hint.anchor_right = 1.0
-			mobile_hint.offset_left = -viewport_size.x * 0.48 + 18.0
-			mobile_hint.offset_right = -hint_right_margin - 18.0
-			mobile_hint.offset_top = hint_top_anchor + 38.0
-			mobile_hint.offset_bottom = hint_top_anchor + hint_height - 4.0
+			mobile_hint.anchor_bottom = 0.0
+			mobile_hint.offset_left = -hint_width - side_margin + 16.0
+			mobile_hint.offset_right = -side_margin - 16.0
+			mobile_hint.offset_top = hint_top + 36.0
+			mobile_hint.offset_bottom = hint_top + hint_height - 8.0
 			mobile_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+
+		var action_region_top := minf(overlay_center_y + overlay_panel_height * 0.5 + 12.0, viewport_size.y - joystick_visual_size - 134.0)
+		var action_region_bottom := action_region_top + 104.0
+		if action_tray_bg != null:
+			action_tray_bg.anchor_left = 0.0
+			action_tray_bg.anchor_top = 0.0
+			action_tray_bg.anchor_right = 1.0
+			action_tray_bg.anchor_bottom = 0.0
+			action_tray_bg.offset_left = side_margin
+			action_tray_bg.offset_right = -side_margin
+			action_tray_bg.offset_top = action_region_top
+			action_tray_bg.offset_bottom = action_region_top + 44.0
+		if action_tray_accent != null:
+			action_tray_accent.anchor_left = 0.0
+			action_tray_accent.anchor_top = 0.0
+			action_tray_accent.anchor_right = 1.0
+			action_tray_accent.anchor_bottom = 0.0
+			action_tray_accent.offset_left = side_margin + 12.0
+			action_tray_accent.offset_right = -side_margin - 12.0
+			action_tray_accent.offset_top = action_region_top + 2.0
+			action_tray_accent.offset_bottom = action_region_top + 6.0
+		if action_tray_label != null:
+			action_tray_label.anchor_left = 0.0
+			action_tray_label.anchor_top = 0.0
+			action_tray_label.anchor_right = 1.0
+			action_tray_label.anchor_bottom = 0.0
+			action_tray_label.offset_left = side_margin + 12.0
+			action_tray_label.offset_right = -side_margin - 12.0
+			action_tray_label.offset_top = action_region_top + 8.0
+			action_tray_label.offset_bottom = action_region_top + 34.0
+		var action_button_top := action_region_top + 50.0
+		var action_button_bottom := minf(action_button_top + 48.0, action_region_bottom)
+		if continue_button != null:
+			continue_button.offset_left = side_margin + 6.0
+			continue_button.offset_right = -6.0
+			continue_button.offset_top = action_button_top
+			continue_button.offset_bottom = action_button_bottom
+		if restart_button != null:
+			restart_button.offset_left = 6.0
+			restart_button.offset_right = -side_margin - 6.0
+			restart_button.offset_top = action_button_top
+			restart_button.offset_bottom = action_button_bottom
 	else:
 		if hud_card_bg != null:
 			hud_card_bg.offset_left = 12.0
@@ -667,7 +683,11 @@ func _refresh_hud_layout() -> void:
 			pause_button.offset_right = 106.0
 			pause_button.offset_bottom = -24.0
 		if joystick != null:
-			joystick.custom_minimum_size = Vector2(180.0, 180.0)
+			var landscape_joystick := joystick as TouchJoystick
+			if landscape_joystick != null:
+				landscape_joystick.configure_layout(68.0, 28.0, 86.0)
+			else:
+				joystick.custom_minimum_size = Vector2(180.0, 180.0)
 			joystick.offset_left = 18.0
 			joystick.offset_top = -198.0
 			joystick.offset_right = 198.0
@@ -708,13 +728,57 @@ func _refresh_hud_layout() -> void:
 			mobile_hint.offset_bottom = -232.0
 			mobile_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
+	if center_notice != null:
+		center_notice.anchor_left = 0.5
+		center_notice.anchor_top = 0.0
+		center_notice.anchor_right = 0.5
+		center_notice.anchor_bottom = 0.0
+		center_notice.offset_left = -center_notice_width * 0.5
+		center_notice.offset_top = (viewport_size.y * 0.32) if portrait_layout else (viewport_size.y * 0.34)
+		center_notice.offset_right = center_notice_width * 0.5
+		center_notice.offset_bottom = center_notice.offset_top + center_notice_height
+		if center_notice_backing != null:
+			center_notice_backing.offset_left = 16.0
+			center_notice_backing.offset_top = 10.0
+			center_notice_backing.offset_right = center_notice_width - 16.0
+			center_notice_backing.offset_bottom = center_notice_height - 8.0
+		if center_notice_accent != null:
+			center_notice_accent.offset_left = 44.0
+			center_notice_accent.offset_top = 12.0
+			center_notice_accent.offset_right = center_notice_width - 44.0
+			center_notice_accent.offset_bottom = 16.0
+		if center_notice_label != null:
+			center_notice_label.offset_left = 0.0
+			center_notice_label.offset_top = 0.0
+			center_notice_label.offset_right = center_notice_width
+			center_notice_label.offset_bottom = center_notice_height
+		_center_notice_base_position = center_notice.position
+
+	if focus_panel != null:
+		var overlay_panel_left := (viewport_size.x - overlay_panel_width) * 0.5
+		var overlay_panel_top := overlay_center_y - overlay_panel_height * 0.5
+		focus_panel.anchor_left = 0.0
+		focus_panel.anchor_top = 0.0
+		focus_panel.anchor_right = 0.0
+		focus_panel.anchor_bottom = 0.0
+		focus_panel.offset_left = overlay_panel_left
+		focus_panel.offset_top = overlay_panel_top
+		focus_panel.offset_right = overlay_panel_left + overlay_panel_width
+		focus_panel.offset_bottom = overlay_panel_top + overlay_panel_height
+		_focus_panel_base_position = focus_panel.position
+
+	if combo_meter != null:
+		_combo_meter_base_position = combo_meter.position
+
 	if action_tray_bg != null:
-		action_tray_bg.visible = compact_layout or pause_requested or game_over or demo_clear
+		action_tray_bg.visible = overlay_actions or (compact_layout and not portrait_layout)
 	if action_tray_accent != null:
 		action_tray_accent.visible = action_tray_bg != null and action_tray_bg.visible
 	if action_tray_label != null:
 		action_tray_label.visible = action_tray_bg != null and action_tray_bg.visible
-		if compact_layout:
+		if portrait_layout:
+			action_tray_label.text = "戏台战报 · 继续 / 重开"
+		elif compact_layout:
 			action_tray_label.text = "戏台操作 · 底部续战与重开"
 		else:
 			action_tray_label.text = "戏台操作 · 暂停 / 续战 / 再闯"
@@ -825,7 +889,7 @@ func _update_focus_overlay() -> void:
 	if restart_button != null:
 		restart_button.visible = pause_requested or game_over or demo_clear
 	if pause_button != null:
-		pause_button.visible = not game_over and not demo_clear
+		pause_button.visible = not game_over and not demo_clear and not pause_requested
 	_refresh_hud_layout()
 
 func _update_difficulty() -> void:
@@ -2150,11 +2214,11 @@ func _apply_mobile_font_scaling() -> void:
 	# Scale HUD fonts up for small/mobile viewports so text stays readable.
 	# Base desktop target is ~1280px wide; scale down for anything smaller.
 	var viewport_size := get_viewport_rect().size
-	var scale := clampf(viewport_size.x / 1280.0, 0.45, 1.0)
+	var scale := clampf(viewport_size.x / 1280.0, 0.52, 1.0)
 	var is_portrait := viewport_size.y > viewport_size.x
-	# On portrait mobile, scale up slightly more since height is the constraint.
+	# On portrait mobile, scale up more aggressively so pause / settlement / level-up text stays readable.
 	if is_portrait:
-		scale = clampf(scale * 1.08, 0.5, 1.0)
+		scale = clampf(scale * 1.14, 0.62, 1.0)
 
 	var base_font_size := int(22.0 * scale)
 	var small_font_size := int(14.0 * scale)
@@ -2164,43 +2228,43 @@ func _apply_mobile_font_scaling() -> void:
 	var button_font_size := int(22.0 * scale)
 
 	if hud_level != null:
-		hud_level.add_theme_font_size_override("font_size", maxi(base_font_size, 16))
+		hud_level.add_theme_font_size_override("font_size", maxi(base_font_size, 17))
 	if hud_wave != null:
-		hud_wave.add_theme_font_size_override("font_size", maxi(medium_font_size, 14))
+		hud_wave.add_theme_font_size_override("font_size", maxi(medium_font_size, 15))
 	if hud_objective != null:
-		hud_objective.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+		hud_objective.add_theme_font_size_override("font_size", maxi(small_font_size, 14))
 	if hud_tip != null:
-		hud_tip.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+		hud_tip.add_theme_font_size_override("font_size", maxi(small_font_size, 14))
 	if status_badge != null:
 		status_badge.add_theme_font_size_override("font_size", maxi(small_font_size - 2, 11))
 	if status_label != null:
-		status_label.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+		status_label.add_theme_font_size_override("font_size", maxi(small_font_size, 14))
 	if banner_label != null:
-		banner_label.add_theme_font_size_override("font_size", maxi(large_font_size, 18))
+		banner_label.add_theme_font_size_override("font_size", maxi(large_font_size, 20))
 	if banner_sub_label != null:
 		banner_sub_label.add_theme_font_size_override("font_size", maxi(small_font_size, 11))
 	if combo_meter != null:
 		combo_meter.add_theme_font_size_override("font_size", maxi(xl_font_size, 20))
 	if center_notice_label != null:
-		center_notice_label.add_theme_font_size_override("font_size", maxi(large_font_size, 18))
+		center_notice_label.add_theme_font_size_override("font_size", maxi(large_font_size, 20))
 	if focus_badge != null:
-		focus_badge.add_theme_font_size_override("font_size", maxi(small_font_size, 12))
+		focus_badge.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
 	if focus_title != null:
-		focus_title.add_theme_font_size_override("font_size", maxi(large_font_size, 18))
+		focus_title.add_theme_font_size_override("font_size", maxi(large_font_size, 20))
 	if medal_label != null:
 		medal_label.add_theme_font_size_override("font_size", maxi(medium_font_size, 14))
 	if settlement_stamp != null:
 		settlement_stamp.add_theme_font_size_override("font_size", maxi(medium_font_size, 14))
 	if focus_detail != null:
-		focus_detail.add_theme_font_size_override("font_size", maxi(medium_font_size, 13))
+		focus_detail.add_theme_font_size_override("font_size", maxi(medium_font_size, 14))
 	if summary_label != null:
-		summary_label.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+		summary_label.add_theme_font_size_override("font_size", maxi(small_font_size, 14))
 	if action_tray_label != null:
-		action_tray_label.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+		action_tray_label.add_theme_font_size_override("font_size", maxi(small_font_size, 14))
 	if mobile_hint_title != null:
-		mobile_hint_title.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+		mobile_hint_title.add_theme_font_size_override("font_size", maxi(small_font_size, 14))
 	if mobile_hint != null:
-		mobile_hint.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+		mobile_hint.add_theme_font_size_override("font_size", maxi(small_font_size, 14))
 	if hud_xp_label != null:
 		hud_xp_label.add_theme_font_size_override("font_size", maxi(medium_font_size, 13))
 	if restart_button != null:
@@ -2373,6 +2437,24 @@ func _apply_ui_style() -> void:
 	if mobile_hint_accent != null:
 		mobile_hint_accent.color = Color(HUD_GOLD.r, HUD_GOLD.g, HUD_GOLD.b, 0.92)
 
+	if focus_badge != null:
+		focus_badge.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if focus_title != null:
+		focus_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if medal_label != null:
+		medal_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if settlement_stamp != null:
+		settlement_stamp.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if focus_detail != null:
+		focus_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if action_tray_label != null:
+		action_tray_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if mobile_hint_title != null:
+		mobile_hint_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if mobile_hint != null:
+		mobile_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if center_notice_label != null:
+		center_notice_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	if focus_panel != null:
 		focus_panel.add_theme_stylebox_override("panel", panel_style)
 	if restart_button != null:

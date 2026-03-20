@@ -17,6 +17,30 @@
 
 ## 2026-03-21
 
+### 03:26 手机 UI / 触控收口第七轮：竖屏 HUD 分层、暂停/结算可读性、手机提示避让
+
+- 动作：继续围绕手机端 HUD、小屏适配、触控遮挡和暂停/结算可读性做收口，这轮重点不是再加新层，而是把上一轮竖屏布局里仍然互相压位的区块真正拆开，并补更严格的竖屏 smoke。
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `game/tests/portrait_layout_smoke.gd`
+- 具体改动：
+  - 重排竖屏主 HUD：压缩左上主账本高度、收紧状态卡与顶部播报间距，把 `PauseButton` 从整条顶栏改成右上独立按钮，避免继续和状态卡/播报区挤在一起。
+  - 收掉竖屏常驻 `ActionTray`：战斗中不再默认显示整条底部操作带，只在暂停 / 失败 / 通关时显式拉起，避免手机战斗态下无效占位与误遮挡。
+  - 重排暂停 / 结算操作区：暂停后 `Continue / Restart` 会落到聚焦面板下方的独立战报操作带里，并隐藏重复的 `PauseButton`，减少同义按钮并存造成的点击混乱。
+  - 补移动端提示避让：`MobileHint` 改为稳定挂在右下技能区上方，不再压到左下摇杆，也不再和顶部状态卡抢空间。
+  - 放大手机触控区：竖屏下按视口动态放大摇杆视觉/触控半径，并同步提高 HUD、中心升级提示、暂停/结算文案的最小字号；同时给 `focus` / `settlement` / `center notice` / `mobile hint` 等标签补自动换行，提升小屏可读性。
+  - 让升级提示和暂停战报改为响应式宽高：`CenterNotice` 与 `FocusOverlay` 现在按当前视口宽高重新计算尺寸，避免 360 宽手机上升级条、暂停战报继续沿用桌面宽度。
+  - 扩展 `portrait_layout_smoke.gd`：除了原有“节点在屏内”校验外，新增长条升级提示、手机提示与摇杆/闪避不重叠、战斗态不应常驻 ActionTray、暂停态按钮不重叠等检查，防止同类回归再出现。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/portrait_layout_smoke.gd`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/touch_joystick_smoke.gd`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 5`
+- 验证结果：
+  - `portrait_layout_smoke: ok`（覆盖 `360x800 / 390x844 / 430x932`，额外校验升级提示、暂停态按钮与手机提示避让）
+  - `touch_joystick_smoke: ok`
+  - 主场景 headless 加载退出码 `0`
+- 提交：`5c6b3e3` `fix: tighten portrait mobile HUD and pause readability`
+
 ### 03:18 HUD / 结算页 Godot 可复用 UI 组件落地清单补齐
 
 - 动作：承接已完成的 UI 方向板、提示词包与低保真线框，继续把 HUD / 结算页推进到 **Godot 可实装但暂不改玩法逻辑** 的组件规划层。
@@ -32,7 +56,7 @@
   - 让后续 Godot UI 实装、AI 小资产出图、移动端适配与 Web 体量控制都能对着同一份组件边界做事，减少返工。
 - 验证：
   - 人工复核文档结构，确认覆盖 HUD 与结算页两块，并包含组件层级、程序绘制 / AI 资产划分、状态变体矩阵与优先实装顺序。
-- 提交：待本轮提交
+- 提交：`6bb2b6f` `docs: plan reusable HUD and settlement UI components`
 
 ### 03:17 controlled web 临时验收运营手册 + 故障排查手册补齐
 

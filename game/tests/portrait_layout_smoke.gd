@@ -39,6 +39,8 @@ func _validate_portrait_layout(target_size: Vector2i) -> void:
 	await process_frame
 	await process_frame
 
+	var viewport_rect := Rect2(Vector2.ZERO, Vector2(target_size))
+
 	# MobileControls is a CanvasLayer (layer=2) — its rect is in root viewport space,
 	# not SubViewport space, so we validate it separately via scene-local rect checks.
 	var joystick := scene.get_node_or_null("MobileControls/TouchJoystick") as Control
@@ -59,36 +61,61 @@ func _validate_portrait_layout(target_size: Vector2i) -> void:
 	var top_center_node := scene.get_node_or_null("HUD/TopCenter") as Control
 	var action_tray_bg_node := scene.get_node_or_null("HUD/ActionTrayBg") as Control
 	var pause_button_node := scene.get_node_or_null("HUD/PauseButton") as Control
+	var focus_panel_node := scene.get_node_or_null("HUD/FocusOverlay/PanelContainer") as Control
+	var center_notice_node := scene.get_node_or_null("HUD/CenterNotice") as Control
 	if hud_card_bg_node != null:
-		_assert_rect_inside(Rect2(Vector2.ZERO, Vector2(target_size)), hud_card_bg_node.get_global_rect(), "HudCardBg", target_size)
+		_assert_rect_inside(viewport_rect, hud_card_bg_node.get_global_rect(), "HudCardBg", target_size)
 	if status_card_bg_node != null:
-		_assert_rect_inside(Rect2(Vector2.ZERO, Vector2(target_size)), status_card_bg_node.get_global_rect(), "StatusCardBg", target_size)
+		_assert_rect_inside(viewport_rect, status_card_bg_node.get_global_rect(), "StatusCardBg", target_size)
 	if top_center_node != null:
-		_assert_rect_inside(Rect2(Vector2.ZERO, Vector2(target_size)), top_center_node.get_global_rect(), "TopCenter", target_size)
-	if action_tray_bg_node != null:
-		_assert_rect_inside(Rect2(Vector2.ZERO, Vector2(target_size)), action_tray_bg_node.get_global_rect(), "ActionTrayBg", target_size)
-	if pause_button_node != null:
-		_assert_rect_inside(Rect2(Vector2.ZERO, Vector2(target_size)), pause_button_node.get_global_rect(), "PauseButton", target_size)
+		_assert_rect_inside(viewport_rect, top_center_node.get_global_rect(), "TopCenter", target_size)
+	if action_tray_bg_node != null and action_tray_bg_node.visible:
+		_assert_rect_inside(viewport_rect, action_tray_bg_node.get_global_rect(), "ActionTrayBg", target_size)
+	if pause_button_node != null and pause_button_node.visible:
+		_assert_rect_inside(viewport_rect, pause_button_node.get_global_rect(), "PauseButton", target_size)
+	if center_notice_node != null:
+		scene.call("_show_center_notice", "修为精进 · 行者 2 重", Color(0.62, 0.94, 0.75, 1.0))
+		await process_frame
+		_assert_rect_inside(viewport_rect, center_notice_node.get_global_rect(), "CenterNotice", target_size)
 
 	# MobileControls nodes are in CanvasLayer (layer=2) — their get_global_rect() returns
 	# root viewport space, NOT SubViewport space, so cross-layer rect comparisons are invalid.
-	# We only check basic bounds (within viewport area).
+	# We only check bounds and same-layer overlaps.
+	var joystick_rect := Rect2()
 	if joystick != null:
-		var jrect := joystick.get_global_rect()
-		_assert(jrect.position.x >= 0.0, "%s: joystick left %.1f should be within width" % [_fmt_size(target_size), jrect.position.x])
-		_assert(jrect.end.x <= target_size.x, "%s: joystick right edge %.1f should be within width %d" % [_fmt_size(target_size), jrect.end.x, target_size.x])
-		_assert(jrect.position.y >= 0.0, "%s: joystick top %.1f should be within height" % [_fmt_size(target_size), jrect.position.y])
-		_assert(jrect.end.y <= target_size.y, "%s: joystick bottom %.1f should be within height %d" % [_fmt_size(target_size), jrect.end.y, target_size.y])
+		joystick_rect = joystick.get_global_rect()
+		_assert_rect_inside(viewport_rect, joystick_rect, "TouchJoystick", target_size)
 	if dash_button != null:
 		var brect := dash_button.get_global_rect()
-		_assert(brect.position.x >= 0.0, "%s: dash button left %.1f should be within width" % [_fmt_size(target_size), brect.position.x])
-		_assert(brect.end.x <= target_size.x, "%s: dash button right %.1f should be within width %d" % [_fmt_size(target_size), brect.end.x, target_size.x])
-		_assert(brect.position.y >= 0.0, "%s: dash button top %.1f should be within height" % [_fmt_size(target_size), brect.position.y])
-		_assert(brect.end.y <= target_size.y, "%s: dash button bottom %.1f should be within height %d" % [_fmt_size(target_size), brect.end.y, target_size.y])
+		_assert_rect_inside(viewport_rect, brect, "DashButton", target_size)
 	if mobile_hint_bg != null:
 		var hrect := mobile_hint_bg.get_global_rect()
-		_assert(hrect.position.x >= 0.0, "%s: mobile hint left %.1f should be within width" % [_fmt_size(target_size), hrect.position.x])
-		_assert(hrect.end.x <= target_size.x, "%s: mobile hint right %.1f should be within width %d" % [_fmt_size(target_size), hrect.end.x, target_size.x])
+		_assert_rect_inside(viewport_rect, hrect, "MobileHintBg", target_size)
+		if joystick != null:
+			_assert(not joystick_rect.intersects(hrect), "%s: mobile hint should not overlap joystick" % _fmt_size(target_size))
+		if dash_button != null:
+			_assert(not dash_button.get_global_rect().intersects(hrect), "%s: mobile hint should not overlap dash button" % _fmt_size(target_size))
+	if action_tray_bg_node != null:
+		_assert(not action_tray_bg_node.visible, "%s: action tray should stay hidden during active portrait combat" % _fmt_size(target_size))
+
+	# Pause / settlement state should still fit on mobile.
+	scene.call("_set_pause_state", true)
+	await process_frame
+	await process_frame
+	if focus_panel_node != null:
+		_assert(focus_panel_node.size.x <= target_size.x + 0.5, "%s: focus panel width %.1f should fit viewport width %d" % [_fmt_size(target_size), focus_panel_node.size.x, target_size.x])
+		_assert(focus_panel_node.size.y <= target_size.y + 0.5, "%s: focus panel height %.1f should fit viewport height %d" % [_fmt_size(target_size), focus_panel_node.size.y, target_size.y])
+	if action_tray_bg_node != null and action_tray_bg_node.visible:
+		var tray_rect := action_tray_bg_node.get_global_rect()
+		_assert_rect_inside(viewport_rect, tray_rect, "PauseActionTray", target_size)
+	var continue_button_node := scene.get_node_or_null("HUD/ContinueButton") as Control
+	var restart_button_node := scene.get_node_or_null("HUD/RestartButton") as Control
+	if continue_button_node != null and continue_button_node.visible:
+		_assert_rect_inside(viewport_rect, continue_button_node.get_global_rect(), "ContinueButton", target_size)
+	if restart_button_node != null and restart_button_node.visible:
+		_assert_rect_inside(viewport_rect, restart_button_node.get_global_rect(), "RestartButton", target_size)
+		if continue_button_node != null and continue_button_node.visible:
+			_assert(not continue_button_node.get_global_rect().intersects(restart_button_node.get_global_rect()), "%s: continue / restart buttons should not overlap" % _fmt_size(target_size))
 
 	viewport.queue_free()
 	await process_frame
