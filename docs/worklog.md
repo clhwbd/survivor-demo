@@ -399,3 +399,40 @@
   - `chmod +x tests/smoke/sync_compressed_build.sh tests/smoke/release_guard.sh`
   - `./tests/smoke/release_guard.sh`
 - 验证结果：脚本完整跑通，退出码 `0`；已串行通过主场景加载、Web 验收版重导出、`builds/web-release/` → `builds/web/` 同步、共享文件一致性校验、`.gz` 新鲜度校验，以及两套目录的本地 HTTP / gzip / MIME 复验。
+
+### 20. 短局可玩性精修第五轮：军功成长 / 压力导演 / 编组意图增强
+- 动作：继续承接上一轮军令/奖励/编组系统，只补玩法程序，不碰网页摇杆；这一轮重点是把“完成军令后的成长反馈”做成更明确的常驻收益，同时让导演在高压局面下主动收手，减少中后期不公平堆怪。
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `docs/worklog.md`
+- 具体改动：
+  - 新增“军功”常驻成长：每次达成军令都会额外获得 `+1 军功`，HUD 武器栏会直接显示当前军功层数；军功会永久抬高本局的法术伤害、弹速与攻速表现，让“做军令”不只是短时 buff，而是更可读的滚雪球成长。
+  - 新增军功里程碑奖励：军功每累计到 3 层，会额外提高 1 点命火上限并立刻回 1 命，把短局里的目标感和容错一起往上托。
+  - 扩展军令奖励节奏：军令完成时除了原有 buff，还会额外触发一段更强的喘息窗口，并直接注入一小笔修为，避免“军令做完但体感没变强”的落差。
+  - 新增压力导演：根据近身敌人数、快怪/重装存量、当前命火状态动态计算压力档位；高压时自动下调本轮刷新量，并更强地压低快怪/重装权重，减少连续贴脸和单一类型过堆的不公平感。
+  - 重做编组投放队列：波次脚本化队列从单纯的“固定坐标补怪”升级为“带偏好类型的投放计划”，现在可以更稳定地生成侧翼快怪、正面护送队与中后期重装头阵，敌群压迫会更像一套有意图的组合，而不是随机堆数。
+  - 头目开波逻辑新增兜底：若玩家命火过低或当前压力已经偏高，会主动少放一只头目，避免换波瞬间再补一脚把局面直接压死。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 3`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 45`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 95`
+- 验证结果：三次 headless 运行均退出码 `0`，覆盖了主场景加载、跨多个波次推进、军功成长累积以及压力导演/编组投放在中长时段运行下的装配稳定性。
+
+### 20. Presentation-pass 第五轮：RewardPulse 扇芒层 + 连斩整段脉冲补强
+- 动作：继续沿 slash / burst 后的反馈线补演出，不碰 P0 摇杆；这次重点是让升级 / 击杀脉冲更像“戏台喝彩”，并把连斩节奏从单点弹字拉成更完整的一段反馈。
+- 涉及文件：
+  - `game/scripts/reward_pulse.gd`
+  - `game/scripts/main.gd`
+  - `builds/web-release/index.html`
+  - `builds/web-release/index.pck`
+  - `docs/worklog.md`
+- 具体改动：
+  - `RewardPulse` 新增扇形喝彩芒绘制，不再只有环形/射线，升级、击杀、受击、结算节点的脉冲更饱满。
+  - 连斩达到 4 的倍数时，会额外在玩家身上补一次整段奖励脉冲，把“起势 → 起煞 → 压场”从局部命中扩到角色中心，更适合录屏和试玩直觉感受。
+  - 在 `main.gd` 里顺手补了一处 `Dictionary` 显式类型声明，避免 headless 校验把 Variant 推断警告当错误卡住验证链路。
+  - 重新导出 `builds/web-release/`，让当前网页验收包与本轮脉冲脚本一致。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 3`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 45`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --export-release Web /Users/mac/game-studio/projects/survivor-demo/builds/web-release/index.html`
+- 验证结果：三项均退出码 `0`；说明本轮 RewardPulse / 连斩脉冲改动未引入场景加载或 Web 导出错误。

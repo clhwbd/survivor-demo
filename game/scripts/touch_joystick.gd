@@ -18,6 +18,12 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	queue_redraw()
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_OUT or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT or what == NOTIFICATION_EXIT_TREE:
+		cancel_input()
+	elif what == NOTIFICATION_VISIBILITY_CHANGED and not is_visible_in_tree():
+		cancel_input()
+
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		_handle_touch(event)
@@ -67,6 +73,11 @@ func _update_from_global(screen_position: Vector2) -> void:
 	vector_changed.emit(_current_vector)
 	active_changed.emit(_current_vector.length() > 0.0)
 	queue_redraw()
+
+func cancel_input() -> void:
+	if _active_pointer == -1 and _current_vector == Vector2.ZERO and _knob_offset == Vector2.ZERO:
+		return
+	_reset_stick()
 
 func _reset_stick() -> void:
 	_active_pointer = -1
