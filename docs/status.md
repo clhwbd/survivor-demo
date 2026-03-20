@@ -29,6 +29,13 @@
 - UI / 美术 agent 拆分建议：`docs/ui-art-agent-split.md`
 - 工程日志：`docs/worklog.md`
 
+## 当前验收 / 交付判断
+- 当前统一验收目录：`builds/web-release/`
+- 当前最佳本地验收方式：`python3 -m http.server 18081`
+- 当前最佳后续正式托管方式：对象存储静态托管 + CDN，先发 `builds/web-release/`
+- `builds/web/` 暂定为部署优化包，不作为当前唯一验收基线
+- `2026-03-20 14:36 CST` 已再次完成 Godot CLI Web 导出复验与本地 HTTP 校验
+
 ## 当前结论
 这个项目现在更像一个**已可交接的 Web demo 样板**，而不再只是“玩法原型”。
 

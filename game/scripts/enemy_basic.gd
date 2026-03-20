@@ -2,6 +2,7 @@ extends CharacterBody2D
 class_name EnemyBasic
 
 signal died(enemy: EnemyBasic, position: Vector2, xp_reward: int)
+signal damaged(enemy: EnemyBasic, position: Vector2, remaining_health: int, max_health_value: int, was_elite: bool)
 
 @export var move_speed: float = 130.0
 @export var contact_damage: int = 1
@@ -16,13 +17,30 @@ var is_elite: bool = false
 var elite_bonus_scale: float = 1.0
 var _spawn_grace_remaining: float = 0.0
 var _knockback_velocity: Vector2 = Vector2.ZERO
+var _body_base_scale: Vector2 = Vector2.ONE
+var _shadow_base_scale: Vector2 = Vector2.ONE
+var _ornament_base_rotation: float = 0.0
 
 @onready var body_polygon: Polygon2D = $Body
+@onready var shadow_polygon: Polygon2D = get_node_or_null("Shadow") as Polygon2D
+@onready var ornament_polygon: Polygon2D = get_node_or_null("Crest") as Polygon2D
 
 func _ready() -> void:
 	health = max_health
 	if target == null and not target_path.is_empty():
 		target = get_node_or_null(target_path) as Node2D
+	if body_polygon != null:
+		_body_base_scale = body_polygon.scale
+	if shadow_polygon != null:
+		_shadow_base_scale = shadow_polygon.scale
+	if ornament_polygon != null:
+		_ornament_base_rotation = ornament_polygon.rotation
+	for node_name in ["Mask", "Scarf", "Armor", "Crown"]:
+		if ornament_polygon == null:
+			ornament_polygon = get_node_or_null(node_name) as Polygon2D
+			if ornament_polygon != null:
+				_ornament_base_rotation = ornament_polygon.rotation
+				break
 
 func _physics_process(delta: float) -> void:
 	if _spawn_grace_remaining > 0.0:
@@ -36,6 +54,7 @@ func _physics_process(delta: float) -> void:
 		velocity = _knockback_velocity
 		_knockback_velocity = _knockback_velocity.lerp(Vector2.ZERO, delta * 10.0)
 		move_and_slide()
+		_update_visuals(delta)
 		return
 
 	var to_target := target.global_position - global_position
@@ -62,6 +81,7 @@ func _physics_process(delta: float) -> void:
 	velocity = desired_velocity + _knockback_velocity
 	_knockback_velocity = _knockback_velocity.lerp(Vector2.ZERO, delta * 11.0)
 	move_and_slide()
+	_update_visuals(delta)
 
 func take_damage(amount: int) -> void:
 	health -= amount
@@ -76,6 +96,7 @@ func take_damage(amount: int) -> void:
 		_flash(Color(1.0, 0.92, 0.35, 1.0), 0.10)
 	else:
 		_flash(Color(1.0, 1.0, 1.0, 1.0), 0.08)
+	damaged.emit(self, global_position, max(0, health), max_health, is_elite)
 	if health <= 0:
 		died.emit(self, global_position, xp_reward)
 		queue_free()
@@ -110,3 +131,15 @@ func _punch_scale() -> void:
 	scale = base_scale * 1.08
 	var tween := create_tween()
 	tween.tween_property(self, "scale", base_scale, 0.10)
+
+func _update_visuals(delta: float) -> void:
+	var move_ratio := clampf(velocity.length() / maxf(1.0, move_speed * 1.6), 0.0, 1.0)
+	var bob := sin(Time.get_ticks_msec() * (0.010 + move_ratio * 0.025) + float(get_instance_id() % 17))
+	rotation = lerpf(rotation, clampf(velocity.normalized().x, -1.0, 1.0) * 0.08, delta * 8.0)
+	if body_polygon != null:
+		body_polygon.scale = body_polygon.scale.lerp(_body_base_scale * Vector2(1.0 + move_ratio * 0.05, 1.0 - move_ratio * 0.04), delta * 7.0)
+	if shadow_polygon != null:
+		shadow_polygon.scale = shadow_polygon.scale.lerp(_shadow_base_scale * Vector2(1.0 + move_ratio * 0.12, 1.0 - move_ratio * 0.08), delta * 7.0)
+	if ornament_polygon != null:
+		ornament_polygon.rotation = lerpf(ornament_polygon.rotation, _ornament_base_rotation - velocity.normalized().x * 0.12 + bob * 0.05, delta * 7.0)
+		ornament_polygon.position.y = lerpf(ornament_polygon.position.y, ornament_polygon.position.y + bob * 0.02, delta * 2.0)

@@ -168,12 +168,23 @@ color = Color(0.94, 0.82, 0.55, 0.95)
 visible = false
 layout_mode = 0
 offset_left = 0.0
-offset_top = 0.0
+offset_top = -2.0
 offset_right = 560.0
-offset_bottom = 64.0
+offset_bottom = 40.0
 horizontal_alignment = 1
 vertical_alignment = 1
 text = "第一劫 · 花果山热身"
+
+[node name="BannerSubLabel" type="Label" parent="HUD/TopCenter"]
+visible = false
+layout_mode = 0
+offset_left = 48.0
+offset_top = 34.0
+offset_right = 512.0
+offset_bottom = 64.0
+horizontal_alignment = 1
+vertical_alignment = 1
+text = "妖潮播报"
 
 [node name="FocusOverlay" type="Control" parent="HUD"]
 visible = false
@@ -256,10 +267,10 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -112.0
+offset_left = -124.0
 offset_top = -96.0
-offset_right = 112.0
-offset_bottom = -30.0
+offset_right = 124.0
+offset_bottom = -34.0
 grow_horizontal = 2
 grow_vertical = 0
 text = "继续试炼"
@@ -269,9 +280,9 @@ anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -438.0
-offset_top = 104.0
-offset_right = -330.0
-offset_bottom = 154.0
+offset_top = 108.0
+offset_right = -276.0
+offset_bottom = 162.0
 grow_horizontal = 0
 text = "暂停"
 

@@ -50,6 +50,12 @@
 - 重新生成了 `builds/web-release/` 下的 `index.html / index.js / index.wasm / index.pck` 等核心文件
 - 导出过程可正常完成，不依赖 Godot 编辑器手点导出
 
+## 2026-03-20 14:36 CST 复验结论
+- 再次执行 Godot CLI 导出命令，退出码 `0`
+- `builds/web-release/` 通过 `python3 -m http.server 18081` 复验，`index.html / index.js / index.wasm / index.pck` 全部返回 `200`
+- `builds/web/` 通过 `python3 serve_compressed.py` 复验，使用 `GET` 请求访问 `index.wasm` 时返回 `Content-Encoding: gzip`
+- 补充确认：`serve_compressed.py` 对 `HEAD` 仍返回 `501`，这是脚本实现限制，不影响浏览器实际加载
+
 ## 本地访问验证
 
 ### A. 验收基线版本验证
@@ -110,6 +116,7 @@ python3 serve_compressed.py
    - 因此用 `curl -I` 发 `HEAD` 请求会得到 `501`
    - 这不影响浏览器正常加载
    - 若后续需要接健康检查或自动化探测，可补一个 `do_HEAD`
+   - 所以压缩版验收时应优先用浏览器实测或 `curl -D - ... -o /dev/null` 的 `GET` 请求，而不是只看 `HEAD`
 
 3. 临时隧道不适合继续作为正式验收链路
    - 它适合临时演示

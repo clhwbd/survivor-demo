@@ -21,11 +21,24 @@ var _dash_remaining: float = 0.0
 var _dash_cooldown_remaining: float = 0.0
 var _dash_direction: Vector2 = Vector2.RIGHT
 var _last_move_direction: Vector2 = Vector2.DOWN
+var _cape_base_rotation: float = 0.0
+var _staff_base_rotation: float = 0.0
+var _shadow_base_scale: Vector2 = Vector2.ONE
 
 @onready var body_polygon: Polygon2D = $Body
+@onready var cape_polygon: Polygon2D = $Cape
+@onready var headband_polygon: Polygon2D = $Headband
+@onready var staff_polygon: Polygon2D = $Staff
+@onready var shadow_polygon: Polygon2D = $Shadow
 
 func _ready() -> void:
 	health = max_health
+	if cape_polygon != null:
+		_cape_base_rotation = cape_polygon.rotation
+	if staff_polygon != null:
+		_staff_base_rotation = staff_polygon.rotation
+	if shadow_polygon != null:
+		_shadow_base_scale = shadow_polygon.scale
 	xp_changed.emit(xp, xp_to_next, level)
 	stats_changed.emit(health, max_health, level)
 	dash_state_changed.emit(true, 0.0, false)
@@ -52,6 +65,7 @@ func _physics_process(delta: float) -> void:
 		velocity = input_dir * speed
 
 	move_and_slide()
+	_update_visuals(delta, input_dir)
 	dash_state_changed.emit(_dash_cooldown_remaining <= 0.0, _dash_cooldown_remaining, _dash_remaining > 0.0)
 
 func set_external_input_vector(direction: Vector2) -> void:
@@ -79,6 +93,7 @@ func request_dash(preferred_direction: Vector2 = Vector2.ZERO) -> bool:
 	_dash_cooldown_remaining = dash_cooldown
 	invulnerable_until_msec = max(invulnerable_until_msec, Time.get_ticks_msec() + int(dash_duration * 1000.0) + 80)
 	_flash(Color(1.0, 0.95, 0.6, 1.0), 0.10)
+	scale = Vector2(1.18, 0.84)
 	dash_state_changed.emit(false, _dash_cooldown_remaining, true)
 	return true
 
@@ -93,6 +108,7 @@ func take_damage(amount: int) -> void:
 	invulnerable_until_msec = now + 500
 	health = max(0, health - amount)
 	_flash(Color(1.0, 0.4, 0.4, 1.0), 0.12)
+	scale = Vector2(0.88, 1.12)
 	stats_changed.emit(health, max_health, level)
 	if health <= 0:
 		died.emit()
@@ -125,6 +141,7 @@ func collect_xp(amount: int) -> void:
 	if leveled_up:
 		health = min(max_health, health + 2)
 		_flash(Color(0.5, 1.0, 0.6, 1.0), 0.15)
+		scale = Vector2(1.12, 0.9)
 
 	xp_changed.emit(xp, xp_to_next, level)
 	stats_changed.emit(health, max_health, level)
@@ -136,3 +153,21 @@ func _flash(color_value: Color, duration: float) -> void:
 	body_polygon.color = color_value
 	var tween := create_tween()
 	tween.tween_property(body_polygon, "color", original, duration)
+
+func _update_visuals(delta: float, input_dir: Vector2) -> void:
+	var motion_dir := velocity.normalized() if velocity.length() > 0.0 else _last_move_direction
+	if motion_dir == Vector2.ZERO:
+		motion_dir = Vector2.DOWN
+	var move_ratio := clampf(velocity.length() / maxf(1.0, dash_speed), 0.0, 1.0)
+	var bob := sin(Time.get_ticks_msec() * (0.012 + move_ratio * 0.02))
+	rotation = lerpf(rotation, motion_dir.x * 0.08, delta * 10.0)
+	if shadow_polygon != null:
+		shadow_polygon.scale = shadow_polygon.scale.lerp(_shadow_base_scale * Vector2(1.0 + move_ratio * 0.18, 1.0 - move_ratio * 0.10), delta * 8.0)
+	if cape_polygon != null:
+		cape_polygon.rotation = lerpf(cape_polygon.rotation, _cape_base_rotation - motion_dir.x * 0.30 - move_ratio * 0.26 + bob * 0.06, delta * 8.0)
+		cape_polygon.position.y = lerpf(cape_polygon.position.y, 2.0 + abs(motion_dir.y) * 1.6 + bob * 1.4, delta * 8.0)
+	if staff_polygon != null:
+		staff_polygon.rotation = lerpf(staff_polygon.rotation, _staff_base_rotation + motion_dir.x * 0.18 + move_ratio * 0.10, delta * 9.0)
+	if headband_polygon != null:
+		headband_polygon.rotation = lerpf(headband_polygon.rotation, -motion_dir.x * 0.10 + bob * 0.05, delta * 8.0)
+	scale = scale.lerp(Vector2(1.0 + move_ratio * 0.08, 1.0 - move_ratio * 0.06), delta * 8.0)

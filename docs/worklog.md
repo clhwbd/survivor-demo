@@ -145,3 +145,27 @@
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 10`
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 600`
 - 验证结果：两次 headless 运行均退出码 `0`；其中第二次复验确认经验球报错已消除。
+
+### 13. 交付文档二次收口 + Web 复验复核
+- 动作：再次统一 README / status / release-acceptance / deployment-plan 的交付口径，明确 `builds/web-release/` 与 `builds/web/` 的职责，并补一轮现有 Web 构建复验结果。
+- 涉及文件：
+  - `README.md`
+  - `docs/status.md`
+  - `docs/release-acceptance.md`
+  - `docs/deployment-plan.md`
+  - `docs/worklog.md`
+- 具体改动：
+  - 在 README 中新增“当前最佳交付路径”，把本地验收、正式托管、压缩版使用条件拆开写清楚。
+  - 在 `docs/status.md` 中固化当前统一验收目录和后续正式托管建议，避免后续混用 `web/` 与 `web-release/`。
+  - 在 `docs/release-acceptance.md` 中追加 `2026-03-20 14:36 CST` 复验结论，写明压缩版应以 `GET` 而不是 `HEAD` 校验 gzip 返回。
+  - 在 `docs/deployment-plan.md` 中补“一句话执行口径”，降低后续交接成本。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --export-release Web /Users/mac/game-studio/projects/survivor-demo/builds/web-release/index.html`
+  - `python3 -m http.server 18081`（目录：`builds/web-release/`）
+  - `python3 serve_compressed.py`（目录：`builds/web/`）
+  - `curl -I http://127.0.0.1:18081/index.html`
+  - `curl -I http://127.0.0.1:18081/index.js`
+  - `curl -I http://127.0.0.1:18081/index.wasm`
+  - `curl -I http://127.0.0.1:18081/index.pck`
+  - `curl -D - -H 'Accept-Encoding: gzip' http://127.0.0.1:8000/index.wasm -o /dev/null`
+- 验证结果：Godot CLI 导出退出码 `0`；验收版四个核心文件均返回 `200`；压缩版 `GET index.wasm` 返回 `Content-Encoding: gzip` / `Vary: Accept-Encoding` / `Content-Type: application/wasm`。

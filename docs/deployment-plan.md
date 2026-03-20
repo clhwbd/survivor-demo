@@ -180,3 +180,8 @@ server {
 如果后续会连续做多个 demo、想长期积累统一试玩站点：
 
 **中期推荐：上 Caddy / Nginx 静态站，形成固定 demo 域名。**
+
+## 一句话执行口径
+- 现在本地给人验收：跑 `builds/web-release/`
+- 现在准备对外正式分享：先托管 `builds/web-release/`
+- 以后需要压带宽 / 做部署优化：再切 `builds/web/`
