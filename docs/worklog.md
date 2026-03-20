@@ -238,22 +238,6 @@
   - `game/scripts/main.gd`
   - `game/scenes/main.tscn`
   - `README.md`
-
-### 15. 关键时刻演出补强第四轮（命中 / 军令 / 升级 / 暂停 / 通关）
-- 动作：继续按 `godot-vfx-animator` 方向强化高感知节点，基于现有 `slash_fx` / `reward_pulse` / `feedback_burst` 再补一层更大的“里程碑级”演出，重点打在精英受击、精英击杀、军令达成、速决赏、升级、暂停/继续、失败、通关这些时刻。
-- 涉及文件：
-  - `game/scripts/main.gd`
-  - `game/scripts/milestone_flare.gd`
-  - `game/scenes/milestone_flare.tscn`
-- 具体改动：
-  - 新增 `MilestoneFlare` 大型扇形描金 flare 效果，用于奖励 / 结算 / 节点达成等更高权重时刻。
-  - 精英受击时除了原有 burst / slash / flash，再补一层轻量 flare，让头目被压制时的读感更强。
-  - 精英击杀、8+ 连斩节点、升级、军令达成、速决赏、军功满三层、暂停、继续试炼、失败、通关，都会触发一层新的大演出，且通关额外补了左右双侧 flare，截图和录屏更像“结算喝彩”。
-  - 这轮没有回头优先处理 P0 摇杆，仍然聚焦 P1 演出与反馈强度。
-- 验证：
-  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 3`
-  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 45`
-- 验证结果：两次 headless 运行均应为退出码 `0`；新增脚本 / 场景可正常装配，主场景加载与暂停 / 结算 / 演出调用链未引入语法错误或场景缺失。
   - `docs/status.md`
   - `docs/release-acceptance.md`
   - `docs/deployment-plan.md`
@@ -460,6 +444,24 @@
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 45`
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --export-release Web /Users/mac/game-studio/projects/survivor-demo/builds/web-release/index.html`
 - 验证结果：三项均退出码 `0`；说明本轮 RewardPulse / 连斩脉冲改动未引入场景加载或 Web 导出错误。
+
+### 21. HUD / 结果页 / 移动端操作区第五轮收口
+- 动作：继续按“西游记古风 Q 版”统一界面层，重点强化 HUD 信息层次、底部操作带、结果页按钮主次与移动端提示区，不优先处理 P0 摇杆。
+- 涉及文件：
+  - `game/scenes/main.tscn`
+  - `game/scripts/main.gd`
+  - `docs/ui-style-guide.md`
+  - `docs/worklog.md`
+- 具体改动：
+  - 右上状态卡补成更完整的“状态签 + 正文”结构，`StatusBadge` 单独占一行，和正文信息拆层展示，读感更像戏台签条。
+  - 底部新增“戏台操作”带状区，把 `暂停 / 继续试炼 / 再闯一局` 收进统一操作带；在结算和窄屏场景下显性显示，结果页主次关系更清楚。
+  - 调整 `ContinueButton / RestartButton / PauseButton` 为同一底部布局，主 CTA `再闯一局` 固定位于右侧，更适合试玩截图、网页验收和移动端认知。
+  - 移动端提示区新增金边标题签（`掌中戏台 · 身法提示 / 本劫军令 / 告急提醒 / 压阵提醒 / 暂歇战报`），正文只保留下一步行动建议，减少信息糊成一团。
+  - 新增 `_refresh_hud_layout()`，在窗口尺寸变化时对左上主账本、右上状态卡和底部操作带做轻量重排，让窄屏 / 小窗下的信息层级更稳。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 3`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 20`
+- 验证结果：两次 headless 运行均退出码 `0`，主场景可正常加载；新增 HUD 节点、窄屏布局逻辑与按钮重排未引入装配或语法错误。
 - 补充：本轮顺手修掉了一处 `Dictionary` 推断为 `Variant` 的 headless 校验告警，避免后续自动化回归被脚本告警中断。
 
 ### 21. 短局可玩性精修第六轮：军令导向刷怪深化 / 速决赏功 / 攻速一致性
