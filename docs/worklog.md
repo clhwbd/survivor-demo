@@ -17,6 +17,35 @@
 
 ## 2026-03-21
 
+### 03:21 地图表现模块二段增强：区域气质、地表层次、锚点节奏继续推进
+
+- 动作：承接地图表现模块首版，不再只停留在“视野里终于有参照物”，继续把程序化地图往**更有区域气质与层次感**推进；本轮重点仍然是轻量、稳定、可复用，不靠重贴图和高密度摆件去堆。
+- 涉及文件：
+  - `game/scripts/map_presence.gd`
+  - `game/tests/map_presence_smoke.gd`
+  - `docs/worklog.md`
+- 具体改动：
+  - 新增**区块化地表语汇**：引入更粗粒度的 `zone_cell_size` 宏区块，让单屏内可以稳定出现土路带、碎石地、荒尘带、青苔草痕等不同地表语汇，而不是只有均匀底纹。
+  - 新增**更明显但克制的地表层次**：在原有底纹 / 路痕基础上，继续叠加道路带、碎石带、荒地裂痕、青苔叶痕等轻量 overlay；颜色仍压低对比，不抢角色、敌人、弹道与 HUD。
+  - 调整**中景锚点生成策略**：把原来偏随机的 landmark 生成改为按宏区块节奏走“横带 / 纵带 / 斜带”节律，再叠加少量 hash 随机，这样移动时中景锚点会更像沿路、沿区域出现，而不是满屏平均撒点。
+  - 增加**轻量装饰组合**：围绕中景锚点补了几类小组合，例如石碑旁碎石与尘圈、经幡旁路桩与路痕、小树旁落叶痕与草边，继续维持低密度、低饱和、低描边。
+  - 增加**区域偏好的锚点分布**：不同地表区块会更偏向不同中景物，例如土路区更容易出经幡 / 灯桩，荒地更偏残柱 / 石碑，草痕区更偏小树，让“区域气质”不只靠地面颜色，而是地面和中景共同成立。
+  - 扩展 debug snapshot / smoke 指标：新增 `terrain_bands`、四类区块 tile 计数、`anchor_rhythm`、`decor_clusters`，让后续迭代不只是看“有没有东西”，还能回归“有没有区域分层和节奏”。
+- 视觉取向：
+  - 继续保持“西游记古风 Q 版”方向，但做法偏**克制的戏台底景 / 路引 / 山野痕迹**，不走写实重材质，不上大面积高饱和装饰。
+  - 中景锚点与装饰只提供空间参照和区域气质，不承担玩法信息提示，避免和战斗读屏抢层。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/map_presence_smoke.gd`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/touch_joystick_smoke.gd`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/portrait_layout_smoke.gd`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 5`
+  - `./tests/smoke/release_guard.sh`
+- 验证结果：
+  - `map_presence_smoke: ok`，单屏内可稳定看到多类地表区块、更多 terrain band、节律化锚点与轻量装饰组合；移动视口后区块组合与场景签名会变化，不再只是“底色不同一点”。
+  - `touch_joystick_smoke: ok`、`portrait_layout_smoke: ok`，手机 UI、摇杆与触控链路未被地图增强影响。
+  - 主场景 headless 加载正常；`release_guard.sh` 全链路通过，Web 导出 / 压缩 / 本地验收链路未被破坏。
+- 提交：本轮 Git 提交已完成（提交信息：`feat: deepen procedural map presence layering`）
+
 ### 03:24 对外发送试玩链接标准消息模板补齐（聊天转发场景）
 
 - 动作：承接已完成的《Web 试玩验收说明》，继续往前补“**把链接发出去时怎么说**”这一层，单独整理面向企业微信 / 聊天窗口的标准消息模板，减少每次临时手写导致的口径不一致。
