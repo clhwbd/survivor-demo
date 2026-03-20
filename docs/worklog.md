@@ -71,7 +71,9 @@
 - 同时新增并启用：
   - `game-pm`
 - 其中 `game-pm` 正式接管工作室内的生产 / 交付管理职责，负责盯并行线、发现掉线任务、整理版本状态、向 main 提供补线与验收建议
+- `game-pm` 职责已明确为**纯版本/交付管理**，只负责：版本状态文档维护、发布流程守护、交付风险识别、补线建议写入文档。**不做**：写代码、做策划、调度其他 Agent、对外汇报。
 - main 保持对外沟通、最终调度、验收与汇报职责不变
+- 用户新增规则：**后续所有与发布有关的事情，统一交给 `game-build` 负责**。包括：导出、发布包整理、正式静态托管、外链交付、发布验证与发布说明收口。
 
 ### 9. HUD / 文案 / 风格化第一轮落地（P1-5 / P2-7）
 - 动作：收口 HUD 与提示层可用性，统一按钮、阶段名、目标提示、触控提示、战斗弹字语气，并给主 HUD / 顶部横幅 / 触控摇杆补第一轮古风 Q 版配色与视觉语言
@@ -516,3 +518,30 @@
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 3`
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path /Users/mac/game-studio/projects/survivor-demo/game --scene res://scenes/main.tscn --quit-after 20`
 - 验证结果：两次 headless 运行均退出码 `0`，主场景可正常加载；新增 HUD 节点、按钮重排与窄屏布局逻辑未引入装配错误。
+
+### 24. 首包优化 P0：排除开发期资源并收紧 Web 导出基线
+- 动作：对当前 Web 首包做一轮 P0 审计与收口，只处理体积来源、无用开发内容排除和导出配置，不改玩法逻辑。
+- 审计结论：
+  - 当前 Web `index.wasm` 约 `35.94 MiB`，几乎全部来自 Godot Web 导出模板本体，这轮工程侧几乎没有安全可削空间。
+  - 真正可控的是 `index.pck`；旧导出规则会把 `addons/godot_mcp/*`、`tests/*`、`.godot/*` 一并打进包里，其中包含开发调试桥、编辑器缓存、测试脚本与导出缓存场景，属于发布版不应进入首包的内容。
+  - 通过 Godot 导出日志可直接看到旧包在保存 `res://addons/godot_mcp/*.gdc`、`res://tests/touch_joystick_smoke.gdc`、`res://.godot/exported/*` 等文件；这些就是本轮首包的主要可疑来源。
+- 涉及文件：
+  - `game/export_presets.cfg`
+  - `builds/web-release/*`
+  - `builds/web/*`
+  - `docs/worklog.md`
+- 具体改动：
+  - 把 `Web` 导出 preset 的 `exclude_filter` 收紧为 `addons/godot_mcp/*,tests/*,.godot/*`，明确排除开发期 addon、测试脚本和编辑器缓存。
+  - 把 preset 的默认 `export_path` 改为 `../builds/web-release/index.html`，让编辑器默认导出目标与当前“验收基线目录”一致，再由压缩同步脚本生成 `builds/web/`。
+  - 重新导出 `builds/web-release/`，并同步刷新 `builds/web/` 压缩交付目录，避免收紧配置后两套目录口径再次漂移。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 5`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --export-release Web /tmp/survivor-web-size-baseline/index.html`（旧规则基线）
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --export-release Web /tmp/survivor-web-size-optimized/index.html`（新规则对比）
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --export-release Web ./builds/web-release/index.html`
+  - `./tests/smoke/sync_compressed_build.sh`
+- 验证结果：
+  - 主场景 headless 运行退出码 `0`。
+  - Web 导出成功，收紧前后 `index.wasm` 均为 `37,685,705 B`（`35.94 MiB`），确认 wasm 体积主要由引擎模板决定。
+  - `index.pck` 从 `763,524 B`（`745.6 KiB`）降到 `349,740 B`（`341.5 KiB`），减少 `413,784 B`（约 `404.1 KiB`，`-54.2%`）。
+  - `builds/web-release/` 与 `builds/web/` 已按新规则重建完成。
