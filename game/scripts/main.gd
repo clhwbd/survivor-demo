@@ -119,6 +119,8 @@ var _last_objective_kill_count: int = 0
 var _last_objective_elite_kill_count: int = 0
 var _elite_kill_count: int = 0
 var _queued_spawn_entries: Array[Dictionary] = []
+var _mobile_lite_mode: bool = false
+var _boot_variant_label: String = "标准验收版"
 
 @onready var player: CharacterBody2D = $Player
 @onready var player_camera: Camera2D = $Player/Camera2D
@@ -175,13 +177,13 @@ var _queued_spawn_entries: Array[Dictionary] = []
 @onready var restart_button: Button = $HUD/RestartButton
 @onready var continue_button: Button = $HUD/ContinueButton
 @onready var pause_button: Button = $HUD/PauseButton
-@onready var joystick: Control = $HUD/TouchJoystick
-@onready var dash_button: Button = $HUD/DashButton
-@onready var dash_cooldown_bar: ColorRect = get_node_or_null("HUD/DashButton/CooldownBar")
-@onready var mobile_hint_bg: ColorRect = $HUD/MobileHintBg
-@onready var mobile_hint_accent: ColorRect = get_node_or_null("HUD/MobileHintAccent") as ColorRect
-@onready var mobile_hint_title: Label = get_node_or_null("HUD/MobileHintTitle") as Label
-@onready var mobile_hint: Label = $HUD/MobileHint
+@onready var joystick: Control = $MobileControls/TouchJoystick
+@onready var dash_button: Button = $MobileControls/DashButton
+@onready var dash_cooldown_bar: ColorRect = get_node_or_null("MobileControls/DashButton/CooldownBar")
+@onready var mobile_hint_bg: ColorRect = $MobileControls/MobileHintBg
+@onready var mobile_hint_accent: ColorRect = get_node_or_null("MobileControls/MobileHintAccent") as ColorRect
+@onready var mobile_hint_title: Label = get_node_or_null("MobileControls/MobileHintTitle") as Label
+@onready var mobile_hint: Label = $MobileControls/MobileHint
 
 func _ready() -> void:
 	randomize()
@@ -209,6 +211,11 @@ func _ready() -> void:
 		milestone_flare_scene = load("res://scenes/milestone_flare.tscn")
 	if collect_pulse_scene == null:
 		collect_pulse_scene = load("res://scenes/collect_pulse.tscn")
+
+	_mobile_lite_mode = _detect_mobile_lite_mode()
+	_boot_variant_label = "掌中轻量验收版" if _mobile_lite_mode else "标准验收版"
+	if _mobile_lite_mode:
+		print("survivor-demo mobile lite mode enabled")
 
 	_apply_ui_style()
 	call_deferred("_apply_ui_font_overrides")
@@ -267,8 +274,8 @@ func _ready() -> void:
 	_update_meta_hud()
 	_apply_wave_state(true)
 	_setup_web_ui()
-	_show_banner("第一劫 · %s" % _get_wave_title(1), "戏台开场")
-	_show_center_notice("花果山开场 · 点按后起势", HUD_GOLD)
+	_show_banner("第一劫 · %s" % _get_wave_title(1), _boot_variant_label)
+	_show_center_notice("花果山开场 · %s" % _boot_variant_label, HUD_GOLD)
 	_update_tip_text()
 
 	print("survivor-demo polished demo ready")
@@ -330,6 +337,9 @@ func _refresh_hud_layout() -> void:
 	var bottom_margin := 18.0
 
 	if portrait_layout:
+		# In portrait mode, show mobile hint on the right side (not bottom-center)
+		# to avoid blocking the joystick which lives in the bottom-left.
+		# Action tray stays centered (doesn't overlap joystick).
 		var hud_card_bottom := minf(viewport_size.y * 0.31, 274.0)
 		if hud_card_bg != null:
 			hud_card_bg.offset_left = side_margin
@@ -416,91 +426,121 @@ func _refresh_hud_layout() -> void:
 			combo_meter.offset_top = top_center_top + 82.0
 			combo_meter.offset_bottom = top_center_top + 128.0
 
+		# In portrait, position a compact action tray above the HUD card, not at the bottom,
+		# so it doesn't block the joystick (bottom-left) or dash button (bottom-right).
+		# anchor_bottom=0: offset_bottom is the absolute y-position of control bottom.
+		var tray_top := hud_card_bottom + 8.0
+		var tray_bottom := tray_top + 60.0
 		if action_tray_bg != null:
 			action_tray_bg.anchor_left = 0.0
+			action_tray_bg.anchor_top = 0.0
 			action_tray_bg.anchor_right = 1.0
+			action_tray_bg.anchor_bottom = 0.0
 			action_tray_bg.offset_left = side_margin
 			action_tray_bg.offset_right = -side_margin
-			action_tray_bg.offset_top = -122.0
-			action_tray_bg.offset_bottom = -bottom_margin
+			action_tray_bg.offset_top = tray_top
+			action_tray_bg.offset_bottom = tray_bottom
 		if action_tray_accent != null:
 			action_tray_accent.anchor_left = 0.0
+			action_tray_accent.anchor_top = 0.0
 			action_tray_accent.anchor_right = 1.0
+			action_tray_accent.anchor_bottom = 0.0
 			action_tray_accent.offset_left = side_margin + 12.0
 			action_tray_accent.offset_right = -side_margin - 12.0
-			action_tray_accent.offset_top = -118.0
-			action_tray_accent.offset_bottom = -114.0
+			action_tray_accent.offset_top = tray_top + 2.0
+			action_tray_accent.offset_bottom = tray_top + 6.0
 		if action_tray_label != null:
 			action_tray_label.anchor_left = 0.0
+			action_tray_label.anchor_top = 0.0
 			action_tray_label.anchor_right = 1.0
+			action_tray_label.anchor_bottom = 0.0
 			action_tray_label.offset_left = side_margin + 18.0
 			action_tray_label.offset_right = -side_margin - 18.0
-			action_tray_label.offset_top = -114.0
-			action_tray_label.offset_bottom = -86.0
+			action_tray_label.offset_top = tray_top + 8.0
+			action_tray_label.offset_bottom = tray_top + 36.0
 
+		var pause_top := tray_bottom + 4.0
+		var pause_bottom := pause_top + 44.0
 		if pause_button != null:
 			pause_button.anchor_left = 0.0
+			pause_button.anchor_top = 0.0
 			pause_button.anchor_right = 1.0
+			pause_button.anchor_bottom = 0.0
 			pause_button.offset_left = side_margin + 18.0
 			pause_button.offset_right = -side_margin - 18.0
-			pause_button.offset_top = -80.0
-			pause_button.offset_bottom = -28.0
+			pause_button.offset_top = pause_top
+			pause_button.offset_bottom = pause_bottom
 		if continue_button != null:
 			continue_button.anchor_left = 0.0
+			continue_button.anchor_top = 0.0
 			continue_button.anchor_right = 0.5
+			continue_button.anchor_bottom = 0.0
 			continue_button.offset_left = side_margin + 18.0
 			continue_button.offset_right = -6.0
-			continue_button.offset_top = -80.0
-			continue_button.offset_bottom = -28.0
+			continue_button.offset_top = pause_top
+			continue_button.offset_bottom = pause_bottom
 		if restart_button != null:
 			restart_button.anchor_left = 0.5
+			restart_button.anchor_top = 0.0
 			restart_button.anchor_right = 1.0
+			restart_button.anchor_bottom = 0.0
 			restart_button.offset_left = 6.0
 			restart_button.offset_right = -side_margin - 18.0
-			restart_button.offset_top = -80.0
-			restart_button.offset_bottom = -28.0
+			restart_button.offset_top = pause_top
+			restart_button.offset_bottom = pause_bottom
 
+		# Mobile controls: joystick in bottom-left (higher z via MobileControls layer),
+		# dash button in bottom-right, mobile hint also on right (above dash button).
+		# They all render on CanvasLayer=2, above HUD CanvasLayer=1.
+		var joystick_size := mini(192.0, viewport_size.x * 0.44)
 		if joystick != null:
-			joystick.custom_minimum_size = Vector2(156.0, 156.0)
-			joystick.offset_left = 14.0
-			joystick.offset_right = 170.0
-			joystick.offset_top = -294.0
-			joystick.offset_bottom = -138.0
+			joystick.custom_minimum_size = Vector2(joystick_size, joystick_size)
+			joystick.offset_left = 12.0
+			joystick.offset_right = 12.0 + joystick_size
+			joystick.offset_top = -joystick_size - 14.0
+			joystick.offset_bottom = -14.0
 		if dash_button != null:
-			dash_button.offset_left = -170.0
-			dash_button.offset_right = -18.0
-			dash_button.offset_top = -286.0
-			dash_button.offset_bottom = -194.0
+			var dash_w := mini(140.0, viewport_size.x * 0.32)
+			var dash_h := 68.0
+			dash_button.custom_minimum_size = Vector2(dash_w, dash_h)
+			dash_button.offset_left = -dash_w - 12.0
+			dash_button.offset_right = -12.0
+			dash_button.offset_top = -dash_h - 14.0
+			dash_button.offset_bottom = -14.0
+		# In portrait, mobile hint goes to top-right area (above status card), NOT bottom-center
+		var hint_right_margin := 12.0
+		var hint_top_anchor := hud_card_bottom + 10.0
+		var hint_height := 90.0
 		if mobile_hint_bg != null:
-			mobile_hint_bg.anchor_left = 0.0
+			mobile_hint_bg.anchor_left = 1.0
 			mobile_hint_bg.anchor_right = 1.0
-			mobile_hint_bg.offset_left = side_margin
-			mobile_hint_bg.offset_right = -side_margin
-			mobile_hint_bg.offset_top = -246.0
-			mobile_hint_bg.offset_bottom = -140.0
+			mobile_hint_bg.offset_left = -viewport_size.x * 0.48
+			mobile_hint_bg.offset_right = -hint_right_margin
+			mobile_hint_bg.offset_top = hint_top_anchor
+			mobile_hint_bg.offset_bottom = hint_top_anchor + hint_height
 		if mobile_hint_accent != null:
-			mobile_hint_accent.anchor_left = 0.0
+			mobile_hint_accent.anchor_left = 1.0
 			mobile_hint_accent.anchor_right = 1.0
-			mobile_hint_accent.offset_left = side_margin + 12.0
-			mobile_hint_accent.offset_right = -side_margin - 12.0
-			mobile_hint_accent.offset_top = -242.0
-			mobile_hint_accent.offset_bottom = -238.0
+			mobile_hint_accent.offset_left = -viewport_size.x * 0.48 + 12.0
+			mobile_hint_accent.offset_right = -hint_right_margin - 12.0
+			mobile_hint_accent.offset_top = hint_top_anchor + 4.0
+			mobile_hint_accent.offset_bottom = hint_top_anchor + 8.0
 		if mobile_hint_title != null:
-			mobile_hint_title.anchor_left = 0.0
+			mobile_hint_title.anchor_left = 1.0
 			mobile_hint_title.anchor_right = 1.0
-			mobile_hint_title.offset_left = side_margin + 18.0
-			mobile_hint_title.offset_right = -side_margin - 18.0
-			mobile_hint_title.offset_top = -236.0
-			mobile_hint_title.offset_bottom = -210.0
-			mobile_hint_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			mobile_hint_title.offset_left = -viewport_size.x * 0.48 + 18.0
+			mobile_hint_title.offset_right = -hint_right_margin - 18.0
+			mobile_hint_title.offset_top = hint_top_anchor + 10.0
+			mobile_hint_title.offset_bottom = hint_top_anchor + 36.0
+			mobile_hint_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		if mobile_hint != null:
-			mobile_hint.anchor_left = 0.0
+			mobile_hint.anchor_left = 1.0
 			mobile_hint.anchor_right = 1.0
-			mobile_hint.offset_left = side_margin + 18.0
-			mobile_hint.offset_right = -side_margin - 18.0
-			mobile_hint.offset_top = -206.0
-			mobile_hint.offset_bottom = -148.0
-			mobile_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			mobile_hint.offset_left = -viewport_size.x * 0.48 + 18.0
+			mobile_hint.offset_right = -hint_right_margin - 18.0
+			mobile_hint.offset_top = hint_top_anchor + 38.0
+			mobile_hint.offset_bottom = hint_top_anchor + hint_height - 4.0
+			mobile_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	else:
 		if hud_card_bg != null:
 			hud_card_bg.offset_left = 12.0
@@ -678,6 +718,7 @@ func _refresh_hud_layout() -> void:
 			action_tray_label.text = "戏台操作 · 底部续战与重开"
 		else:
 			action_tray_label.text = "戏台操作 · 暂停 / 续战 / 再闯"
+	_apply_mobile_font_scaling()
 
 func _setup_web_ui() -> void:
 	var show_touch_ui := OS.has_feature("web") or OS.has_feature("mobile")
@@ -700,6 +741,27 @@ func _setup_web_ui() -> void:
 	if continue_button != null:
 		continue_button.visible = false
 	_refresh_hud_layout()
+
+func _detect_mobile_lite_mode() -> bool:
+	if not OS.has_feature("web"):
+		return false
+	var args := OS.get_cmdline_user_args()
+	if args.has("--full-web"):
+		return false
+	if args.has("--mobile-lite"):
+		return true
+	var viewport_size := get_viewport_rect().size
+	return OS.has_feature("mobile") or viewport_size.x <= 540.0 or viewport_size.y <= 960.0 or viewport_size.y > viewport_size.x
+
+func _apply_mobile_lite_scaling() -> void:
+	if not _mobile_lite_mode:
+		return
+	spawn_count_per_wave = maxi(1, int(ceil(float(spawn_count_per_wave) * 0.68)))
+	max_alive_enemies = maxi(10, int(round(float(max_alive_enemies) * 0.58)))
+	spawn_timer.wait_time = maxf(0.42, spawn_timer.wait_time + 0.10)
+
+func _should_trim_feedback_fx() -> bool:
+	return _mobile_lite_mode and feedback != null and feedback.get_child_count() >= 9
 
 func _update_focus_overlay() -> void:
 	if focus_overlay == null or focus_title == null or focus_detail == null:
@@ -738,6 +800,8 @@ func _update_focus_overlay() -> void:
 			badge_text = "西游小戏台 · 开场"
 			focus_title.text = "轻点戏台，唤醒身法"
 			focus_detail.text = "网页端首次进入或浏览器失焦后，需要先点一下游戏画面。\n桌面端：WASD 走位、Space 筋斗闪；手机端：左下摇杆走位、右下按钮闪身。"
+			if _mobile_lite_mode:
+				focus_detail.text += "\n当前已启用掌中轻量验收版：敌潮与演出已适度降级，优先保证能打开、能试玩。"
 	if focus_badge != null:
 		focus_badge.text = badge_text
 	if medal_label != null:
@@ -772,6 +836,7 @@ func _update_difficulty() -> void:
 	difficulty_stage = next_stage
 	spawn_timer.wait_time = maxf(0.28, spawn_interval - difficulty_stage * 0.06)
 	max_alive_enemies = mini(88, 18 + difficulty_stage * 5 + wave_index * 2)
+	_apply_mobile_lite_scaling()
 	if difficulty_stage > 0:
 		_show_banner("妖势渐盛 · %s" % _get_stage_title(difficulty_stage + 1), "妖潮播报")
 		_show_center_notice("妖势升级 · %s" % _get_stage_title(difficulty_stage + 1), HUD_WARNING)
@@ -787,6 +852,7 @@ func _apply_wave_state(is_initial: bool) -> void:
 	spawn_count_per_wave = mini(8, 1 + int((wave_index - 1) / 1.5))
 	max_alive_enemies = mini(88, 14 + wave_index * 8 + difficulty_stage * 4)
 	spawn_timer.wait_time = maxf(0.28, spawn_interval - wave_index * 0.08 - difficulty_stage * 0.05)
+	_apply_mobile_lite_scaling()
 	_trigger_respite(1.55 if is_initial else 2.05, 0.58 if wave_index <= 2 else 0.46, 0.12 if wave_index <= 3 else 0.18, 0.16 if wave_index <= 4 else 0.24)
 	_setup_wave_objective()
 	_queue_wave_spawn_patterns()
@@ -812,6 +878,8 @@ func _spawn_elite_pack_for_wave() -> void:
 	if wave_index >= 5:
 		elite_count += 1
 	if player.health <= 2 or _get_spawn_pressure_tier() >= 2:
+		elite_count = maxi(0, elite_count - 1)
+	if _mobile_lite_mode:
 		elite_count = maxi(0, elite_count - 1)
 	for _i in range(elite_count):
 		if enemies.get_child_count() >= max_alive_enemies:
@@ -1192,18 +1260,17 @@ func _show_dash_cooldown_bar(remaining: float) -> void:
 	if total <= 0.0:
 		return
 	var fill_ratio := clampf(remaining / total, 0.0, 1.0)
-	# Bar height goes from 0 to 10px (offset_top from -10 to 0)
 	var bar_height := maxf(1.0, fill_ratio * 10.0)
 	dash_cooldown_bar.visible = true
 	dash_cooldown_bar.offset_top = -bar_height
-	dash_cooldown_bar.size.y = bar_height
+	dash_cooldown_bar.offset_bottom = 0.0
 
 func _hide_dash_cooldown_bar() -> void:
 	if dash_cooldown_bar == null:
 		return
 	dash_cooldown_bar.visible = false
 	dash_cooldown_bar.offset_top = -10.0
-	dash_cooldown_bar.size.y = 10.0
+	dash_cooldown_bar.offset_bottom = 0.0
 
 func _on_dash_button_pressed() -> void:
 	if player != null and player.has_method("request_dash"):
@@ -1372,7 +1439,7 @@ func _spawn_popup(world_position: Vector2, text_value: String, color_value: Colo
 	feedback.add_child(popup)
 
 func _spawn_collect_pulse(world_position: Vector2, color_value: Color, scale_mul: float = 1.0, duration_mul: float = 1.0) -> void:
-	if collect_pulse_scene == null:
+	if collect_pulse_scene == null or _mobile_lite_mode:
 		return
 	var pulse := collect_pulse_scene.instantiate()
 	if pulse == null:
@@ -1394,8 +1461,11 @@ func _on_xp_collected(amount: int, world_position: Vector2) -> void:
 	_spawn_collect_pulse(world_position, HUD_GOLD, scale_mul, 1.0)
 
 func _spawn_burst(world_position: Vector2, color_value: Color, scale_mul: float = 1.0, duration_mul: float = 1.0) -> void:
-	if feedback_burst_scene == null:
+	if feedback_burst_scene == null or _should_trim_feedback_fx():
 		return
+	if _mobile_lite_mode:
+		scale_mul *= 0.82
+		duration_mul *= 0.8
 	var burst := feedback_burst_scene.instantiate()
 	if burst == null:
 		return
@@ -1405,8 +1475,11 @@ func _spawn_burst(world_position: Vector2, color_value: Color, scale_mul: float 
 	feedback.add_child(burst)
 
 func _spawn_slash(world_position: Vector2, rotation_value: float, color_value: Color, scale_mul: float = 1.0, duration_mul: float = 1.0) -> void:
-	if slash_fx_scene == null:
+	if slash_fx_scene == null or _should_trim_feedback_fx():
 		return
+	if _mobile_lite_mode:
+		scale_mul *= 0.84
+		duration_mul *= 0.82
 	var slash := slash_fx_scene.instantiate()
 	if slash == null:
 		return
@@ -1418,8 +1491,12 @@ func _spawn_slash(world_position: Vector2, rotation_value: float, color_value: C
 	feedback.add_child(slash)
 
 func _spawn_reward_pulse(world_position: Vector2, color_value: Color, scale_mul: float = 1.0, duration_mul: float = 1.0, ray_count: int = 8) -> void:
-	if reward_pulse_scene == null:
+	if reward_pulse_scene == null or _should_trim_feedback_fx():
 		return
+	if _mobile_lite_mode:
+		scale_mul *= 0.86
+		duration_mul *= 0.82
+		ray_count = mini(ray_count, 5)
 	var pulse := reward_pulse_scene.instantiate()
 	if pulse == null:
 		return
@@ -1431,7 +1508,7 @@ func _spawn_reward_pulse(world_position: Vector2, color_value: Color, scale_mul:
 	feedback.add_child(pulse)
 
 func _spawn_milestone_flare(world_position: Vector2, color_value: Color, scale_mul: float = 1.0, duration_mul: float = 1.0, fan_total: int = 5) -> void:
-	if milestone_flare_scene == null:
+	if milestone_flare_scene == null or _mobile_lite_mode or _should_trim_feedback_fx():
 		return
 	var flare := milestone_flare_scene.instantiate()
 	if flare == null:
@@ -1443,7 +1520,7 @@ func _spawn_milestone_flare(world_position: Vector2, color_value: Color, scale_m
 	feedback.add_child(flare)
 
 func _show_combo_meter() -> void:
-	if combo_meter == null:
+	if combo_meter == null or _mobile_lite_mode:
 		return
 	if _kill_streak < 4 and not (_kill_streak_timer > 0.0 and _best_kill_streak >= 4):
 		return
@@ -1491,6 +1568,9 @@ func _animate_settlement_stamp() -> void:
 func _flash_screen(color_value: Color, alpha: float = 0.12, duration: float = 0.16) -> void:
 	if screen_flash == null:
 		return
+	if _mobile_lite_mode:
+		alpha *= 0.45
+		duration *= 0.75
 	var flash_color := color_value
 	flash_color.a = clampf(alpha, 0.0, 0.45)
 	screen_flash.color = flash_color
@@ -1646,6 +1726,8 @@ func _update_tip_text() -> void:
 	var tip := "行者起手：WASD 挪身 · Space 筋斗闪 · 如意法术会自动寻妖。"
 	if OS.has_feature("web"):
 		tip = "网页端先轻点画面，再用 WASD / 摇杆走位；Space / 右下按钮可使筋斗闪。"
+		if _mobile_lite_mode:
+			tip += " 当前默认走掌中轻量验收版，优先保可开局与可试玩。"
 	if pause_requested:
 		tip = "戏台暂歇中：继续试炼会原地接回，不会丢当前节奏。"
 	elif player.health <= 2:
@@ -1661,6 +1743,8 @@ func _update_tip_text() -> void:
 		if mobile_hint_title != null:
 			mobile_hint_title.text = "掌中戏台 · 身法提示"
 		var mobile_text := "左下摇杆走位\n右下筋斗闪穿怪\n底部戏台键可暂停/重开"
+		if _mobile_lite_mode:
+			mobile_text += "\n当前已启用轻量验收降级"
 		if pause_requested:
 			if mobile_hint_title != null:
 				mobile_hint_title.text = "掌中戏台 · 暂歇战报"
@@ -1890,6 +1974,9 @@ func _on_joystick_vector_changed(direction: Vector2) -> void:
 		_browser_hint_acknowledged = true
 
 func _add_camera_shake(strength: float, duration: float) -> void:
+	if _mobile_lite_mode:
+		strength *= 0.35
+		duration *= 0.7
 	_camera_shake_strength = maxf(_camera_shake_strength, strength)
 	_camera_shake_time = maxf(_camera_shake_time, duration)
 
@@ -2058,6 +2145,72 @@ func _get_stage_title(index: int) -> String:
 	if safe_index <= DIFFICULTY_TITLES.size():
 		return DIFFICULTY_TITLES[safe_index - 1]
 	return DIFFICULTY_TITLES[DIFFICULTY_TITLES.size() - 1]
+
+func _apply_mobile_font_scaling() -> void:
+	# Scale HUD fonts up for small/mobile viewports so text stays readable.
+	# Base desktop target is ~1280px wide; scale down for anything smaller.
+	var viewport_size := get_viewport_rect().size
+	var scale := clampf(viewport_size.x / 1280.0, 0.45, 1.0)
+	var is_portrait := viewport_size.y > viewport_size.x
+	# On portrait mobile, scale up slightly more since height is the constraint.
+	if is_portrait:
+		scale = clampf(scale * 1.08, 0.5, 1.0)
+
+	var base_font_size := int(22.0 * scale)
+	var small_font_size := int(14.0 * scale)
+	var medium_font_size := int(17.0 * scale)
+	var large_font_size := int(26.0 * scale)
+	var xl_font_size := int(28.0 * scale)
+	var button_font_size := int(22.0 * scale)
+
+	if hud_level != null:
+		hud_level.add_theme_font_size_override("font_size", maxi(base_font_size, 16))
+	if hud_wave != null:
+		hud_wave.add_theme_font_size_override("font_size", maxi(medium_font_size, 14))
+	if hud_objective != null:
+		hud_objective.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+	if hud_tip != null:
+		hud_tip.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+	if status_badge != null:
+		status_badge.add_theme_font_size_override("font_size", maxi(small_font_size - 2, 11))
+	if status_label != null:
+		status_label.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+	if banner_label != null:
+		banner_label.add_theme_font_size_override("font_size", maxi(large_font_size, 18))
+	if banner_sub_label != null:
+		banner_sub_label.add_theme_font_size_override("font_size", maxi(small_font_size, 11))
+	if combo_meter != null:
+		combo_meter.add_theme_font_size_override("font_size", maxi(xl_font_size, 20))
+	if center_notice_label != null:
+		center_notice_label.add_theme_font_size_override("font_size", maxi(large_font_size, 18))
+	if focus_badge != null:
+		focus_badge.add_theme_font_size_override("font_size", maxi(small_font_size, 12))
+	if focus_title != null:
+		focus_title.add_theme_font_size_override("font_size", maxi(large_font_size, 18))
+	if medal_label != null:
+		medal_label.add_theme_font_size_override("font_size", maxi(medium_font_size, 14))
+	if settlement_stamp != null:
+		settlement_stamp.add_theme_font_size_override("font_size", maxi(medium_font_size, 14))
+	if focus_detail != null:
+		focus_detail.add_theme_font_size_override("font_size", maxi(medium_font_size, 13))
+	if summary_label != null:
+		summary_label.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+	if action_tray_label != null:
+		action_tray_label.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+	if mobile_hint_title != null:
+		mobile_hint_title.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+	if mobile_hint != null:
+		mobile_hint.add_theme_font_size_override("font_size", maxi(small_font_size, 13))
+	if hud_xp_label != null:
+		hud_xp_label.add_theme_font_size_override("font_size", maxi(medium_font_size, 13))
+	if restart_button != null:
+		restart_button.add_theme_font_size_override("font_size", maxi(button_font_size, 16))
+	if continue_button != null:
+		continue_button.add_theme_font_size_override("font_size", maxi(button_font_size - 2, 14))
+	if pause_button != null:
+		pause_button.add_theme_font_size_override("font_size", maxi(button_font_size - 2, 14))
+	if dash_button != null:
+		dash_button.add_theme_font_size_override("font_size", maxi(button_font_size - 2, 14))
 
 func _apply_ui_font_overrides() -> void:
 	UIFonts.apply_to_control_tree($HUD)

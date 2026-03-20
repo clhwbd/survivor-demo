@@ -1,7 +1,7 @@
 # survivor-demo 保守 Web 模板裁剪计划
 
 - 生成时间：
-  - 2026-03-20 23:30:54 CST
+  - 2026-03-21 00:20:11 CST
 - 脚本：
   - tests/smoke/godot_web_safe_trim_matrix.sh
 - 当前项目运行时基线：
@@ -10,17 +10,17 @@
 
 ## 当前机器环境判断
 
-- Python3：3.7.3（>= 3.8 要求：no）
-- scons：missing
-- emcc：missing
-- em++：missing
-- emar：missing
-- emranlib：missing
+- Python3：3.13.3（>= 3.8 要求：yes）
+- scons：/Users/mac/.local/bin/scons
+- emcc：/Users/mac/game-studio/deps/emsdk/upstream/emscripten/emcc
+- em++：/Users/mac/game-studio/deps/emsdk/upstream/emscripten/em++
+- emar：/Users/mac/game-studio/deps/emsdk/upstream/emscripten/emar
+- emranlib：/Users/mac/game-studio/deps/emsdk/upstream/emscripten/emranlib
 - cmake：missing
 - ninja：missing
-- pkg-config：missing
-- GODOT_SOURCE_DIR：missing
-- 是否可直接进入自编译：**no**
+- pkg-config：/usr/local/bin/pkg-config
+- GODOT_SOURCE_DIR：/Users/mac/game-studio/deps/godot-4.6.1-stable
+- 是否可直接进入自编译：**yes**
 
 ## 为什么这批保守开关值得先试
 

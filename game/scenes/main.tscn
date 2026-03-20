@@ -444,7 +444,10 @@ grow_horizontal = 2
 grow_vertical = 0
 text = "暂停"
 
-[node name="TouchJoystick" type="Control" parent="HUD"]
+[node name="MobileControls" type="CanvasLayer" parent="."]
+layer = 2
+
+[node name="TouchJoystick" type="Control" parent="MobileControls"]
 visible = false
 custom_minimum_size = Vector2(180, 180)
 anchors_preset = 3
@@ -457,7 +460,7 @@ offset_bottom = -18.0
 grow_vertical = 0
 script = ExtResource("6_joystick")
 
-[node name="DashButton" type="Button" parent="HUD"]
+[node name="DashButton" type="Button" parent="MobileControls"]
 visible = false
 anchors_preset = 12
 anchor_left = 1.0
@@ -472,7 +475,7 @@ grow_horizontal = 0
 grow_vertical = 0
 text = "筋斗闪"
 
-[node name="CooldownBar" type="ColorRect" parent="HUD/DashButton"]
+[node name="CooldownBar" type="ColorRect" parent="MobileControls/DashButton"]
 visible = false
 anchors_preset = 10
 anchor_left = 0.0
@@ -487,7 +490,7 @@ grow_horizontal = 2
 grow_vertical = 0
 color = Color(0.26, 0.80, 0.46, 0.72)
 
-[node name="MobileHintBg" type="ColorRect" parent="HUD"]
+[node name="MobileHintBg" type="ColorRect" parent="MobileControls"]
 visible = false
 anchors_preset = 12
 anchor_left = 1.0
@@ -502,7 +505,7 @@ grow_horizontal = 0
 grow_vertical = 0
 color = Color(0.12, 0.08, 0.06, 0.72)
 
-[node name="MobileHintAccent" type="ColorRect" parent="HUD"]
+[node name="MobileHintAccent" type="ColorRect" parent="MobileControls"]
 visible = false
 anchors_preset = 12
 anchor_left = 1.0
@@ -517,7 +520,7 @@ grow_horizontal = 0
 grow_vertical = 0
 color = Color(0.94, 0.82, 0.55, 0.9)
 
-[node name="MobileHintTitle" type="Label" parent="HUD"]
+[node name="MobileHintTitle" type="Label" parent="MobileControls"]
 visible = false
 anchors_preset = 12
 anchor_left = 1.0
@@ -533,7 +536,7 @@ grow_vertical = 0
 horizontal_alignment = 2
 text = "掌中戏台 · 身法提示"
 
-[node name="MobileHint" type="Label" parent="HUD"]
+[node name="MobileHint" type="Label" parent="MobileControls"]
 visible = false
 anchors_preset = 12
 anchor_left = 1.0

@@ -1,22 +1,22 @@
 {
-  "generated_at": "2026-03-20 23:30:54 CST",
+  "generated_at": "2026-03-21 00:20:11 CST",
   "project_runtime_baseline": {
     "index_wasm": 37685705,
     "index_pck": 455416
   },
   "environment": {
-    "python_version": "3.7.3",
-    "python_ok": "no",
-    "scons": "missing",
-    "emcc": "missing",
-    "empp": "missing",
-    "emar": "missing",
-    "emranlib": "missing",
+    "python_version": "3.13.3",
+    "python_ok": "yes",
+    "scons": "/Users/mac/.local/bin/scons",
+    "emcc": "/Users/mac/game-studio/deps/emsdk/upstream/emscripten/emcc",
+    "empp": "/Users/mac/game-studio/deps/emsdk/upstream/emscripten/em++",
+    "emar": "/Users/mac/game-studio/deps/emsdk/upstream/emscripten/emar",
+    "emranlib": "/Users/mac/game-studio/deps/emsdk/upstream/emscripten/emranlib",
     "cmake": "missing",
     "ninja": "missing",
-    "pkg_config": "missing",
-    "godot_source_dir": "missing",
-    "ready": "no"
+    "pkg_config": "/usr/local/bin/pkg-config",
+    "godot_source_dir": "/Users/mac/game-studio/deps/godot-4.6.1-stable",
+    "ready": "yes"
   },
   "variants": [
     {
