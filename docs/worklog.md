@@ -167,7 +167,7 @@
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 3`
   - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --scene res://scenes/main.tscn --quit-after 180`
 - 验证结果：两次 headless 运行均退出码 `0`，主场景加载与新增结算 / 连斩 / 动势逻辑正常。
-- 提交：`4f5a514` `feat: boost combat presentation and settlement feedback`
+- 提交：`0a9ee50` `feat: boost combat presentation and settlement feedback`
 
 ### 13. HUD / 状态签 / 横幅副标题 + 角色敌人细节第三轮
 - 动作：继续沿“西游记古风 Q 版”方向做高优先级验收收口，这轮重点是 HUD 信息层级、状态签样式、横幅播报副标题、按钮主次，以及角色/敌人的第一眼识别细节。
