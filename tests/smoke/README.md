@@ -10,6 +10,12 @@
 ### `sync_compressed_build.sh`
 用途：把 `builds/web-release/` 当前验收基线同步到 `builds/web/`，并重建压缩交付版所需的 `.gz` 资源，避免两套交付目录静默漂移。
 
+### `sync_pages_build.sh`
+用途：把 `builds/web/` 的 `.gz` 运行时资源同步成 `builds/pages-deploy/` 的正式文件名，并重写 `_headers`，供 Cloudflare Pages 直接发布。
+
+### `pages_release_guard.sh`
+用途：校验 `builds/pages-deploy/` 与当前压缩交付目录一致、目标文件确实为 gzip 内容、`_headers` 配置齐全，并做一轮本地静态服务可访问性检查。
+
 覆盖范围：
 - Godot headless 加载 `game/scenes/main.tscn`
 - Godot CLI 重导出 `builds/web-release/`
@@ -38,4 +44,5 @@ chmod +x tests/smoke/release_guard.sh
 ## 当前执行口径
 - `builds/web-release/` = 当前统一验收 / 首发目录
 - `builds/web/` = 压缩交付 / 部署优化目录
-- 正式托管前，默认至少跑一遍 `release_guard.sh`
+- `builds/pages-deploy/` = Cloudflare Pages 正式发布目录
+- 正式托管前，默认至少跑一遍 `release_guard.sh`；若走 Pages，再补一遍 `pages_release_guard.sh`

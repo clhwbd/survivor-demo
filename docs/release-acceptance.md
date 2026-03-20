@@ -30,6 +30,18 @@
 - 自带 `serve_compressed.py`
 - 可验证 gzip 资源是否被正确返回
 
+### 3. Cloudflare Pages 发布版本
+目录：`builds/pages-deploy/`
+
+用途：
+- 作为当前最推荐的正式分享目录
+- 适合 Cloudflare Pages 这类支持 `_headers` 的静态托管
+
+特点：
+- `index.wasm / index.js / index.pck / audio worklet` 直接使用 gzip 后的字节内容
+- 通过 `_headers` 显式声明 `Content-Encoding: gzip` 与 `application/wasm`
+- 能把 Pages 上实际落盘 / 上传体积压到接近压缩后大小
+
 ## 已验证的导出命令
 环境：
 - Godot：`4.6.1.stable`
@@ -101,6 +113,12 @@ python3 serve_compressed.py
 说明：
 - 当前压缩版具备“预压缩资源可被正确提供”的基本条件
 - 后续若上正式静态托管，只需确保平台支持 gzip 静态资源或边缘压缩策略即可
+
+## 2026-03-20 17:19 CST Pages 发布目录复验
+- 已执行 `tests/smoke/sync_pages_build.sh`，把 `builds/web/` 当前 `.gz` 运行时资源同步为 `builds/pages-deploy/` 的正式文件名
+- 复验后 `builds/pages-deploy/index.wasm` 为 `9,377,158 B`，`index.pck` 为 `99,653 B`，比原始 `builds/web-release/` 产物显著更小
+- `tests/smoke/pages_release_guard.sh` 已在本机通过：确认 Pages 目录文件存在、gzip 内容与 `builds/web/*.gz` 一致、`_headers` 包含 `Content-Encoding: gzip` / `application/wasm` / 缓存策略
+- 本机尝试 `wrangler pages dev` 时，Wrangler 能解析 `_headers`，但 Cloudflare `workerd` 因 macOS `12.6.0` 低于最低要求 `13.5+` 无法完整启动；因此当前机器上可完成“目录正确性验证”，但不能完成真正的 Pages 本地运行时预览
 
 ## 产物说明
 

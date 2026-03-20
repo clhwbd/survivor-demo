@@ -53,39 +53,33 @@
 
 ---
 
-## 方案 B：对象存储静态托管 + CDN（推荐）
+## 方案 B：Cloudflare Pages（当前最推荐）
 适用场景：
-- 稳定分享给远端同事 / 外部试玩人员
-- 不想维护整台服务器
-- 希望把运维复杂度压到最低
+- 需要一个成本低、能直接公开分享的正式试玩地址
+- 托管平台对原始 wasm 大小有限制，但接受压缩后文件体积
+- 希望少配服务器，直接走静态站
 
-推荐形态：
-- 腾讯云 COS / 阿里云 OSS / Cloudflare R2（任选其一）
-- 前面挂 CDN / Pages / Edge 平台
-- 产物优先上传 `builds/web-release/`，稳定后再切换到 `builds/web/`
+推荐目录：
+- 直接发布 `builds/pages-deploy/`
+- 其中 `index.wasm / index.js / index.pck / audio worklet` 都已经替换成 gzip 后字节，并通过 `_headers` 指定 `Content-Encoding: gzip`
 
-重点要求：
-- `index.html`：短缓存或不缓存
-- `index.js / index.wasm / index.pck`：长缓存，版本更新时替换文件或带版本号
-- `index.wasm` MIME 需正确，建议 `application/wasm`
-- 若使用 `builds/web/`，需确认平台支持：
-  - gzip 静态资源直出，或
-  - 边缘压缩
-- 若走自管 Nginx，可直接从 `docs/deployment/nginx-web-release.conf` 起步
+本机已验证：
+- `tests/smoke/sync_pages_build.sh` 可从当前 `builds/web/` 自动生成最新 `builds/pages-deploy/`
+- `tests/smoke/pages_release_guard.sh` 已验证文件存在、gzip 内容一致、`_headers` 规则齐全
+- 当前机器的 `wrangler pages dev` 受 macOS `12.6.0` 限制不能完整启动 `workerd`，但不影响 Pages 目录产物生成与校验
 
 优点：
-- 稳定
-- 成本低
-- 易分享
-- 比临时隧道更适合持续验收
+- 直接绕开“原始 wasm 太大”带来的 Pages / 静态托管限制
+- 部署最省事
+- 带缓存头和 gzip 头，适合正式分享
 
 缺点：
-- 需要处理缓存与 MIME 类型
-- 第一次配置要稍微细一点
+- 依赖 `_headers` 这类平台能力
+- 本机无法在当前 macOS 上完整模拟 Pages 运行时
 
 ---
 
-## 方案 C：Nginx / Caddy 静态站（最稳、可控性最高）
+## 方案 C：对象存储静态托管 + CDN
 适用场景：
 - 需要完全控制缓存、压缩、域名、HTTPS
 - 后续可能继续挂多个 demo
@@ -150,8 +144,9 @@ server {
 
 ### 第二阶段：准备一个正式分享地址
 优先建议二选一：
-1. **对象存储 + CDN**：运维最轻
-2. **Caddy / Nginx 静态站**：长期最稳
+1. **Cloudflare Pages + `builds/pages-deploy/`**：当前最贴合这次 wasm 瓶颈
+2. **对象存储 + CDN**：运维最轻
+3. **Caddy / Nginx 静态站**：长期最稳
 
 ### 第三阶段：再决定是否切换到压缩交付版
 - 如果试玩人群变多、跨地域访问更多
@@ -188,13 +183,13 @@ server {
 ## 最终建议
 如果只选一个“更稳”的方案：
 
-**短期推荐：对象存储静态托管 + CDN，用 `builds/web-release/` 先上线。**
+**短期推荐：Cloudflare Pages，直接发布 `builds/pages-deploy/`。**
 
 原因：
+- 直接利用当前已经准备好的 gzip 资源和 `_headers`，把正式托管体积压到 Pages 更容易接受的区间
 - 比临时隧道稳很多
-- 比自己维护服务器省心
-- 足够满足这个 demo 阶段的分享和验收
-- 后续如果访问量上来，再切到 `builds/web/` + 压缩策略也不晚
+- 比自管服务器省心
+- 如果后续不走 Pages，再退回 `builds/web-release/` / `builds/web/` 也很容易
 
 如果后续会连续做多个 demo、想长期积累统一试玩站点：
 
@@ -202,5 +197,6 @@ server {
 
 ## 一句话执行口径
 - 现在本地给人验收：跑 `builds/web-release/`
-- 现在准备对外正式分享：先托管 `builds/web-release/`
-- 以后需要压带宽 / 做部署优化：再切 `builds/web/`
+- 现在准备对外正式分享：优先托管 `builds/pages-deploy/`
+- 若平台不用 Pages：退回先托管 `builds/web-release/`
+- 以后需要更可控部署：再切 `builds/web/` 或自管静态站

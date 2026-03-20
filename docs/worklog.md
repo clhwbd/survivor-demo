@@ -549,3 +549,39 @@
   - `builds/web/index.wasm.gz` 为 `9,377,158 B`，`builds/web/index.pck.gz` 为 `99,653 B`。
   - 导出后仍存在一条 Dash 冷却条 `Control.size` 的 UI 警告，但不影响本轮 headless 与 Web 导出通过；该问题不属于首包 P0 范围，后续可单独收口。
   - `builds/web-release/` 与 `builds/web/` 已按新规则重建完成。
+
+### 25. Web 正式交付瓶颈拆解：wasm 无法继续明显缩小，补齐 Pages 正式托管链路
+- 动作：只聚焦“wasm 过大导致正式托管受限”的交付瓶颈，先复核 Godot 4.6.1 当前安全可调空间，再把可落地的正式托管替代路线收成工程项。
+- 复核结论：
+  - 在当前 Godot 4.6.1 导出条件下，`index.wasm` 仍为 `37,685,705 B`（约 `35.94 MiB`），继续通过安全导出配置已**无法明显缩小**；它主要由引擎 Web 模板本体决定。
+  - 本轮仍可安全优化的主要对象不是 wasm，而是交付形态：`builds/web/index.wasm.gz` 仅 `9,377,158 B`，`builds/web/index.pck.gz` 仅 `99,653 B`，适合转成正式托管目录。
+- 涉及文件：
+  - `.gitignore`
+  - `builds/pages-deploy/*`
+  - `README.md`
+  - `docs/status.md`
+  - `docs/release-acceptance.md`
+  - `docs/deployment-plan.md`
+  - `docs/worklog.md`
+  - `tests/smoke/README.md`
+  - `tests/smoke/sync_pages_build.sh`
+  - `tests/smoke/pages_release_guard.sh`
+- 具体改动：
+  - 新增 `tests/smoke/sync_pages_build.sh`，把 `builds/web/` 的 `.gz` 运行时资源同步成 `builds/pages-deploy/` 的正式文件名，并重写 `_headers`。
+  - 新增 `tests/smoke/pages_release_guard.sh`，校验 `builds/pages-deploy/` 与当前压缩交付目录一致、目标文件确为 gzip 内容、`_headers` 口径完整，并做本地静态服务可访问性检查。
+  - 把 `builds/pages-deploy/` 回写到当前最新压缩产物：`index.wasm` 现为 `8.9M`，`index.pck` 现为 `97K`，同时补齐 `index.audio.worklet.js` / `index.audio.position.worklet.js` 的 gzip 交付与对应 header。
+  - 更新 README / status / release-acceptance / deployment-plan / smoke README，把**Cloudflare Pages + `builds/pages-deploy/`** 固化为当前最推荐的正式分享路线。
+  - 把 `.wrangler/` 加入 `.gitignore`，避免本机 Cloudflare 本地缓存污染仓库。
+- 验证：
+  - `./tests/smoke/sync_pages_build.sh`
+  - `./tests/smoke/pages_release_guard.sh`
+  - `./tests/smoke/release_guard.sh`
+  - `npx wrangler --version`
+  - `npx wrangler pages dev builds/pages-deploy --port 18083`（本机环境探测）
+- 验证结果：
+  - `sync_pages_build.sh` / `pages_release_guard.sh` / `release_guard.sh` 均退出码 `0`。
+  - `builds/pages-deploy/` 已确认与最新 `builds/web/` 压缩资源对齐；`index.wasm` 为 `9,377,158 B`，`index.pck` 为 `99,653 B`，`index.audio.worklet.js` 为 `2,194 B`，`index.audio.position.worklet.js` 为 `1,161 B`。
+  - `npx wrangler --version` 可用（`4.76.0`）；`wrangler pages dev` 能解析 `_headers`，但 Cloudflare `workerd` 因当前 macOS `12.6.0` 低于最低要求 `13.5+` 无法完整启动，因此本机可完成“Pages 发布目录正确性验证”，但不能完成真正的 Pages 本地运行时预览。
+- 结论：
+  - **wasm 本体已不能再通过安全配置明显下降。**
+  - 当前最可落地的正式发布路线是：**继续保留 `builds/web-release/` 作为验收基线；对外正式分享优先发布 `builds/pages-deploy/` 到 Cloudflare Pages。**

@@ -24,6 +24,7 @@ Godot 4.x 2D 割草 Roguelike 样板项目。
 - `game/`：Godot 工程
 - `builds/web-release/`：验收基线版本（未预压缩，适合任意静态服务器直接托管）
 - `builds/web/`：交付/部署版本（附带 `.gz` 资源和 `serve_compressed.py`，适合本地演示或支持 gzip 的静态托管）
+- `builds/pages-deploy/`：Cloudflare Pages 正式托管目录（把 `.gz` 运行时资源改名为正式文件名，并配好 `_headers`）
 - `docs/release-acceptance.md`：验收版本说明、验证结果、构建命令
 - `docs/deployment-plan.md`：更稳的发布 / 托管方案建议
 - `docs/release-minimum-checklist.md`：真正上线托管前的最小发布清单
@@ -33,6 +34,8 @@ Godot 4.x 2D 割草 Roguelike 样板项目。
 - `docs/worklog.md`：工程操作与交付日志
 - `tests/smoke/release_guard.sh`：把导出 / 两套 Web 目录同步 / 本地服务 / gzip 返回 / 文档口径串起来的一键发布冒烟检查
 - `tests/smoke/sync_compressed_build.sh`：把 `builds/web-release/` 同步到 `builds/web/` 并重建 `.gz` 资源，避免交付目录漂移
+- `tests/smoke/sync_pages_build.sh`：把 `builds/web/` 的预压缩运行时资源同步成 `builds/pages-deploy/` 的 Pages 可发布目录
+- `tests/smoke/pages_release_guard.sh`：验证 `builds/pages-deploy/` 的文件对齐、gzip 资源和 `_headers` 口径
 
 ## 运行方式
 ### 1) 本地 Godot 运行
@@ -93,11 +96,13 @@ python3 serve_compressed.py
 - 优点：不依赖额外脚本，任意普通静态服务器都能直接托管
 
 ### 后续正式分享 / 正式托管
-- 第一选择：对象存储静态托管 + CDN，先上传 `builds/web-release/`
-- 第二选择：自管 Caddy / Nginx 静态站，稳定后再考虑切到 `builds/web/`
+- 第一选择：Cloudflare Pages，直接发布 `builds/pages-deploy/`
+- 第二选择：对象存储静态托管 + CDN，先上传 `builds/web-release/`
+- 第三选择：自管 Caddy / Nginx 静态站，稳定后再考虑切到 `builds/web/`
 - 若走 Nginx，可直接参考 `docs/deployment/nginx-web-release.conf`
+- 当前机器可本地执行 `tests/smoke/pages_release_guard.sh` 验证 Pages 发布目录；但 `wrangler pages dev` 受本机 macOS 12.6 限制，无法完整跑起 Cloudflare 本地运行时
 - 不建议继续把临时隧道当正式验收链路
-- 真正上线前，先过一遍 `docs/release-minimum-checklist.md`，并建议执行 `tests/smoke/release_guard.sh`
+- 真正上线前，先过一遍 `docs/release-minimum-checklist.md`，并建议执行 `tests/smoke/release_guard.sh` 与 `tests/smoke/pages_release_guard.sh`
 
 ### `builds/web/` 什么时候用
 - 用于部署优化、本地压缩回归、后续正式站点带宽优化

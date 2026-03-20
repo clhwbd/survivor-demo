@@ -1,5 +1,6 @@
 .import/
 .godot/
+.wrangler/
 *.tmp
 .DS_Store
 builds/latest/
