@@ -36,45 +36,66 @@ wait_time = 0.55
 
 [node name="HUD" type="CanvasLayer" parent="."]
 
+[node name="HudCardBg" type="ColorRect" parent="HUD"]
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 438.0
+offset_bottom = 336.0
+color = Color(0.12, 0.08, 0.06, 0.78)
+
+[node name="HudCardBorder" type="ColorRect" parent="HUD"]
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 438.0
+offset_bottom = 14.0
+color = Color(0.94, 0.82, 0.55, 0.95)
+
 [node name="MarginContainer" type="MarginContainer" parent="HUD"]
-offset_left = 16.0
-offset_top = 16.0
-offset_right = 430.0
+offset_left = 20.0
+offset_top = 18.0
+offset_right = 420.0
 offset_bottom = 320.0
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
 
 [node name="VBoxContainer" type="VBoxContainer" parent="HUD/MarginContainer"]
+theme_override_constants/separation = 8
 
 [node name="LevelLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
-text = "Level 1"
+text = "行者 1重 · 初入山门"
 
 [node name="HealthLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
-text = "HP 5/5"
+text = "命火 5/5 · 出手 0.55s"
 
 [node name="EnemyLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
-text = "Enemies 0/16"
+text = "妖群 0/16"
 
 [node name="TimerLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
-text = "Time 00:00"
+text = "时辰 00:00 / 03:00"
 
 [node name="KillLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
-text = "Kills 0"
+text = "斩妖 0 · 头目 0"
 
 [node name="WaveLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
-text = "Wave 1"
+text = "第1劫：花果山热身 · 下波 30s"
+
+autowrap_mode = 3
 
 [node name="WeaponLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
-text = "Weapon 1 dmg · 1 shots · 0 pierce"
+text = "法术：1 伤 · 1 连发 · 0 穿透"
 
 [node name="ObjectiveLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
-text = "目标：存活 03:00"
+text = "本局目标：撑到 03:00。每 25 连斩回 1 命，双数劫波常有头目压阵。"
 autowrap_mode = 3
 
 [node name="TipLabel" type="Label" parent="HUD/MarginContainer/VBoxContainer"]
-text = "WASD 移动 · 自动攻击"
+text = "行者走位：WASD 挪身 · Space 筋斗闪 · 法术会自动寻妖"
 autowrap_mode = 3
 
 [node name="XPBar" type="ProgressBar" parent="HUD/MarginContainer/VBoxContainer"]
-custom_minimum_size = Vector2(280, 22)
+custom_minimum_size = Vector2(280, 24)
 value = 0.0
 max_value = 5.0
 show_percentage = false
@@ -83,21 +104,76 @@ show_percentage = false
 anchors_preset = 10
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -260.0
-offset_top = 22.0
-offset_right = 260.0
-offset_bottom = 92.0
+offset_left = -280.0
+offset_top = 20.0
+offset_right = 280.0
+offset_bottom = 96.0
 mouse_filter = 2
 
+[node name="StatusCardBg" type="ColorRect" parent="HUD"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -328.0
+offset_top = 14.0
+offset_right = -16.0
+offset_bottom = 96.0
+grow_horizontal = 0
+color = Color(0.12, 0.08, 0.06, 0.76)
+
+[node name="StatusCardAccent" type="ColorRect" parent="HUD"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -328.0
+offset_top = 14.0
+offset_right = -16.0
+offset_bottom = 17.0
+grow_horizontal = 0
+color = Color(0.94, 0.82, 0.55, 0.95)
+
+[node name="StatusLabel" type="Label" parent="HUD"]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -314.0
+offset_top = 24.0
+offset_right = -30.0
+offset_bottom = 88.0
+grow_horizontal = 0
+autowrap_mode = 3
+horizontal_alignment = 2
+vertical_alignment = 1
+text = "福缘未启\n下一口回命：还差 25 斩妖"
+
+[node name="BannerBacking" type="ColorRect" parent="HUD/TopCenter"]
+visible = false
+layout_mode = 0
+offset_left = 76.0
+offset_top = 6.0
+offset_right = 484.0
+offset_bottom = 58.0
+color = Color(0.12, 0.08, 0.06, 0.72)
+
+[node name="BannerAccent" type="ColorRect" parent="HUD/TopCenter"]
+visible = false
+layout_mode = 0
+offset_left = 104.0
+offset_top = 8.0
+offset_right = 456.0
+offset_bottom = 12.0
+color = Color(0.94, 0.82, 0.55, 0.95)
+
 [node name="BannerLabel" type="Label" parent="HUD/TopCenter"]
+visible = false
 layout_mode = 0
 offset_left = 0.0
 offset_top = 0.0
-offset_right = 520.0
-offset_bottom = 56.0
+offset_right = 560.0
+offset_bottom = 64.0
 horizontal_alignment = 1
 vertical_alignment = 1
-text = "Wave 1 · 热身开始"
+text = "第一劫 · 花果山热身"
 
 [node name="FocusOverlay" type="Control" parent="HUD"]
 visible = false
@@ -114,7 +190,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0, 0, 0, 0.42)
+color = Color(0.05, 0.03, 0.02, 0.48)
 
 [node name="PanelContainer" type="PanelContainer" parent="HUD/FocusOverlay"]
 layout_mode = 1
@@ -123,10 +199,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -220.0
-offset_top = -82.0
-offset_right = 220.0
-offset_bottom = 82.0
+offset_left = -240.0
+offset_top = -94.0
+offset_right = 240.0
+offset_bottom = 94.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -137,15 +213,16 @@ theme_override_constants/margin_right = 18
 theme_override_constants/margin_bottom = 16
 
 [node name="VBoxContainer" type="VBoxContainer" parent="HUD/FocusOverlay/PanelContainer/MarginContainer"]
+theme_override_constants/separation = 8
 
 [node name="TitleLabel" type="Label" parent="HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer"]
 horizontal_alignment = 1
-text = "轻触画面开始 / 恢复操控"
+text = "轻点戏台，唤醒身法"
 
 [node name="DetailLabel" type="Label" parent="HUD/FocusOverlay/PanelContainer/MarginContainer/VBoxContainer"]
 autowrap_mode = 3
 horizontal_alignment = 1
-text = "网页端首次进入或浏览器失焦后，需要先点一下游戏区域。"
+text = "网页端首次进入或浏览器失焦后，需要先点一下游戏画面。"
 
 [node name="RestartButton" type="Button" parent="HUD"]
 visible = false
@@ -154,13 +231,13 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -184.0
-offset_top = -84.0
+offset_left = -210.0
+offset_top = -94.0
 offset_right = -24.0
 offset_bottom = -28.0
 grow_horizontal = 0
 grow_vertical = 0
-text = "重新开始"
+text = "再闯一局"
 
 [node name="TouchJoystick" type="Control" parent="HUD"]
 visible = false
@@ -182,13 +259,28 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -214.0
-offset_top = -206.0
+offset_left = -226.0
+offset_top = -214.0
 offset_right = -34.0
-offset_bottom = -106.0
+offset_bottom = -108.0
 grow_horizontal = 0
 grow_vertical = 0
-text = "闪避"
+text = "筋斗闪"
+
+[node name="MobileHintBg" type="ColorRect" parent="HUD"]
+visible = false
+anchors_preset = 12
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -262.0
+offset_top = -310.0
+offset_right = -24.0
+offset_bottom = -226.0
+grow_horizontal = 0
+grow_vertical = 0
+color = Color(0.12, 0.08, 0.06, 0.72)
 
 [node name="MobileHint" type="Label" parent="HUD"]
 visible = false
@@ -197,12 +289,12 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -236.0
-offset_top = -292.0
-offset_right = -24.0
-offset_bottom = -222.0
+offset_left = -248.0
+offset_top = -300.0
+offset_right = -38.0
+offset_bottom = -232.0
 grow_horizontal = 0
 grow_vertical = 0
 autowrap_mode = 3
 horizontal_alignment = 2
-text = "拖动摇杆移动\n自动攻击最近敌人"
+text = "左下摇杆走位\n右下筋斗闪穿怪\nR / 按钮可再开一局"

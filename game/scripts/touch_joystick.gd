@@ -78,6 +78,17 @@ func _reset_stick() -> void:
 
 func _draw() -> void:
 	var center := size * 0.5
-	draw_circle(center, base_radius, Color(0.08, 0.1, 0.14, 0.22))
-	draw_arc(center, engage_radius, 0.0, TAU, 48, Color(0.7, 0.9, 1.0, 0.14), 3.0)
-	draw_circle(center + _knob_offset, knob_radius, Color(0.55, 0.86, 1.0, 0.75))
+	var ring_color := Color(0.93, 0.82, 0.55, 0.42)
+	var base_color := Color(0.14, 0.09, 0.07, 0.36)
+	var base_inner := Color(0.50, 0.26, 0.18, 0.12)
+	var knob_color := Color(0.84, 0.39, 0.26, 0.92)
+	var knob_highlight := Color(0.99, 0.92, 0.80, 0.28)
+	var active_ring := Color(0.62, 0.94, 0.76, 0.32) if _current_vector.length() > 0.0 else ring_color
+
+	draw_circle(center, engage_radius, Color(0, 0, 0, 0.08))
+	draw_circle(center, base_radius + 10.0, base_color)
+	draw_circle(center, base_radius - 6.0, base_inner)
+	draw_arc(center, engage_radius, 0.0, TAU, 56, active_ring, 4.0)
+	draw_circle(center + _knob_offset, knob_radius + 6.0, Color(0, 0, 0, 0.16))
+	draw_circle(center + _knob_offset, knob_radius, knob_color)
+	draw_circle(center + _knob_offset + Vector2(-6, -7), knob_radius * 0.42, knob_highlight)
