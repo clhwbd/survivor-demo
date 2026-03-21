@@ -1,7 +1,7 @@
 extends RefCounted
 class_name UIFonts
 
-const UI_FONT_PATH := "res://assets/fonts/SourceHanSansCN-Medium.ttf"
+const UI_FONT_PATH := "res://assets/fonts/survivor-ui-subset.ttf"
 
 static var _ui_font: FontFile
 
