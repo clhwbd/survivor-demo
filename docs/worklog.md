@@ -39,6 +39,31 @@
   - 人工复核 `status.md` / `roadmap.md` 已增加对应入口与任务项。
 - 提交：待本轮版本收口后统一提交
 
+### 08:03 09:00 试玩交付线：重新发布 Cloudflare Pages，固定今早可试玩链接
+
+- 动作：为满足主理人“09:00 前给一个可玩的版本链接”要求，先做最小交付链路检查，再把当前 `builds/pages-deploy/` 重新发布到 Cloudflare Pages，避免继续使用昨晚旧线上包。
+- 涉及文件：
+  - `builds/pages-deploy/index.html`
+  - `builds/pages-deploy/index.pck`
+  - `game/scripts/ui_fonts.gd`
+  - `game/assets/fonts/survivor-ui-subset.ttf`
+  - `game/assets/fonts/survivor-ui-subset.txt`
+  - `docs/worklog.md`
+- 具体动作：
+  - 复核当前未提交但会影响试玩版的运行时改动，确认主要是字体子集与 Pages 发布产物同步。
+  - 通过 `pages_release_guard.sh` 与 `controlled_web_guard.sh` 复核当前源码、Web 导出、压缩交付目录与 Pages 发布目录最小链路可用。
+  - 执行 `./tests/smoke/publish_pages.sh` 重新发布 `builds/pages-deploy/` 到 Cloudflare Pages。
+  - 将本轮影响试玩版口径的字体子集与 Pages 产物同步改动提交入库，避免“线上能玩但仓库里没记住”。
+- 验证：
+  - `./tests/smoke/publish_pages.sh`
+- 验证结果：
+  - Cloudflare Pages 发布成功。
+  - 预览部署地址：`https://d8e09b46.survivor-demo.pages.dev`
+  - 稳定试玩地址：`https://survivor-demo.pages.dev`
+  - 当前可作为今日 09:00 试玩链接使用。
+- 提交：
+  - `4f38411` `build: sync latest web font subset and pages bundle`
+
 ### 03:36 手机可玩性二段优化：竖屏战斗 HUD 再压缩、临时提示缩时、关键数值提权
 
 - 动作：承接上一轮手机端 UI / 触控收口，继续直接改竖屏战斗 HUD 与播报逻辑，目标是让手机竖屏下既不乱也不空；重点收掉重复信息、缩短临时提示霸屏时间，并把命火 / 军令 / 波次这些真正需要盯的内容再提权。
