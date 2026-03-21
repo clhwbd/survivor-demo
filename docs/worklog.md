@@ -64,6 +64,62 @@
 - 提交：
   - `4f38411` `build: sync latest web font subset and pages bundle`
 
+### 08:10 试玩阻塞排查：确认当前黑屏根因为 WebGL2 能力缺失
+
+- 动作：收到主理人反馈“系统浏览器也黑屏”后，不再按缓存问题处理，转为直接排查运行时能力与目标设备兼容性。
+- 涉及文件：
+  - `docs/open-development-tasks.md`
+  - `docs/worklog.md`
+- 实际排查：
+  - 线上检查确认首页、`index.js`、`index.wasm`、`index.pck` 均返回 `200`，gzip 与 MIME 头也正常。
+  - 本地改走受控服务 `scripts/serve_controlled_web.py --port 18084`，并用 Chrome headless 复验启动结果。
+  - 复验截图已明确出现失败提示：`The following features required to run Godot projects on the Web are missing: WebGL2`。
+- 当前结论（第一次排查时）：
+  - 这次阻塞不是“链接没发上去”，而是当前链路存在运行时/兼容性嫌疑。
+- 后续验证更新：
+  - 主理人反馈设备为 **iPhone 16 Pro**。
+  - 改走“本机受控服务 + 临时公网隧道”后，主理人已成功在 iPhone Safari 打开并进入游戏。
+  - 这说明：**目标设备本身不是完全不支持，主要问题更像是 Pages 交付链路 / 缓存 / 特定托管环境表现，而不是 iPhone 16 Pro Safari 完全无法运行 Godot Web。**
+- 后续动作：
+  - 将问题从“设备完全不兼容”调整为“正式分享链路稳定性/兼容性待修复”。
+  - 下一步需要继续收口正式分享方案：要么修好 Pages 主链路，要么把 controlled web 方案升级成更稳定的正式可分享链路。
+- 验证：
+  - `python3 scripts/serve_controlled_web.py --port 18084`
+  - `Google Chrome --headless --screenshot=/tmp/survivor-controlled.png http://127.0.0.1:18084/`
+- 验证结果：
+  - 已稳定复现启动失败提示，关键信息为 `WebGL2` 缺失。
+- 提交：待本轮处理方案明确后统一提交
+
+### 09:06 手机体验 P0 修复包第一轮：全屏长按起摇杆、中文切回完整字体、竖屏可读性整体放大
+
+- 动作：根据主理人真机反馈，把“能跑但手机上看不清、还有乱码、摇杆触发区域太受限”按 P0 阻塞处理，不做碎修，直接做一轮面向手机体验的整体修复包。
+- 涉及文件：
+  - `game/scripts/touch_joystick.gd`
+  - `game/scripts/main.gd`
+  - `game/scripts/ui_fonts.gd`
+  - `game/export_presets.cfg`
+  - `game/tests/touch_joystick_smoke.gd`
+  - `builds/web-release/*`
+  - `builds/web/*`
+  - `docs/worklog.md`
+- 具体改动：
+  - 摇杆规则改为支持**非 UI 区域全屏长按起杆**：在 `_unhandled_input()` 中接入触屏事件，仅当 UI 没有先消费事件时，才把该触摸交给摇杆处理，从而满足“UI 优先，不抢按钮；空白区域长按即可触发摇杆”的输入规则。
+  - `TouchJoystick` 增加浮动起杆逻辑：按下时会把摇杆视觉中心移动到触点附近，拖动时按触点为原点计算方向，抬手后回到布局默认位置，而不是仍然死守左下固定小圈。
+  - 中文字体从子集字体切回 **完整 `SourceHanSansCN-Medium.ttf`**，并允许系统 fallback；同时取消 Web 导出里对该字体的排除，优先解决真机试玩中的剩余乱码/缺字问题，而不是继续省这点体积。
+  - 字体覆盖范围扩到 `MobileControls`，避免移动端提示、按钮和摇杆相关 UI 仍吃不到统一字体资源。
+  - 竖屏手机可读性整体放大：提高 HUD 卡片高度、状态卡高度、按钮尺寸、提示卡尺寸、摇杆尺寸，以及 portrait 模式下的字体缩放下限，让当前版本优先跨过“至少能看清”的线。
+- 验证：
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/touch_joystick_smoke.gd`
+  - `'/Applications/Godot.app/Contents/MacOS/Godot' --headless --path ./game --script res://tests/portrait_layout_smoke.gd`
+  - `./tests/smoke/release_guard.sh`
+  - 本机受控服务 + 临时公网隧道复验：`https://f48dbc9cac6425.lhr.life`
+- 验证结果：
+  - `touch_joystick_smoke: ok`
+  - `portrait_layout_smoke: ok`
+  - `release_guard.sh` 完整通过，新的 `builds/web-release/` 与 `builds/web/` 已重建完成。
+  - 新的临时公网验收链路已打通，可用于主理人继续真机复测。
+- 提交：待主理人复测后统一收版本
+
 ### 03:36 手机可玩性二段优化：竖屏战斗 HUD 再压缩、临时提示缩时、关键数值提权
 
 - 动作：承接上一轮手机端 UI / 触控收口，继续直接改竖屏战斗 HUD 与播报逻辑，目标是让手机竖屏下既不乱也不空；重点收掉重复信息、缩短临时提示霸屏时间，并把命火 / 军令 / 波次这些真正需要盯的内容再提权。

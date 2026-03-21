@@ -12,6 +12,9 @@ signal active_changed(active: bool)
 var _active_pointer := -1
 var _current_vector := Vector2.ZERO
 var _knob_offset := Vector2.ZERO
+var _layout_global_position := Vector2.ZERO
+var _floating_active := false
+var _touch_origin_local := Vector2.ZERO
 
 # Touch ripple state
 var _ripple_active := false
@@ -26,6 +29,8 @@ var _flash_alpha := 0.0
 func _ready() -> void:
 	custom_minimum_size = Vector2(base_radius * 2.8, base_radius * 2.8)
 	mouse_filter = Control.MOUSE_FILTER_STOP
+	_touch_origin_local = size * 0.5
+	call_deferred("sync_layout_position")
 	queue_redraw()
 
 func configure_layout(new_base_radius: float, new_knob_radius: float = -1.0, new_engage_radius: float = -1.0) -> void:
@@ -33,7 +38,10 @@ func configure_layout(new_base_radius: float, new_knob_radius: float = -1.0, new
 	knob_radius = maxf(18.0, new_knob_radius if new_knob_radius > 0.0 else base_radius * 0.42)
 	engage_radius = maxf(base_radius + 12.0, new_engage_radius if new_engage_radius > 0.0 else base_radius * 1.24)
 	custom_minimum_size = Vector2(engage_radius * 2.0 + 18.0, engage_radius * 2.0 + 18.0)
+	_touch_origin_local = size * 0.5
 	_knob_offset = _current_vector * base_radius
+	if not _floating_active:
+		call_deferred("sync_layout_position")
 	queue_redraw()
 
 func _notification(what: int) -> void:
@@ -59,34 +67,54 @@ func _gui_input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
 			if get_global_rect().has_point(event.global_position):
-				_active_pointer = -2
-				_trigger_ripple(event.global_position)
-				_update_from_global(event.global_position)
+				begin_pointer(-2, event.global_position)
 				accept_event()
 		else:
 			if _active_pointer == -2:
-				_reset_stick()
+				end_pointer(-2)
 				accept_event()
 	elif event is InputEventMouseMotion and _active_pointer == -2:
-		_update_from_global(event.global_position)
+		update_pointer(-2, event.global_position)
 		accept_event()
 
 func _handle_touch(event: InputEventScreenTouch) -> void:
 	if event.pressed:
 		if get_global_rect().has_point(event.position):
-			_active_pointer = event.index
-			_trigger_ripple(event.position)
-			_update_from_global(event.position)
+			begin_pointer(event.index, event.position)
 			accept_event()
 	elif event.index == _active_pointer:
-		_reset_stick()
+		end_pointer(event.index)
 		accept_event()
 
 func _handle_drag(pointer_index: int, screen_position: Vector2) -> void:
 	if pointer_index != _active_pointer:
 		return
-	_update_from_global(screen_position)
+	update_pointer(pointer_index, screen_position)
 	accept_event()
+
+func sync_layout_position() -> void:
+	if _floating_active:
+		return
+	_layout_global_position = global_position
+	_touch_origin_local = size * 0.5
+
+func begin_pointer(pointer_index: int, screen_position: Vector2) -> void:
+	_active_pointer = pointer_index
+	_floating_active = true
+	_reposition_to_screen_point(screen_position)
+	_touch_origin_local = size * 0.5
+	_trigger_ripple(screen_position)
+	_update_from_global(screen_position)
+
+func update_pointer(pointer_index: int, screen_position: Vector2) -> void:
+	if pointer_index != _active_pointer:
+		return
+	_update_from_global(screen_position)
+
+func end_pointer(pointer_index: int) -> void:
+	if pointer_index != _active_pointer:
+		return
+	_reset_stick()
 
 func _trigger_ripple(screen_position: Vector2) -> void:
 	var local: Vector2 = screen_position - global_position
@@ -96,8 +124,18 @@ func _trigger_ripple(screen_position: Vector2) -> void:
 	_flash_alpha = 0.5
 	queue_redraw()
 
+func _get_stick_center() -> Vector2:
+	return _touch_origin_local if _floating_active else size * 0.5
+
+func _reposition_to_screen_point(screen_position: Vector2) -> void:
+	var viewport_size := get_viewport_rect().size
+	var target_global := screen_position - size * 0.5
+	target_global.x = clampf(target_global.x, 8.0, maxf(8.0, viewport_size.x - size.x - 8.0))
+	target_global.y = clampf(target_global.y, 8.0, maxf(8.0, viewport_size.y - size.y - 8.0))
+	global_position = target_global
+
 func _update_from_global(screen_position: Vector2) -> void:
-	var center: Vector2 = size * 0.5
+	var center: Vector2 = _get_stick_center()
 	var delta: Vector2 = screen_position - global_position - center
 	var distance: float = minf(delta.length(), engage_radius)
 	var normalized: Vector2 = Vector2.ZERO
@@ -120,12 +158,16 @@ func _reset_stick() -> void:
 	_active_pointer = -1
 	_current_vector = Vector2.ZERO
 	_knob_offset = Vector2.ZERO
+	if _floating_active:
+		_floating_active = false
+		global_position = _layout_global_position
+		_touch_origin_local = size * 0.5
 	vector_changed.emit(Vector2.ZERO)
 	active_changed.emit(false)
 	queue_redraw()
 
 func _draw() -> void:
-	var center := size * 0.5
+	var center := _get_stick_center()
 	var ring_color := Color(0.93, 0.82, 0.55, 0.42)
 	var base_color := Color(0.14, 0.09, 0.07, 0.36)
 	var base_inner := Color(0.50, 0.26, 0.18, 0.12)

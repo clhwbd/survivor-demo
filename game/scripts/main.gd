@@ -317,12 +317,36 @@ func _notification(what: int) -> void:
 		_refresh_hud_layout()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _handle_free_touch_joystick_input(event):
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_ESCAPE or event.keycode == KEY_P:
 			_toggle_pause()
 			return
 	if (game_over or demo_clear or pause_requested) and event.is_action_pressed("restart_run"):
 		_reload_scene()
+
+func _handle_free_touch_joystick_input(event: InputEvent) -> bool:
+	if joystick == null or not joystick.visible:
+		return false
+	if not (OS.has_feature("web") or OS.has_feature("mobile")):
+		return false
+	if game_over or demo_clear or pause_requested:
+		return false
+	if event is InputEventScreenTouch:
+		var screen_touch := event as InputEventScreenTouch
+		if screen_touch.pressed:
+			joystick.call("begin_pointer", screen_touch.index, screen_touch.position)
+		else:
+			joystick.call("end_pointer", screen_touch.index)
+		get_viewport().set_input_as_handled()
+		return true
+	if event is InputEventScreenDrag:
+		var screen_drag := event as InputEventScreenDrag
+		joystick.call("update_pointer", screen_drag.index, screen_drag.position)
+		get_viewport().set_input_as_handled()
+		return true
+	return false
 
 func _is_portrait_layout() -> bool:
 	var viewport_size := get_viewport_rect().size
@@ -357,11 +381,12 @@ func _refresh_hud_layout() -> void:
 	var overlay_panel_height := clampf(viewport_size.y * (0.36 if portrait_layout else (0.42 if compact_layout else 0.34)), 248.0, 352.0 if portrait_layout else 292.0)
 	var overlay_center_y := minf(viewport_size.y * (0.40 if portrait_layout else 0.50), viewport_size.y - overlay_panel_height * 0.5 - bottom_margin - 26.0)
 	var center_notice_width := minf(viewport_size.x - side_margin * 2.0, 488.0 if not compact_layout else 452.0)
-	var center_notice_height := 68.0 if portrait_layout else 60.0
+	var center_notice_height := 72.0 if portrait_layout else 60.0
+	var portrait_center_notice_top := viewport_size.y * 0.52
 	_set_portrait_combat_hud_compact(portrait_layout, overlay_actions)
 
 	if portrait_layout:
-		var hud_card_bottom := minf(viewport_size.y * 0.245, 214.0)
+		var hud_card_bottom := minf(viewport_size.y * 0.31, 278.0)
 		if hud_card_bg != null:
 			hud_card_bg.offset_left = side_margin
 			hud_card_bg.offset_top = top_margin
@@ -378,8 +403,8 @@ func _refresh_hud_layout() -> void:
 			hud_margin_container.offset_right = viewport_size.x - side_margin - 8.0
 			hud_margin_container.offset_bottom = hud_card_bottom - 10.0
 
-		var status_top := hud_card_bottom + 8.0
-		var status_bottom := status_top + 60.0
+		var status_top := hud_card_bottom + 10.0
+		var status_bottom := status_top + 72.0
 		if status_card_bg != null:
 			status_card_bg.anchor_left = 0.0
 			status_card_bg.anchor_right = 1.0
@@ -413,6 +438,7 @@ func _refresh_hud_layout() -> void:
 
 		var top_center_top := status_bottom + 6.0
 		var top_center_bottom := top_center_top + 52.0
+		portrait_center_notice_top = top_center_bottom + 14.0
 		if top_center != null:
 			top_center.anchor_left = 0.0
 			top_center.anchor_right = 1.0
@@ -448,8 +474,8 @@ func _refresh_hud_layout() -> void:
 			combo_meter.offset_top = top_center_bottom + 8.0
 			combo_meter.offset_bottom = top_center_bottom + 48.0
 
-		var pause_top := top_center_bottom + 8.0
-		var pause_bottom := pause_top + 46.0
+		var pause_top := top_center_bottom + 10.0
+		var pause_bottom := pause_top + 54.0
 		if pause_button != null:
 			pause_button.anchor_left = 1.0
 			pause_button.anchor_top = 0.0
@@ -470,14 +496,14 @@ func _refresh_hud_layout() -> void:
 			restart_button.anchor_right = 1.0
 			restart_button.anchor_bottom = 0.0
 
-		var joystick_size := clampf(viewport_size.x * 0.48, 188.0, 220.0)
+		var joystick_size := clampf(viewport_size.x * 0.54, 212.0, 250.0)
 		var joystick_visual_size := joystick_size
-		var dash_w := clampf(viewport_size.x * 0.34, 132.0, 156.0)
-		var dash_h := 72.0
+		var dash_w := clampf(viewport_size.x * 0.36, 142.0, 172.0)
+		var dash_h := 82.0
 		if joystick != null:
 			var touch_joystick := joystick as TouchJoystick
 			if touch_joystick != null:
-				touch_joystick.configure_layout(clampf(joystick_size * 0.35, 70.0, 80.0), clampf(joystick_size * 0.15, 29.0, 34.0), clampf(joystick_size * 0.47, 92.0, 106.0))
+				touch_joystick.configure_layout(clampf(joystick_size * 0.37, 78.0, 92.0), clampf(joystick_size * 0.16, 32.0, 38.0), clampf(joystick_size * 0.50, 108.0, 126.0))
 				joystick_visual_size = touch_joystick.custom_minimum_size.y
 			else:
 				joystick.custom_minimum_size = Vector2(joystick_size, joystick_size)
@@ -492,8 +518,8 @@ func _refresh_hud_layout() -> void:
 			dash_button.offset_top = -dash_h - 14.0
 			dash_button.offset_bottom = -14.0
 
-		var hint_width := clampf(viewport_size.x * 0.42, 154.0, 210.0)
-		var hint_height := 94.0
+		var hint_width := clampf(viewport_size.x * 0.48, 176.0, 236.0)
+		var hint_height := 118.0
 		var hint_top := viewport_size.y - maxf(joystick_visual_size, dash_h) - hint_height - 28.0
 		if mobile_hint_bg != null:
 			mobile_hint_bg.anchor_left = 1.0
@@ -752,7 +778,7 @@ func _refresh_hud_layout() -> void:
 		center_notice.anchor_right = 0.5
 		center_notice.anchor_bottom = 0.0
 		center_notice.offset_left = -center_notice_width * 0.5
-		center_notice.offset_top = (viewport_size.y * 0.44) if portrait_layout else (viewport_size.y * 0.34)
+		center_notice.offset_top = portrait_center_notice_top if portrait_layout else (viewport_size.y * 0.34)
 		center_notice.offset_right = center_notice_width * 0.5
 		center_notice.offset_bottom = center_notice.offset_top + center_notice_height
 		if center_notice_backing != null:
@@ -800,6 +826,8 @@ func _refresh_hud_layout() -> void:
 			action_tray_label.text = "戏台操作 · 底部续战与重开"
 		else:
 			action_tray_label.text = "戏台操作 · 暂停 / 续战 / 再闯"
+	if joystick != null and joystick.has_method("sync_layout_position"):
+		joystick.call("sync_layout_position")
 	_apply_mobile_font_scaling()
 
 func _setup_web_ui() -> void:
@@ -2269,19 +2297,19 @@ func _apply_mobile_font_scaling() -> void:
 	# Scale HUD fonts up for small/mobile viewports so text stays readable.
 	# Base desktop target is ~1280px wide; scale down for anything smaller.
 	var viewport_size := get_viewport_rect().size
-	var scale := clampf(viewport_size.x / 1280.0, 0.52, 1.0)
+	var scale := clampf(viewport_size.x / 1280.0, 0.60, 1.0)
 	var is_portrait := viewport_size.y > viewport_size.x
-	# On portrait mobile, scale up more aggressively so pause / settlement / level-up text stays readable.
+	# On portrait mobile, scale up much more aggressively so key combat and settlement text crosses the readability line.
 	if is_portrait:
-		scale = clampf(scale * 1.14, 0.62, 1.0)
+		scale = clampf(scale * 1.28, 0.78, 1.0)
 
-	var base_font_size := int(22.0 * scale)
-	var small_font_size := int(14.0 * scale)
-	var medium_font_size := int(17.0 * scale)
-	var large_font_size := int(26.0 * scale)
-	var xl_font_size := int(28.0 * scale)
-	var button_font_size := int(22.0 * scale)
-	var portrait_emphasis := 2 if is_portrait else 0
+	var base_font_size := int(24.0 * scale)
+	var small_font_size := int(16.0 * scale)
+	var medium_font_size := int(19.0 * scale)
+	var large_font_size := int(30.0 * scale)
+	var xl_font_size := int(32.0 * scale)
+	var button_font_size := int(24.0 * scale)
+	var portrait_emphasis := 3 if is_portrait else 0
 
 	if hud_level != null:
 		hud_level.add_theme_font_size_override("font_size", maxi(base_font_size + portrait_emphasis, 17))
@@ -2342,6 +2370,7 @@ func _apply_mobile_font_scaling() -> void:
 
 func _apply_ui_font_overrides() -> void:
 	UIFonts.apply_to_control_tree($HUD)
+	UIFonts.apply_to_control_tree($MobileControls)
 
 func _apply_ui_style() -> void:
 	var panel_style := StyleBoxFlat.new()

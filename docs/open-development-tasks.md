@@ -77,6 +77,21 @@
 还缺：
 - 对最终实际分享链接再做一轮完整回归
 - 记录这条链接对应的版本与验证时间
+- 补一轮**目标设备兼容性验证**，尤其是企业微信外跳系统浏览器、iPhone Safari、安卓 Chrome 对 WebGL2 的支持情况
+
+### 6. 正式分享链路稳定性修复（Pages vs Controlled Web）
+**状态：新发现，未解决**
+
+当前结论：
+- 线上资源发布本身正常，但 `survivor-demo.pages.dev` 在主理人实际体验时出现黑屏。
+- 改走“本机受控服务 + 临时公网隧道”后，**iPhone 16 Pro + Safari 已成功进入游戏**。
+- 说明当前阻塞更像是：**Pages 主链路 / 缓存 / 特定托管环境表现问题**，而不是目标设备完全不支持 Godot 4 Web。
+
+需要推进：
+- 复盘 Pages 主链路与 controlled web 临时链路的差异
+- 确认是否是特定缓存 / 响应头 / 入口壳行为导致
+- 决定正式分享方案：修复 Pages 主链路，或将 controlled web 升级为更稳定的正式分享方式
+- 补一轮真机回归：iPhone Safari、安卓 Chrome、桌面 Chrome/Safari
 
 ---
 

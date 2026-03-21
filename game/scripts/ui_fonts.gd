@@ -1,7 +1,7 @@
 extends RefCounted
 class_name UIFonts
 
-const UI_FONT_PATH := "res://assets/fonts/survivor-ui-subset.ttf"
+const UI_FONT_PATH := "res://assets/fonts/SourceHanSansCN-Medium.ttf"
 
 static var _ui_font: FontFile
 
@@ -11,7 +11,7 @@ static func get_ui_font() -> FontFile:
 		if _ui_font == null:
 			push_warning("Failed to load UI font %s" % UI_FONT_PATH)
 			return null
-		_ui_font.allow_system_fallback = false
+		_ui_font.allow_system_fallback = true
 	return _ui_font
 
 static func apply_to_control_tree(root: Node) -> void:
