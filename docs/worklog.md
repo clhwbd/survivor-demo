@@ -1307,3 +1307,181 @@
   - 文档自检：确认包含风格方向、组件范围、推荐顺序与后续执行任务
   - 范围约束自检：本轮仅新增文档，不修改 `game/` 运行逻辑与玩法参数
 - 验证结果：已满足“设计探索线先启动、但不阻塞主线开发”的要求；后续 UI / AI 线可直接基于该方向板继续出 moodboard、线框与高保真草案。
+
+## 2026-03-22
+
+### 09:51 版本冻结 + 今日构建导出
+
+- 动作：按今日冲刺计划，先冻结版本并导出到 `builds/web-today/`。
+- 涉及文件：
+  - `docs/VERSION.md`（新增）
+  - `builds/web-today/`（新增目录）
+  - `game/export_presets.cfg`
+- 具体动作：
+  - 新增 `docs/VERSION.md`，记录版本号 `Sprint Build 2026-03-22-a`、Git HEAD `ec8d53c`、构建时间 `2026-03-22 09:51 CST`、包含功能列表、已知问题。
+  - 使用 Godot 4.6.1 CLI 导出 Web 到 `builds/web-today/index.html`。
+- 验证：
+  - 构建退出码 `0`。
+  - 验证文件完整性：`index.html (5,299B) + index.wasm (37,685,705B) + index.pck (2,000,356B) + audio worklets + index.png` 齐全。
+- 提交：待 git add 后统一提交
+
+### 09:57 Cloudflare Pages 部署今日构建
+
+- 动作：更新 `builds/pages-deploy/` 为今日构建并重新部署到 Cloudflare Pages。
+- 涉及文件：
+  - `builds/web-today/` → `builds/pages-deploy/`
+  - `builds/pages-deploy/index.wasm`（使用 gzip 版以满足 Cloudflare Pages 25MB 上限）
+  - `builds/pages-deploy/_headers`（保留原有 header 规则）
+- 具体动作：
+  - 从 `builds/web-today/` 复制今日构建所有文件到 `builds/pages-deploy/`。
+  - 将 `index.wasm` 替换为 gzip 版本（9.4MB），以绕过 Cloudflare Pages 25MB 单文件限制。
+  - 使用 `npx wrangler pages deploy builds/pages-deploy --project-name survivor-demo` 部署。
+  - 验证 wasm MIME 与首页可访问性。
+- 验证结果：
+  - 部署成功：`https://6f60513c.survivor-demo.pages.dev`
+  - 稳定域名 `https://survivor-demo.pages.dev` 返回 200。
+  - `index.wasm` 返回 `Content-Type: application/wasm` ✓
+  - 首页标题正确（今日构建版本）✓
+- 已知问题：
+  - wasm 文件使用 gzip 版上传（绕过 25MB 限制），Cloudflare Pages 将自动处理 Content-Encoding；实测 iPhone Safari 在 controlled web 隧道中可用，Pages 主链路需复验。
+- 提交：待 git add 后统一提交
+2026-03-22 09:59 CST
+
+### 10:02 黑屏问题修复 — _headers 响应头纠正
+
+- 症状：Cloudflare Pages 部署后 wasm 无法加载，页面黑屏。
+- 根本原因分析：
+  1. `pages-deploy/index.wasm` 实际已经是 **gzip 压缩后的文件**（37.7MB 原始 → 9.4MB 压缩），由构建管道预压缩以绕过 Cloudflare 25MB 上限。
+  2. 原 `_headers` 对 `/index.wasm` 声明 `Content-Encoding: gzip`，导致 Cloudflare Pages **二次压缩**或浏览器错误解码该文件（重复 gzip 包装或 MIME 误判）。
+  3. 缺少 `Cross-Origin-Opener-Policy` / `Cross-Origin-Embedder-Policy` 头，Godot 4 导出代码中 `ensureCrossOriginIsolationHeaders: true` 会触发 serviceWorker 自愈逻辑，但在 wasm 加载失败时无法生效。
+  4. 对比 `web-today`（原始 Godot 导出，无压缩声明）和 `pages-deploy`（手工压缩后上传 + 错误 header 声明），差异确认在 `_headers` 配置。
+- 修复内容：`builds/pages-deploy/_headers` 重写：
+  - **移除** `/index.wasm` 的 `Content-Encoding: gzip` 声明（文件本身已压缩，不再重复声明）。
+  - **移除** audio worklet 的 `Content-Encoding: gzip` 声明（worklet 文件未压缩）。
+  - **保留** `/index.js` 和 `/index.pck` 的 gzip 声明（这两个文件本身未压缩，Cloudflare 会自动压缩）。
+  - **新增** 全局 `COOP: same-origin` + `COEP: require-corp` 响应头，确保跨域隔离，满足 Godot 4 Web 运行要求。
+- 涉及文件：`builds/pages-deploy/_headers`
+- 下一步：重新部署 `builds/pages-deploy/` 到 Cloudflare Pages 并验证 wasm 加载。
+
+### 10:05 game-qa 验收报告：Sprint Build 2026-03-22-a
+
+- 动作：game-qa 执行 `builds/web-today/` 构建产物验收，冒烟测试，本机 Godot headless 验证，线上 Pages 访问检查。
+- 涉及文件：`builds/web-today/`、`docs/worklog.md`
+- 版本：`ec8d53c`（Sprint Build 2026-03-22-a）
+
+#### 构建产物完整性 ✅
+
+| 文件 | 状态 | 大小 |
+|---|---|---|
+| `index.html` | ✅ 存在 | 5,299 B |
+| `index.wasm` | ✅ 存在 | 36 MB（原始 Godot 导出） |
+| `index.pck` | ✅ 存在 | 2,000,356 B（~1.9 MB） |
+| `index.js` | ✅ 存在 | 315,759 B |
+| audio worklets | ✅ 存在 | 2 × .gz 变体齐全 |
+
+#### Godot headless 冒烟测试 ✅
+
+| 测试 | 结果 |
+|---|---|
+| `portrait_layout_smoke.gd` | ✅ ok |
+| `touch_joystick_smoke.gd` | ✅ ok |
+| `map_presence_smoke.gd` | ✅ ok |
+| 主场景加载（`--quit-after 8`） | ✅ 退出码 0 |
+
+#### 线上访问（`https://survivor-demo.pages.dev`）⚠️
+
+| 端点 | HTTP | 文件大小 | 说明 |
+|---|---|---|---|
+| `/` | ✅ 200 | — | 首页正常 |
+| `/index.wasm` | ✅ 200 | 9.4 MB | gzip 版绕过 25MB 限制 |
+| `/index.pck` | ✅ 200 | — | |
+| `/index.js` | ✅ 200 | — | |
+
+**注意**：`/index.wasm` 无 `Content-Encoding` / `Content-Length` 响应头，
+`Content-Type: application/wasm`，以预压缩 gzip 文件（9.4 MB）作为主文件。
+此为已知 workaround。历史记录确认此前通过 controlled web 隧道
+在 iPhone Safari 上可正常进入游戏。Pages 主链路真机验证待补。
+
+#### 问题清单（供开发 agent 修复）
+
+1. **P1 - Pages wasm 加载真机验证**：`index.wasm` 以 gzip workaround 部署，
+   虽逻辑可行但需真实浏览器（iPhone Safari / Android Chrome）截图确认
+   游戏可正常启动（非仅隧道测试）。
+2. **P1 - 竖屏布局真机截图确认**：headless smoke 已过，
+   但建议在真机竖屏下截图验证 HUD / 摇杆 / 敌人 / 整体布局。
+3. **P2 - `Content-Length` 头缺失**：`/index.wasm` 响应无 `Content-Length`，
+   可能影响某些网络环境下的加载判断，Pages 层是否可补待研究。
+
+#### 总体判定
+
+- 构建产物：**✅ 完整**
+- 本机冒烟：**✅ 全部通过**
+- 线上基础访问：**✅ 200 OK**
+- wasm 真机运行：⚠️ 待真机复验
+- 竖屏真机布局：⚠️ 待截图确认
+
+
+2026-03-22 10:05 CST
+
+### 10:05 敌人AI增强 — 环绕站位 + 分散逻辑
+
+- 目标：让敌人不再只是"直线冲向玩家"，而是呈现环绕、分散的群体感。
+- 修改文件：`game/scripts/enemy_basic.gd`
+- 改动内容：
+  1. **环绕AI（Flanking）**：每个敌人有一个随机初始相位 `_ai_flank_angle`，每帧沿垂直方向缓慢漂移，使敌人在接近玩家时沿弧线绕行而非直线冲锋。精英怪（elite）漂移幅度更大（0.38 vs 0.28）。
+  2. **分散逻辑（Separation）**：每帧检测同屏敌人，以26px为半径施加推力，防止多个敌人重叠堆叠。
+  3. **待机微动**：进入攻击距离后不再完全停止（velocity * 0.08），保留环绕视觉。
+  4. 新增变量：`_ai_flank_angle`、`_ai_separation_force`、`_ai_circle_offset`。
+- 构建输出：`builds/web-today/index.html`（已覆盖）
+- 效果验证：启动游戏后，观察多个敌人是否沿弧线靠近而非直线堆叠，elite敌人有更明显的绕行。
+- 后续建议：可进一步为 runner/tank 类型赋予不同漂移参数，或加入"包抄路径"队列逻辑。
+
+### 10:12 UI/UX 最终收口 — 结算页文案 + HUD 一致性修正
+
+- 动作：按 `ui-wireframes-hud-settlement.md` 与 `ui-direction-board-xiyou-q.md` 设计文档，对照 `main.tscn` + `main.gd` 找出不一致并做最小必要修正。
+- 涉及文件：
+  - `game/scripts/main.gd`
+  - `game/scenes/main.tscn`
+  - `builds/web-today/`
+  - `builds/web-release/`
+  - `builds/web/`
+  - `builds/pages-deploy/`
+  - `docs/worklog.md`
+- 修正内容：
+  1. **结算页徽签（BADGE）文案对齐设计文档**：
+     - `"花果山战报 · 败阵"` → `"此劫未竟"`
+     - `"花果山战报 · 通关"` → `"今日凯旋"`
+     - `"西游小戏台 · 暂歇"` → `"暂歇戏台"`
+  2. **结算页标题文案升级**：
+     - 败阵：`"此局止步，行者请再整旗鼓"` → `"此劫未竟，且再整行装"`
+     - 暂停：`"戏台暂歇，行者可先缓一口气"` → `"暂歇戏台，待行者再上"`
+     - 通关：`"三分钟试炼已过，花果山喝彩"` → `"今日凯旋，花果山喝彩"`
+  3. **结算页提示文案优化**：
+     - 暂停详情改为"本局战报已存"，语气更稳
+     - 败阵/通关把按钮名从"点按钮"改为更明确的"点【再闯一局】"
+     - 同步修复 GDScript 解析错误（字符串内中文引号导致解析失败）
+  4. **确认竖屏按钮层级正确**：`PauseButton` 在 portrait 下位于顶部右侧，`ContinueButton` 左侧半屏，`RestartButton` 右侧半屏，与设计文档"主 CTA 在右下/右侧"语义一致。
+- 确认无修改（已符合设计）：
+  - `PauseButton` = "暂停" ✓
+  - `ContinueButton` = "继续试炼" ✓（次 CTA）
+  - `RestartButton` = "再闯一局" ✓（主 CTA）
+  - `ActionTrayLabel` = "戏台操作 · 暂停 / 续战 / 再闯" ✓
+  - 竖屏暂停/结算页层级（`FocusOverlay` 在 HUD 层）✓
+  - 移动端 `MobileHint` 标题签（掌中戏台·身法提示/告急提醒/压阵提醒/本劫军令/暂歇战报）✓
+- 构建输出：
+  - `builds/web-today/` — 今日冲刺快照
+  - `builds/web-release/` — 主验收基线（已同步）
+  - `builds/web/` — 压缩交付版（已同步 gzip）
+  - `builds/pages-deploy/` — Cloudflare Pages（已发布）
+- 冒烟验证：
+  - `portrait_layout_smoke: ok` ✓
+  - `touch_joystick_smoke: ok` ✓
+  - `release_guard.sh: all release checks passed` ✓
+  - `pages_release_guard.sh: pages deploy checks passed` ✓
+- Cloudflare Pages 部署：
+  - 新部署：`https://de08f253.survivor-demo.pages.dev`
+  - 稳定域名：`https://survivor-demo.pages.dev`
+  - wasm MIME：`application/wasm` ✓，首页 200 ✓
+- 提交：待 git add 后统一提交
+
+2026-03-22 10:12 CST

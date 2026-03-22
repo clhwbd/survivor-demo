@@ -1,0 +1,87 @@
+[gd_scene load_steps=2 format=3]
+
+[sub_resource type="GDScript" id="GDScript_badge"]
+script/source = "extends Control
+# 状态签标签 · 戏台战报风
+# 用于 HUD 右上状态签、HUD 顶部播报条类别签
+# tag_type: \"military\" | \"urgent\" | \"upgrade\" | \"praise\" | \"neutral\"
+@export var tag_type := \"neutral\":
+	set(v):
+		tag_type = v
+		if is_node_ready():
+			queue_redraw()
+			_update_label()
+
+@export var tag_text := \"战报\":
+	set(v):
+		tag_text = v
+		if is_node_ready():
+			_update_label()
+
+func _ready():
+	# 高度固定，按文字宽度自适应
+	custom_minimum_size = Vector2(60, 28)
+	queue_redraw()
+	_update_label()
+
+func _update_label():
+	if has_node(\"TagLabel\"):
+		$\"TagLabel\".text = tag_text
+
+func _draw():
+	var color_bg := Color(0.0, 0.0, 0.0, 0.0)
+	var color_accent := Color(0.0, 0.0, 0.0, 0.0)
+	var color_text := Color(1.0, 1.0, 1.0, 1.0)
+	var h = 24.0
+
+	match tag_type:
+		\"military\":     # 军令签（暖金）
+			color_bg = Color(0.76, 0.58, 0.28, 0.88)
+			color_accent = Color(0.94, 0.82, 0.55, 1.0)
+			color_text = Color(0.12, 0.08, 0.06, 1.0)
+		\"urgent\":       # 告急签（朱砂）
+			color_bg = Color(0.80, 0.16, 0.12, 0.90)
+			color_accent = Color(0.95, 0.70, 0.60, 1.0)
+			color_text = Color(1.0, 0.95, 0.90, 1.0)
+		\"upgrade\":      # 修为签（暖金半透明）
+			color_bg = Color(0.76, 0.58, 0.28, 0.50)
+			color_accent = Color(0.94, 0.82, 0.55, 0.80)
+			color_text = Color(0.94, 0.82, 0.55, 1.0)
+		\"praise\":       # 喝彩签（亮金）
+			color_bg = Color(0.94, 0.82, 0.55, 0.85)
+			color_accent = Color(0.78, 0.18, 0.14, 0.90)
+			color_text = Color(0.12, 0.08, 0.06, 1.0)
+		_:               # 中性签（墨褐）
+			color_bg = Color(0.18, 0.12, 0.10, 0.80)
+			color_accent = Color(0.45, 0.38, 0.32, 0.70)
+			color_text = Color(0.94, 0.82, 0.55, 0.85)
+
+	# 签条主体（带切角的矩形）
+	var w = max(60.0, tag_text.length() * 14.0 + 16.0)
+	custom_minimum_size = Vector2(w, h)
+
+	var pts = PackedVector2Array([
+		Vector2(8, 0),
+		Vector2(w - 8, 0),
+		Vector2(w, h * 0.4),
+		Vector2(w, h),
+		Vector2(0, h),
+		Vector2(0, h * 0.4)
+	])
+	draw_colored_polygon(pts, color_bg)
+
+	# 顶部描金线
+	draw_line(Vector2(4, 1), Vector2(w - 4, 1), color_accent, 1.5)
+
+	# 左侧小标记
+	draw_rect(Rect2(2, h * 0.3, 4, h * 0.4), color_accent)
+
+	# 文字
+	var font_color = color_text
+	draw_string(ThemeDB.fallback_font, Vector2(10, h * 0.70), tag_text, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, font_color)
+"
+
+[node name="BadgeTag" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = SubResource("GDScript_badge")

@@ -1,0 +1,71 @@
+[gd_scene load_steps=2 format=3]
+
+[sub_resource type="GDScript" id="GDScript_plaque"]
+script/source = "extends Control
+# 牌匾头 · 戏台战报风
+# 用于 HUD 播报条、结算页题头的装饰头部
+# 宽度固定 40px，高度 36px
+# 可放置在标题文字左侧作为风格装饰
+func _ready():
+	custom_minimum_size = Vector2(40, 36)
+	_draw()
+
+func _draw():
+	var cx = 20.0
+	var cy = 18.0
+
+	# 牌匾头部轮廓（中间宽、两侧尖的菱形感）
+	var shape_pts = [
+		Vector2(cx, 0),       # 上尖
+		Vector2(cx + 18, 10), # 右中
+		Vector2(cx, 36),      # 下尖
+		Vector2(cx - 18, 10)  # 左中
+	]
+
+	var shape = Polygon2D.new()
+	shape.name = \"Shape\"
+	shape.polygon = PackedVector2Array(shape_pts)
+	shape.color = Color(0.12, 0.08, 0.06, 0.92)  # 墨褐底
+	shape.outline_color = Color(0.94, 0.82, 0.55, 0.90)  # 暖金边
+	shape.outline_size = 2
+	shape.z_index = 0
+	add_child(shape)
+
+	# 上部描金横线（牌匾顶部强调）
+	var top_line = Polygon2D.new()
+	top_line.name = \"TopLine\"
+	top_line.polygon = PackedVector2Array([
+		Vector2(cx - 15, 3), Vector2(cx + 15, 3),
+		Vector2(cx + 15, 5), Vector2(cx - 15, 5)
+	])
+	top_line.color = Color(0.94, 0.82, 0.55, 0.80)
+	top_line.z_index = 1
+	add_child(top_line)
+
+	# 下部朱砂小签
+	var badge = Polygon2D.new()
+	badge.name = \"Badge\"
+	badge.polygon = PackedVector2Array([
+		Vector2(cx - 10, 20), Vector2(cx + 10, 20),
+		Vector2(cx + 8, 32), Vector2(cx - 8, 32)
+	])
+	badge.color = Color(0.80, 0.16, 0.12, 0.85)  # 朱砂
+	badge.outline_color = Color(0.94, 0.82, 0.55, 0.50)
+	badge.outline_size = 1
+	badge.z_index = 1
+	add_child(badge)
+
+	# 中心小圆点装饰
+	var dot = Polygon2D.new()
+	dot.name = \"CenterDot\"
+	dot.polygon = PackedVector2Array([Vector2(-3,-3), Vector2(3,-3), Vector2(3,3), Vector2(-3,3)])
+	dot.color = Color(0.94, 0.82, 0.55, 0.90)
+	dot.position = Vector2(cx, 10)
+	dot.z_index = 2
+	add_child(dot)
+"
+
+[node name="PlaqueHead" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = SubResource("GDScript_plaque")

@@ -1,0 +1,60 @@
+[gd_scene load_steps=2 format=3]
+
+[sub_resource type="GDScript" id="GDScript_corner"]
+script/source = "extends Control
+# 左上角花 · 戏台战报风
+# 云纹/铜钉风格小装饰，用于 HUD 面板四角
+# 尺寸：48x48，可 9-slice 缩放
+func _ready():
+	custom_minimum_size = Vector2(48, 48)
+	_draw()
+
+func _draw():
+	var cx = 24.0
+	var cy = 24.0
+
+	# 弧形边线（从右上角弧向左下）
+	var curve_pts = []
+	for i in range(12):
+		var t = float(i) / 11.0
+		var angle = PI * 0.5 * (1.0 - t)
+		var r = 20.0 * (1.0 - t * 0.6)
+		curve_pts.append(Vector2(cx - 12 + cos(angle) * r, cy - 12 + sin(angle) * r))
+
+	var curve = Polygon2D.new()
+	curve.name = \"CurveLine\"
+	curve.polygon = PackedVector2Array(curve_pts)
+	curve.color = Color(0.94, 0.82, 0.55, 0.65)
+	curve.outline_color = Color(0.94, 0.82, 0.55, 0.80)
+	curve.outline_size = 1
+	curve.z_index = 0
+	add_child(curve)
+
+	# 铜钉（小圆点）
+	var nail = Polygon2D.new()
+	nail.name = \"Nail\"
+	nail.polygon = PackedVector2Array([Vector2(-3,-3), Vector2(3,-3), Vector2(3,3), Vector2(-3,3)])
+	nail.color = Color(0.94, 0.82, 0.55, 0.90)
+	nail.position = Vector2(cx - 12, cy - 12)
+	nail.z_index = 1
+	add_child(nail)
+
+	# 内弧装饰
+	var inner_arc = Polygon2D.new()
+	inner_arc.name = \"InnerArc\"
+	var i_pts = []
+	for i in range(8):
+		var t = float(i) / 7.0
+		var angle = PI * 0.5 * (1.0 - t)
+		var r = 10.0 * (1.0 - t * 0.5)
+		i_pts.append(Vector2(cx - 12 + cos(angle) * r, cy - 12 + sin(angle) * r))
+	inner_arc.polygon = PackedVector2Array(i_pts)
+	inner_arc.color = Color(0.94, 0.82, 0.55, 0.35)
+	inner_arc.z_index = 0
+	add_child(inner_arc)
+"
+
+[node name="PanelCornerLU" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = SubResource("GDScript_corner")

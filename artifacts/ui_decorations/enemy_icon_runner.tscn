@@ -1,0 +1,39 @@
+[gd_scene load_steps=2 format=3]
+
+[sub_resource type="GDScript" id="GDScript_icon"]
+script/source = "extends Control
+# 敌人小图标 · 快妖（runner）
+# enemy_type: \"runner\"
+func _ready():
+	custom_minimum_size = Vector2(32, 32)
+	enemy_type = \"runner\"
+
+var enemy_type := \"runner\":
+	set(v):
+		enemy_type = v
+		queue_redraw()
+
+func _draw():
+	var cx = 16.0
+	var cy = 16.0
+	var r = 13.0
+	var color_bg = Color(0.35, 0.55, 0.30, 0.25)
+	var color_fg = Color(0.35, 0.55, 0.30, 0.90)
+
+	draw_circle(Vector2(cx, cy), r, color_bg)
+	draw_arc(Vector2(cx, cy), r, 0.0, TAU, 32, color_fg, 2.0, true)
+
+	# 菱形（快妖特征）
+	var dia = [
+		Vector2(cx, cy - 9),
+		Vector2(cx + 7, cy),
+		Vector2(cx, cy + 9),
+		Vector2(cx - 7, cy)
+	]
+	draw_colored_polygon(PackedVector2Array(dia), Color(color_fg.r, color_fg.g, color_fg.b, 0.50))
+"
+
+[node name="EnemyIconRunner" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = SubResource("GDScript_icon")

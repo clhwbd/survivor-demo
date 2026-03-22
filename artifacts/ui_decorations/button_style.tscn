@@ -1,0 +1,120 @@
+[gd_scene load_steps=2 format=3]
+
+[sub_resource type="GDScript" id="GDScript_btn"]
+script/source = "extends Control
+# 统一按钮样式 · 戏台战报风
+# 风格来源：戏台战报风 + 云纹卷轴风
+# 状态：normal / hover / pressed / disabled
+# 权重：primary (朱砂强调) / secondary (深墨金边) / ghost (低权重)
+@export var button_label := \"再闯一局\":
+	set(v):
+		button_label = v
+		if is_node_ready() and has_node(\"Label\"):
+			$\"Label\".text = v
+@export var button_weight := \"primary\":  # primary | secondary | ghost
+@export var button_size := Vector2(160, 44)
+
+signal pressed()
+
+var _hovered := false
+var _pressed := false
+
+func _ready():
+	custom_minimum_size = button_size
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	if has_node(\"Label\"):
+		$\"Label\".text = button_label
+	queue_redraw()
+
+func _draw():
+	var w = button_size.x
+	var h = button_size.y
+	var corner = 6.0  # 圆角
+
+	var bg_color := Color(0.0, 0.0, 0.0, 0.0)
+	var fg_color := Color(0.0, 0.0, 0.0, 0.0)
+	var border_color := Color(0.0, 0.0, 0.0, 0.0)
+	var text_color := Color(1.0, 1.0, 1.0, 1.0)
+	var border_w := 2.0
+
+	match button_weight:
+		\"primary\":    # 主 CTA：朱砂高亮
+			bg_color = Color(0.80, 0.16, 0.12, 0.92)
+			fg_color = Color(0.78, 0.12, 0.10, 1.0)  # hover 时略暗
+			border_color = Color(0.94, 0.82, 0.55, 0.95)  # 暖金边框
+			text_color = Color(1.0, 0.95, 0.88, 1.0)
+		\"secondary\":  # 次 CTA：深墨金边
+			bg_color = Color(0.14, 0.09, 0.07, 0.88)
+			fg_color = Color(0.18, 0.12, 0.10, 0.92)
+			border_color = Color(0.76, 0.58, 0.28, 0.85)
+			text_color = Color(0.94, 0.82, 0.55, 0.90)
+		\"ghost\":      # 辅 CTA：低权重
+			bg_color = Color(0.18, 0.12, 0.10, 0.55)
+			fg_color = Color(0.22, 0.15, 0.12, 0.70)
+			border_color = Color(0.55, 0.48, 0.40, 0.60)
+			text_color = Color(0.75, 0.68, 0.60, 0.80)
+			border_w = 1.5
+
+	var current_bg = bg_color
+	if _pressed:
+		current_bg = fg_color.darkened(0.2) if fg_color.a > 0.01 else bg_color.darkened(0.15)
+	elif _hovered:
+		current_bg = fg_color
+
+	# 圆角矩形背景
+	var bg_pts = _rounded_rect(0.0, 0.0, w, h, corner)
+	draw_colored_polygon(bg_pts, current_bg)
+
+	# 边框
+	var border_pts = _rounded_rect(0.5, 0.5, w - 1.0, h - 1.0, corner)
+	draw_colored_polygon(border_pts, Color(0,0,0,0), true, border_color, border_w)
+
+	# 主 CTA 顶部金纹
+	if button_weight == \"primary\":
+		draw_line(Vector2(corner, 2), Vector2(w - corner, 2), Color(0.94, 0.82, 0.55, 0.70), 1.5)
+		# 两端小圆点
+		draw_circle(Vector2(corner, 2), 2.0, Color(0.94, 0.82, 0.55, 0.70))
+		draw_circle(Vector2(w - corner, 2), 2.0, Color(0.94, 0.82, 0.55, 0.70))
+
+	# 文字（居中）
+	var font_size = 14 if button_weight == \"primary\" else 13
+	draw_string(ThemeDB.fallback_font, Vector2(w * 0.5 - button_label.length() * font_size * 0.28, h * 0.63), button_label, HORIZONTAL_ALIGNMENT_CENTER, -1, font_size, text_color)
+
+func _rounded_rect(x, y, w, h, r):
+	var pts = PackedVector2Array([
+		Vector2(x + r, y),
+		Vector2(x + w - r, y),
+		Vector2(x + w, y + r),
+		Vector2(x + w, y + h - r),
+		Vector2(x + w - r, y + h),
+		Vector2(x + r, y + h),
+		Vector2(x, y + h - r),
+		Vector2(x, y + r)
+	])
+	return pts
+
+func _gui_input(event):
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_pressed = true
+			queue_redraw()
+		else:
+			if _pressed:
+				pressed.emit()
+			_pressed = false
+			queue_redraw()
+
+func _mouse_enter():
+	_hovered = true
+	queue_redraw()
+
+func _mouse_exit():
+	_hovered = false
+	_pressed = false
+	queue_redraw()
+"
+
+[node name="ActionButton" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = SubResource("GDScript_btn")

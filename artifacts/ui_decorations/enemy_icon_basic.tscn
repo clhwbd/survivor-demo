@@ -1,0 +1,84 @@
+[gd_scene load_steps=2 format=3]
+
+[sub_resource type="GDScript" id="GDScript_icon"]
+script/source = "extends Control
+# 敌人小图标 · 程序化占位符
+# enemy_type: \"basic\" | \"runner\" | \"tank\"
+# 用于 HUD 敌群指示、结算页敌情图标等
+@export var enemy_type := \"basic\":
+	set(v):
+		enemy_type = v
+		if is_node_ready():
+			queue_redraw()
+			_update_label()
+
+func _ready():
+	custom_minimum_size = Vector2(32, 32)
+	_update_label()
+
+func _update_label():
+	if has_node(\"TypeLabel\"):
+		var labels = {\"basic\": \"妖\", \"runner\": \"速\", \"tank\": \"重\"}
+		$\"TypeLabel\".text = labels.get(enemy_type, \"妖\")
+
+func _draw():
+	var cx = 16.0
+	var cy = 16.0
+	var r = 13.0
+	var color_bg := Color(0.0, 0.0, 0.0, 0.0)
+	var color_fg := Color(0.0, 0.0, 0.0, 0.0)
+	var label := \"妖\"
+
+	match enemy_type:
+		\"basic\":
+			color_bg = Color(0.776, 0.333, 0.231, 0.25)   # 土红底
+			color_fg = Color(0.776, 0.333, 0.231, 0.90)   # 土红边
+			label = \"妖\"
+		\"runner\":
+			color_bg = Color(0.35, 0.55, 0.30, 0.25)      # 青绿底
+			color_fg = Color(0.35, 0.55, 0.30, 0.90)      # 青绿边
+			label = \"速\"
+		\"tank\":
+			color_bg = Color(0.40, 0.28, 0.60, 0.25)      # 紫褐底
+			color_fg = Color(0.40, 0.28, 0.60, 0.90)      # 紫褐边
+			label = \"重\"
+		_:
+			color_bg = Color(0.45, 0.35, 0.28, 0.25)
+			color_fg = Color(0.45, 0.35, 0.28, 0.90)
+
+	# 圆形底
+	draw_circle(Vector2(cx, cy), r, color_bg)
+	# 描边
+	draw_arc(Vector2(cx, cy), r, 0.0, TAU, 32, color_fg, 2.0, true)
+
+	# 内部形状差异
+	match enemy_type:
+		\"basic\":
+			# 六边形（普通妖）
+			var hex_pts = []
+			for i in range(6):
+				var a = TAU * i / 6.0 - PI / 2.0
+				hex_pts.append(Vector2(cx + cos(a) * 8.0, cy + sin(a) * 8.0))
+			draw_colored_polygon(PackedVector2Array(hex_pts), Color(color_fg.r, color_fg.g, color_fg.b, 0.50))
+		\"runner\":
+			# 菱形（快妖）
+			var dia = [
+				Vector2(cx, cy - 9),
+				Vector2(cx + 7, cy),
+				Vector2(cx, cy + 9),
+				Vector2(cx - 7, cy)
+			]
+			draw_colored_polygon(PackedVector2Array(dia), Color(color_fg.r, color_fg.g, color_fg.b, 0.50))
+		\"tank\":
+			# 方块（重装）
+			var box_rect = Rect2(cx - 7, cy - 7, 14, 14)
+			draw_rect(box_rect, Color(color_fg.r, color_fg.g, color_fg.b, 0.50))
+			# 对角线加强
+			draw_line(Vector2(cx - 6, cy - 6), Vector2(cx + 6, cy + 6), Color(color_fg.r, color_fg.g, color_fg.b, 0.35), 1.5)
+			draw_line(Vector2(cx + 6, cy - 6), Vector2(cx - 6, cy + 6), Color(color_fg.r, color_fg.g, color_fg.b, 0.35), 1.5)
+"
+
+[node name="EnemyIconBasic" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = SubResource("GDScript_icon")

@@ -1,0 +1,36 @@
+[gd_scene load_steps=2 format=3]
+
+[sub_resource type="GDScript" id="GDScript_icon"]
+script/source = "extends Control
+# 敌人小图标 · 重装（tank）
+func _ready():
+	custom_minimum_size = Vector2(32, 32)
+	enemy_type = \"tank\"
+
+var enemy_type := \"tank\":
+	set(v):
+		enemy_type = v
+		queue_redraw()
+
+func _draw():
+	var cx = 16.0
+	var cy = 16.0
+	var r = 13.0
+	var color_bg = Color(0.40, 0.28, 0.60, 0.25)
+	var color_fg = Color(0.40, 0.28, 0.60, 0.90)
+
+	draw_circle(Vector2(cx, cy), r, color_bg)
+	draw_arc(Vector2(cx, cy), r, 0.0, TAU, 32, color_fg, 2.0, true)
+
+	# 方块（重装特征）
+	var box_rect = Rect2(cx - 7, cy - 7, 14, 14)
+	draw_rect(box_rect, Color(color_fg.r, color_fg.g, color_fg.b, 0.50))
+	# 对角线
+	draw_line(Vector2(cx - 6, cy - 6), Vector2(cx + 6, cy + 6), Color(color_fg.r, color_fg.g, color_fg.b, 0.35), 1.5)
+	draw_line(Vector2(cx + 6, cy - 6), Vector2(cx - 6, cy + 6), Color(color_fg.r, color_fg.g, color_fg.b, 0.35), 1.5)
+"
+
+[node name="EnemyIconTank" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = SubResource("GDScript_icon")

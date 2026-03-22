@@ -1,0 +1,185 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="PackedScene" path="res://artifacts/ui_decorations/stamp_victory.tscn" id="1_stamp_v"]
+[ext_resource type="PackedScene" path="res://artifacts/ui_decorations/stamp_defeat.tscn" id="2_stamp_d"]
+[ext_resource type="PackedScene" path="res://artifacts/ui_decorations/stamp_pause.tscn" id="3_stamp_p"]
+[ext_resource type="PackedScene" path="res://artifacts/ui_decorations/badge_tag.tscn" id="4_badge"]
+[ext_resource type="PackedScene" path="res://artifacts/ui_decorations/panel_corner_lu.tscn" id="5_corner"]
+[ext_resource type="PackedScene" path="res://artifacts/ui_decorations/button_style.tscn" id="6_btn"]
+
+[node name="UIPreview" type="Control"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script/source = "extends Control
+
+func _ready():
+	# 本场景用于预览所有 UI 装饰元素的组合效果
+	# 在编辑器中实例化子场景查看效果
+	# 也可作为 Godot 内置预览使用
+	pass
+"
+
+[node name="Bg" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.05, 0.04, 1)
+
+# ===== 印章行（结算页用）=====
+[node name="StampRow" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 40.0
+offset_top = 20.0
+offset_right = -40.0
+offset_bottom = 160.0
+grow_horizontal = 2
+
+[node name="VictoryStamp" type="Control" parent="StampRow" groups=["preview_item"]]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="StampVictory" parent="StampRow/VictoryStamp" instance=ExtResource("1_stamp_v")]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -60.0
+offset_top = -60.0
+offset_right = 60.0
+offset_bottom = 60.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="DefeatStamp" type="Control" parent="StampRow" groups=["preview_item"]]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="StampDefeat" parent="StampRow/DefeatStamp" instance=ExtResource("2_stamp_d")]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -60.0
+offset_top = -60.0
+offset_right = 60.0
+offset_bottom = 60.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PauseStamp" type="Control" parent="StampRow" groups=["preview_item"]]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="StampPause" parent="StampRow/PauseStamp" instance=ExtResource("3_stamp_p")]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -60.0
+offset_top = -60.0
+offset_right = 60.0
+offset_bottom = 60.0
+grow_horizontal = 2
+grow_vertical = 2
+
+# ===== 标签签行（状态签/HUD 用）=====
+[node name="BadgeRow" type="HBoxContainer" parent="."]
+layout_mode = 1
+offset_left = 40.0
+offset_top = 180.0
+offset_right = 600.0
+offset_bottom = 260.0
+theme_override_constants/separation = 16
+
+[node name="MilitaryBadge" parent="BadgeRow" instance=ExtResource("4_badge")]
+layout_mode = 2
+tag_type = "military"
+tag_text = "军令"
+
+[node name="UrgentBadge" parent="BadgeRow" instance=ExtResource("4_badge")]
+layout_mode = 2
+tag_type = "urgent"
+tag_text = "告急"
+
+[node name="UpgradeBadge" parent="BadgeRow" instance=ExtResource("4_badge")]
+layout_mode = 2
+tag_type = "upgrade"
+tag_text = "修为"
+
+[node name="PraiseBadge" parent="BadgeRow" instance=ExtResource("4_badge")]
+layout_mode = 2
+tag_type = "praise"
+tag_text = "喝彩"
+
+[node name="NeutralBadge" parent="BadgeRow" instance=ExtResource("4_badge")]
+layout_mode = 2
+tag_type = "neutral"
+tag_text = "战报"
+
+# ===== 按钮行（CTA 用）=====
+[node name="ButtonRow" type="HBoxContainer" parent="."]
+layout_mode = 1
+offset_left = 40.0
+offset_top = 280.0
+offset_right = 700.0
+offset_bottom = 340.0
+theme_override_constants/separation = 12
+
+[node name="PrimaryBtn" parent="ButtonRow" instance=ExtResource("6_btn")]
+layout_mode = 2
+button_label = "再闯一局"
+button_weight = "primary"
+button_size = Vector2(160, 44)
+
+[node name="SecondaryBtn" parent="ButtonRow" instance=ExtResource("6_btn")]
+layout_mode = 2
+button_label = "继续试炼"
+button_weight = "secondary"
+button_size = Vector2(140, 44)
+
+[node name="GhostBtn" parent="ButtonRow" instance=ExtResource("6_btn")]
+layout_mode = 2
+button_label = "返回主菜单"
+button_weight = "ghost"
+button_size = Vector2(140, 44)
+
+# ===== 面板角花（装饰参考）=====
+[node name="CornerDeco" type="Control" parent="."]
+layout_mode = 1
+offset_left = 20.0
+offset_top = 360.0
+offset_right = 80.0
+offset_bottom = 420.0
+
+[node name="PanelCornerLU" parent="CornerDeco" instance=ExtResource("5_corner")]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -48.0
+
+# ===== 标题标签 =====
+[node name="TitlePreview" type="Label" parent="."]
+layout_mode = 1
+offset_left = 40.0
+offset_top = 430.0
+offset_right = 700.0
+offset_bottom = 450.0
+text = "戏台战报风 · 最小可见资产包 · 预览参考"
+horizontal_alignment = 1
+add_theme_color_override(\"font_color\", Color(0.60, 0.52, 0.45, 0.80))
+add_theme_font_size_override(\"font_size\", 11)

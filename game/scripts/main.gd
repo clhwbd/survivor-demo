@@ -880,23 +880,23 @@ func _update_focus_overlay() -> void:
 	var badge_text := "花果山戏报"
 	if pause_requested:
 		overlay_visible = true
-		badge_text = "西游小戏台 · 暂歇"
-		focus_title.text = "戏台暂歇，行者可先缓一口气"
-		focus_detail.text = "此处会保留本局战报。按 Esc / P 或点下方“继续试炼”回战场；若想换一局手感，也可直接重开。"
+		badge_text = "暂歇戏台"
+		focus_title.text = "暂歇戏台，待行者再上"
+		focus_detail.text = "本局战报已存。按 Esc / P 或点【继续试炼】回战场；想换一局也可直接点【再闯一局】。"
 		if summary_label != null:
 			summary_label.text = _build_run_summary("暂歇整装")
 	elif game_over:
 		overlay_visible = true
-		badge_text = "花果山战报 · 败阵"
-		focus_title.text = "此局止步，行者请再整旗鼓"
-		focus_detail.text = "本局斩妖 %d，头目来袭 %d 次。按 R 或点“再闯一局”，马上回到花果山继续清妖。" % [kill_count, _elites_spawned_total]
+		badge_text = "此劫未竟"
+		focus_title.text = "此劫未竟，且再整行装"
+		focus_detail.text = ("本局斩妖 %d，头目来袭 %d 次。按 R 或点【再闯一局】，马上回到花果山继续清妖。" % [kill_count, _elites_spawned_total])
 		if summary_label != null:
 			summary_label.text = _build_run_summary(_get_settlement_title(false))
 	elif demo_clear:
 		overlay_visible = true
-		badge_text = "花果山战报 · 通关"
-		focus_title.text = "三分钟试炼已过，花果山喝彩"
-		focus_detail.text = "你已撑过 %02d:%02d，当前修为 %d 重。按 R 或点按钮再走一遭，还能继续压更高斩妖分数。" % [int(elapsed_time) / 60, int(elapsed_time) % 60, player.level]
+		badge_text = "今日凯旋"
+		focus_title.text = "今日凯旋，花果山喝彩"
+		focus_detail.text = ("你已撑过 %02d:%02d，当前修为 %d 重。按 R 或点【再闯一局】再走一遭，斩妖分数还能继续往上压。" % [int(elapsed_time) / 60, int(elapsed_time) % 60, player.level])
 		if summary_label != null:
 			summary_label.text = _build_run_summary(_get_settlement_title(true))
 	else:

@@ -23,6 +23,9 @@ var _ornament_base_rotation: float = 0.0
 var _ornament_base_position: Vector2 = Vector2.ZERO
 var _body_base_position: Vector2 = Vector2.ZERO
 var _shadow_base_position: Vector2 = Vector2.ZERO
+var _ai_flank_angle: float = 0.0
+var _ai_separation_force: Vector2 = Vector2.ZERO
+var _ai_circle_offset: Vector2 = Vector2.ZERO
 
 @onready var body_polygon: Polygon2D = $Body
 @onready var shadow_polygon: Polygon2D = get_node_or_null("Shadow") as Polygon2D
@@ -30,6 +33,7 @@ var _shadow_base_position: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
 	health = max_health
+	_ai_flank_angle = randf() * TAU  # random starting phase for flanking
 	if target == null and not target_path.is_empty():
 		target = get_node_or_null(target_path) as Node2D
 	if body_polygon != null:
@@ -65,17 +69,56 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var to_target := target.global_position - global_position
+	var distance_to_target := to_target.length()
 	var desired_velocity := Vector2.ZERO
 	if to_target != Vector2.ZERO:
-		desired_velocity = to_target.normalized() * move_speed
+		# ---- flanking AI: circle around player instead of beelining ----
+		var base_dir := to_target.normalized()
+		# Slowly drift flank angle so enemies spread out over time
+		_ai_flank_angle += delta * (0.28 + randf() * 0.14)
+		var flank_strength := 0.28
+		if is_elite:
+			flank_strength = 0.38
+		# Circle perpendicular to player direction
+		var perpendicular := Vector2(-base_dir.y, base_dir.x)
+		var flank_offset := perpendicular * sin(_ai_flank_angle) * flank_strength
+		# Desired position: slightly to the side of player, then close in
+		var preferred_distance := 42.0 + randf() * 22.0  # slightly varied standoff
+		var preferred_pos := target.global_position + flank_offset * distance_to_target * 0.35
+		_ai_circle_offset = _ai_circle_offset.lerp(flank_offset * 38.0, delta * 2.8)
+		var circle_dir := preferred_pos + _ai_circle_offset - global_position
+		if circle_dir != Vector2.ZERO:
+			desired_velocity = circle_dir.normalized() * move_speed
+		# When within strike range, reduce direct forward speed and keep circling
+		var hit_distance := 18.0
+		if is_elite:
+			hit_distance = 22.0
+		if distance_to_target < hit_distance + 24.0:
+			desired_velocity = desired_velocity * 0.18 + base_dir * move_speed * 0.06
 		if _spawn_grace_remaining > 0.0:
 			desired_velocity *= 0.82
+
+		# ---- separation: push away from nearby enemies ----
+		_ai_separation_force = _ai_separation_force.lerp(Vector2.ZERO, delta * 5.0)
+		var sep_radius := 26.0
+		var sep_force := Vector2.ZERO
+		var parent := get_parent()
+		if parent != null:
+			for sibling in parent.get_children():
+				if sibling == self or not sibling is CharacterBody2D:
+					continue
+				var diff := global_position - sibling.global_position
+				var dist := diff.length()
+				if dist < sep_radius and dist > 0.1:
+					sep_force += diff.normalized() * (sep_radius - dist) / sep_radius * move_speed * 0.55
+		_ai_separation_force = _ai_separation_force.lerp(sep_force, delta * 12.0)
+		desired_velocity += _ai_separation_force
 
 	var hit_distance_sq := 324.0
 	if is_elite:
 		hit_distance_sq = 484.0
 	if _spawn_grace_remaining <= 0.0 and to_target.length_squared() <= hit_distance_sq:
-		desired_velocity = Vector2.ZERO
+		desired_velocity = desired_velocity * 0.08  # almost stop when in range, keep visual movement
 		var now := Time.get_ticks_msec()
 		var hit_cooldown := 700
 		if is_elite:
